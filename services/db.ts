@@ -51,10 +51,8 @@ export const hashPassword = async (plainText: string): Promise<string> => {
 
 export const sendAttendanceToCloud = async (records: AttendanceRecord[]): Promise<void> => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
-    if (!edgeUrl || !anonKey) {
-        console.error("❌ VITE_SUPABASE_EDGE_URL or VITE_SUPABASE_ANON_KEY not configured! Check your environment variables.");
+    if (!edgeUrl) {
+        console.error("❌ VITE_SUPABASE_EDGE_URL not configured! Check your environment variables.");
         return;
     }
 
@@ -76,8 +74,6 @@ export const sendAttendanceToCloud = async (records: AttendanceRecord[]): Promis
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${anonKey}`,
-                'apikey': anonKey,
             },
             body: JSON.stringify({ records: payload })
         });
@@ -104,10 +100,9 @@ export const sendAttendanceToCloud = async (records: AttendanceRecord[]): Promis
 
 export const sendStudentsToCloud = async (students: Student[]): Promise<void> => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    if (!edgeUrl || !anonKey) {
-        console.error("❌ VITE_SUPABASE_EDGE_URL or VITE_SUPABASE_ANON_KEY not configured! Check your environment variables.");
+    if (!edgeUrl) {
+        console.error("❌ VITE_SUPABASE_EDGE_URL not configured! Check your environment variables.");
         return;
     }
 
@@ -133,8 +128,6 @@ export const sendStudentsToCloud = async (students: Student[]): Promise<void> =>
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${anonKey}`,
-                'apikey': anonKey,
             },
             body: JSON.stringify({ students: payload })
         });
@@ -161,10 +154,9 @@ export const sendStudentsToCloud = async (students: Student[]): Promise<void> =>
 
 export const sendFichasToCloud = async (fichas: Ficha[]): Promise<void> => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    if (!edgeUrl || !anonKey) {
-        console.error("❌ VITE_SUPABASE_EDGE_URL or VITE_SUPABASE_ANON_KEY not configured! Check your environment variables.");
+    if (!edgeUrl) {
+        console.error("❌ VITE_SUPABASE_EDGE_URL not configured! Check your environment variables.");
         return;
     }
 
@@ -187,8 +179,6 @@ export const sendFichasToCloud = async (fichas: Ficha[]): Promise<void> => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${anonKey}`,
-                'apikey': anonKey,
             },
             body: JSON.stringify({ fichas: payload })
         });
@@ -215,10 +205,9 @@ export const sendFichasToCloud = async (fichas: Ficha[]): Promise<void> => {
 
 export const sendSessionsToCloud = async (sessions: ClassSession[]): Promise<void> => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
-    if (!edgeUrl || !anonKey) {
-        console.error("❌ VITE_SUPABASE_EDGE_URL or VITE_SUPABASE_ANON_KEY not configured! Check your environment variables.");
+    if (!edgeUrl) {
+        console.error("❌ VITE_SUPABASE_EDGE_URL not configured! Check your environment variables.");
         return;
     }
 
@@ -241,8 +230,6 @@ export const sendSessionsToCloud = async (sessions: ClassSession[]): Promise<voi
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${anonKey}`,
-                'apikey': anonKey,
             },
             body: JSON.stringify({ sessions: payload })
         });
@@ -264,6 +251,72 @@ export const sendSessionsToCloud = async (sessions: ClassSession[]): Promise<voi
     } catch (error: any) {
         console.error("❌ Failed to sync sessions to cloud:", error.message || error);
         // Don't throw - allow app to continue working locally
+    }
+};
+
+// --- EDGE FUNCTION HELPERS FOR DELETES ---
+const postToEdge = async (path: string, payload: Record<string, any>): Promise<any> => {
+    const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
+    if (!edgeUrl) {
+        console.error("❌ VITE_SUPABASE_EDGE_URL not configured! Check your environment variables.");
+        return null;
+    }
+
+    const response = await fetch(`${edgeUrl}/${path}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        let errorData;
+        try {
+            errorData = JSON.parse(errorText);
+        } catch {
+            errorData = { message: errorText || `HTTP ${response.status}` };
+        }
+        console.error(`❌ Edge function ${path} failed:`, errorData);
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+    }
+
+    try {
+        return await response.json();
+    } catch {
+        return null;
+    }
+};
+
+export const deleteSessionFromCloud = async (sessionId: string): Promise<void> => {
+    if (!sessionId) return;
+    try {
+        await postToEdge('delete-session', { sessionId });
+        console.log("✅ Session deleted in cloud:", sessionId);
+    } catch (error: any) {
+        console.error("❌ Failed to delete session in cloud:", error.message || error);
+    }
+};
+
+export const softDeleteStudentFromCloud = async (studentId: string): Promise<void> => {
+    if (!studentId) return;
+    try {
+        await postToEdge('soft-delete-student', { studentId });
+        console.log("✅ Student soft-deleted in cloud:", studentId);
+    } catch (error: any) {
+        console.error("❌ Failed to soft-delete student in cloud:", error.message || error);
+    }
+};
+
+export const deleteFichaFromCloud = async (fichaId: string): Promise<void> => {
+    if (!fichaId) return;
+    try {
+        await postToEdge('delete-ficha', { fichaId });
+        console.log("✅ Ficha deleted in cloud:", fichaId);
+    } catch (error: any) {
+        console.error("❌ Failed to delete ficha in cloud:", error.message || error);
+        throw error;
     }
 };
 
@@ -361,12 +414,11 @@ export const updateStudent = (updatedStudent: Student) => {
   }
 };
 
-export const deleteStudent = (id: string) => {
+export const deleteStudent = async (id: string) => {
   const current = getStudents();
   const updated = current.filter(s => s.id !== id);
   saveStudents(updated);
-  // Sync updated students list to cloud
-  sendStudentsToCloud(updated);
+  await softDeleteStudentFromCloud(id);
 };
 
 // Fichas
@@ -401,20 +453,25 @@ export const updateFicha = (updatedFicha: Ficha) => {
   }
 };
 
-export const deleteFicha = (id: string) => {
+export const deleteFicha = async (id: string) => {
   const fichas = getFichas();
   const fichaToDelete = fichas.find(f => f.id === id);
-  if (fichaToDelete) {
-    const allStudents = getStudents();
-    const studentsToKeep = allStudents.filter(s => s.group !== fichaToDelete.code);
-    saveStudents(studentsToKeep);
-    // Sync updated students list to cloud
-    sendStudentsToCloud(studentsToKeep);
+  if (!fichaToDelete) return;
+
+  try {
+      await deleteFichaFromCloud(id);
+      
+      const allStudents = getStudents();
+      const studentsToKeep = allStudents.filter(s => s.group !== fichaToDelete.code);
+      if (studentsToKeep.length !== allStudents.length) {
+          saveStudents(studentsToKeep);
+      }
+
+      const updatedFichas = fichas.filter(f => f.id !== id);
+      saveFichas(updatedFichas);
+  } catch (error) {
+      console.error("❌ Failed to delete ficha:", error);
   }
-  const updatedFichas = fichas.filter(f => f.id !== id);
-  saveFichas(updatedFichas);
-  // Sync updated fichas list to cloud
-  sendFichasToCloud(updatedFichas);
 };
 
 // --- SESSIONS (Authorized Dates) ---
@@ -503,15 +560,10 @@ export const deleteSession = async (id: string) => {
             notifyChange();
         }
 
-        // 4. CLOUD DELETION (Async) - handled via Edge Functions
-        // Sync updated attendance records
-        if (attendance.length !== recordsToKeep.length) {
-            sendAttendanceToCloud(recordsToKeep);
-        }
     }
     
-    // Sync updated sessions list to cloud
-    sendSessionsToCloud(updatedSessions);
+    // 4. CLOUD DELETION (Async) - handled via Edge Function
+    await deleteSessionFromCloud(idStr);
 };
 
 // Attendance
@@ -695,7 +747,7 @@ export const syncFromCloud = async () => {
         }
 
         // Students
-        const { data: s } = await client.from('students').select('*');
+        const { data: s } = await client.from('students').select('*').eq('active', true);
         if (s) {
             const mappedStudents = s.map((x: any) => ({ 
                 id: x.id, 
