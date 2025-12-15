@@ -51,9 +51,15 @@ export const hashPassword = async (plainText: string): Promise<string> => {
 
 export const sendAttendanceToCloud = async (records: AttendanceRecord[]): Promise<void> => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    if (!edgeUrl) {
-        console.warn("VITE_SUPABASE_EDGE_URL not configured, skipping cloud sync");
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!edgeUrl || !anonKey) {
+        console.error("❌ VITE_SUPABASE_EDGE_URL or VITE_SUPABASE_ANON_KEY not configured! Check your environment variables.");
         return;
+    }
+
+    if (records.length === 0) {
+        return; // Nothing to sync
     }
 
     try {
@@ -63,29 +69,50 @@ export const sendAttendanceToCloud = async (records: AttendanceRecord[]): Promis
             present: r.present
         }));
 
-        const response = await fetch(`${edgeUrl}/save-attendance`, {
+        const url = `${edgeUrl}/save-attendance`;
+        console.log("📤 Syncing attendance to:", url, "Records:", payload.length);
+
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${anonKey}`,
+                'apikey': anonKey,
             },
             body: JSON.stringify({ records: payload })
         });
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-            throw new Error(error.message || `HTTP ${response.status}`);
+            const errorText = await response.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { message: errorText || `HTTP ${response.status}` };
+            }
+            console.error("❌ Attendance sync failed:", errorData);
+            throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
         }
-    } catch (error) {
-        console.error("Failed to sync attendance to cloud:", error);
-        throw error;
+
+        const result = await response.json();
+        console.log("✅ Attendance synced successfully:", result);
+    } catch (error: any) {
+        console.error("❌ Failed to sync attendance to cloud:", error.message || error);
+        // Don't throw - allow app to continue working locally
     }
 };
 
 export const sendStudentsToCloud = async (students: Student[]): Promise<void> => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    if (!edgeUrl) {
-        console.warn("VITE_SUPABASE_EDGE_URL not configured, skipping cloud sync");
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!edgeUrl || !anonKey) {
+        console.error("❌ VITE_SUPABASE_EDGE_URL or VITE_SUPABASE_ANON_KEY not configured! Check your environment variables.");
         return;
+    }
+
+    if (students.length === 0) {
+        return; // Nothing to sync
     }
 
     try {
@@ -99,29 +126,50 @@ export const sendStudentsToCloud = async (students: Student[]): Promise<void> =>
             group: s.group
         }));
 
-        const response = await fetch(`${edgeUrl}/save-students`, {
+        const url = `${edgeUrl}/save-students`;
+        console.log("📤 Syncing students to:", url, "Students:", payload.length);
+
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${anonKey}`,
+                'apikey': anonKey,
             },
             body: JSON.stringify({ students: payload })
         });
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-            throw new Error(error.message || `HTTP ${response.status}`);
+            const errorText = await response.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { message: errorText || `HTTP ${response.status}` };
+            }
+            console.error("❌ Students sync failed:", errorData);
+            throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
         }
-    } catch (error) {
-        console.error("Failed to sync students to cloud:", error);
-        throw error;
+
+        const result = await response.json();
+        console.log("✅ Students synced successfully:", result);
+    } catch (error: any) {
+        console.error("❌ Failed to sync students to cloud:", error.message || error);
+        // Don't throw - allow app to continue working locally
     }
 };
 
 export const sendFichasToCloud = async (fichas: Ficha[]): Promise<void> => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    if (!edgeUrl) {
-        console.warn("VITE_SUPABASE_EDGE_URL not configured, skipping cloud sync");
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!edgeUrl || !anonKey) {
+        console.error("❌ VITE_SUPABASE_EDGE_URL or VITE_SUPABASE_ANON_KEY not configured! Check your environment variables.");
         return;
+    }
+
+    if (fichas.length === 0) {
+        return; // Nothing to sync
     }
 
     try {
@@ -132,29 +180,50 @@ export const sendFichasToCloud = async (fichas: Ficha[]): Promise<void> => {
             description: f.description
         }));
 
-        const response = await fetch(`${edgeUrl}/save-fichas`, {
+        const url = `${edgeUrl}/save-fichas`;
+        console.log("📤 Syncing fichas to:", url, "Fichas:", payload.length);
+
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${anonKey}`,
+                'apikey': anonKey,
             },
             body: JSON.stringify({ fichas: payload })
         });
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-            throw new Error(error.message || `HTTP ${response.status}`);
+            const errorText = await response.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { message: errorText || `HTTP ${response.status}` };
+            }
+            console.error("❌ Fichas sync failed:", errorData);
+            throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
         }
-    } catch (error) {
-        console.error("Failed to sync fichas to cloud:", error);
-        throw error;
+
+        const result = await response.json();
+        console.log("✅ Fichas synced successfully:", result);
+    } catch (error: any) {
+        console.error("❌ Failed to sync fichas to cloud:", error.message || error);
+        // Don't throw - allow app to continue working locally
     }
 };
 
 export const sendSessionsToCloud = async (sessions: ClassSession[]): Promise<void> => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    if (!edgeUrl) {
-        console.warn("VITE_SUPABASE_EDGE_URL not configured, skipping cloud sync");
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!edgeUrl || !anonKey) {
+        console.error("❌ VITE_SUPABASE_EDGE_URL or VITE_SUPABASE_ANON_KEY not configured! Check your environment variables.");
         return;
+    }
+
+    if (sessions.length === 0) {
+        return; // Nothing to sync
     }
 
     try {
@@ -165,21 +234,36 @@ export const sendSessionsToCloud = async (sessions: ClassSession[]): Promise<voi
             description: s.description
         }));
 
-        const response = await fetch(`${edgeUrl}/save-sessions`, {
+        const url = `${edgeUrl}/save-sessions`;
+        console.log("📤 Syncing sessions to:", url, "Sessions:", payload.length);
+
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${anonKey}`,
+                'apikey': anonKey,
             },
             body: JSON.stringify({ sessions: payload })
         });
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-            throw new Error(error.message || `HTTP ${response.status}`);
+            const errorText = await response.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { message: errorText || `HTTP ${response.status}` };
+            }
+            console.error("❌ Sessions sync failed:", errorData);
+            throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
         }
-    } catch (error) {
-        console.error("Failed to sync sessions to cloud:", error);
-        throw error;
+
+        const result = await response.json();
+        console.log("✅ Sessions synced successfully:", result);
+    } catch (error: any) {
+        console.error("❌ Failed to sync sessions to cloud:", error.message || error);
+        // Don't throw - allow app to continue working locally
     }
 };
 
@@ -254,7 +338,7 @@ export const addStudent = (student: Student) => {
   const current = getStudents();
   saveStudents([...current, student]);
   // Sync to cloud via Edge Function
-  sendStudentsToCloud([student]).catch(err => console.error("Cloud Sync Error:", err));
+  sendStudentsToCloud([student]);
 };
 
 export const bulkAddStudents = (newStudents: Student[]) => {
@@ -262,7 +346,7 @@ export const bulkAddStudents = (newStudents: Student[]) => {
     saveStudents([...current, ...newStudents]);
     // Sync to cloud via Edge Function
     if (newStudents.length > 0) {
-        sendStudentsToCloud(newStudents).catch(err => console.error("Cloud Sync Error:", err));
+        sendStudentsToCloud(newStudents);
     }
 };
 
@@ -273,7 +357,7 @@ export const updateStudent = (updatedStudent: Student) => {
     students[index] = updatedStudent;
     saveStudents(students);
     // Sync to cloud via Edge Function
-    sendStudentsToCloud([updatedStudent]).catch(err => console.error("Cloud Sync Error:", err));
+    sendStudentsToCloud([updatedStudent]);
   }
 };
 
@@ -281,9 +365,8 @@ export const deleteStudent = (id: string) => {
   const current = getStudents();
   const updated = current.filter(s => s.id !== id);
   saveStudents(updated);
-  // Note: Delete operations should be handled via Edge Function if needed
-  // For now, we only sync existing students, deletions are handled by syncing the updated list
-  sendStudentsToCloud(updated).catch(err => console.error("Cloud Sync Error:", err));
+  // Sync updated students list to cloud
+  sendStudentsToCloud(updated);
 };
 
 // Fichas
@@ -304,7 +387,7 @@ export const addFicha = (ficha: Ficha) => {
   const current = getFichas();
   saveFichas([...current, ficha]);
   // Sync to cloud via Edge Function
-  sendFichasToCloud([ficha]).catch(err => console.error("Cloud Sync Error:", err));
+  sendFichasToCloud([ficha]);
 };
 
 export const updateFicha = (updatedFicha: Ficha) => {
@@ -314,7 +397,7 @@ export const updateFicha = (updatedFicha: Ficha) => {
     fichas[index] = updatedFicha;
     saveFichas(fichas);
     // Sync to cloud via Edge Function
-    sendFichasToCloud([updatedFicha]).catch(err => console.error("Cloud Sync Error:", err));
+    sendFichasToCloud([updatedFicha]);
   }
 };
 
@@ -326,12 +409,12 @@ export const deleteFicha = (id: string) => {
     const studentsToKeep = allStudents.filter(s => s.group !== fichaToDelete.code);
     saveStudents(studentsToKeep);
     // Sync updated students list to cloud
-    sendStudentsToCloud(studentsToKeep).catch(err => console.error("Cloud Sync Error:", err));
+    sendStudentsToCloud(studentsToKeep);
   }
   const updatedFichas = fichas.filter(f => f.id !== id);
   saveFichas(updatedFichas);
   // Sync updated fichas list to cloud
-  sendFichasToCloud(updatedFichas).catch(err => console.error("Cloud Sync Error:", err));
+  sendFichasToCloud(updatedFichas);
 };
 
 // --- SESSIONS (Authorized Dates) ---
@@ -365,7 +448,7 @@ export const addSession = (session: ClassSession) => {
     const current = getSessions();
     saveSessions([...current, session]);
     // Sync to cloud via Edge Function
-    sendSessionsToCloud([session]).catch(err => console.error("Cloud Sync Error:", err));
+    sendSessionsToCloud([session]);
 };
 
 export const deleteSession = async (id: string) => {
@@ -423,12 +506,12 @@ export const deleteSession = async (id: string) => {
         // 4. CLOUD DELETION (Async) - handled via Edge Functions
         // Sync updated attendance records
         if (attendance.length !== recordsToKeep.length) {
-            sendAttendanceToCloud(recordsToKeep).catch(err => console.error("Cloud Sync Error:", err));
+            sendAttendanceToCloud(recordsToKeep);
         }
     }
     
     // Sync updated sessions list to cloud
-    sendSessionsToCloud(updatedSessions).catch(err => console.error("Cloud Sync Error:", err));
+    sendSessionsToCloud(updatedSessions);
 };
 
 // Attendance
@@ -444,7 +527,7 @@ export const saveAttendanceRecord = (date: string, studentId: string, present: b
   localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(filtered));
   notifyChange();
   // Sync to cloud via Edge Function
-  sendAttendanceToCloud([{ date, studentId, present }]).catch(err => console.error("Cloud Sync Error:", err));
+  sendAttendanceToCloud([{ date, studentId, present }]);
 };
 
 export const bulkSaveAttendance = (recordsToSave: AttendanceRecord[]) => {
@@ -457,7 +540,7 @@ export const bulkSaveAttendance = (recordsToSave: AttendanceRecord[]) => {
   notifyChange();
   // Sync to cloud via Edge Function
   if (recordsToSave.length > 0) {
-      sendAttendanceToCloud(recordsToSave).catch(err => console.error("Cloud Sync Error:", err));
+      sendAttendanceToCloud(recordsToSave);
   }
 }
 
