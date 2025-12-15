@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "asistencia-pro"
+project_id = "asistencia-sena"
 
 [api]
 enabled = true
@@ -380,9 +380,3 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
-
-[functions]
-# For public Edge Functions that use service_role internamente (save-*, delete-*),
-# deshabilitamos la verificación automática de JWT para que NO sea obligatorio
-# enviar Authorization desde el frontend.
-verify_jwt = false
