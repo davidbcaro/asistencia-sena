@@ -103,13 +103,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                  </>
              )}
              
-             <button 
-                onClick={onLogout}
-                className="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all font-medium text-sm"
-             >
-                 <LogOut className="w-4 h-4" />
-                 <span>Cerrar Sesión</span>
-             </button>
+             {role !== 'student' && (
+                 <button 
+                    onClick={onLogout}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all font-medium text-sm"
+                 >
+                     <LogOut className="w-4 h-4" />
+                     <span>Cerrar Sesión</span>
+                 </button>
+             )}
         </div>
       </aside>
 
@@ -120,9 +122,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
               <GraduationCap className={`w-6 h-6 ${role === 'professor' ? 'text-indigo-600' : 'text-green-600'}`} />
               <span className="font-bold text-gray-800">AsistenciaPro</span>
            </div>
-           <button onClick={onLogout} className="p-2 text-gray-500">
-               <LogOut className="w-5 h-5" />
-           </button>
+           {role !== 'student' && (
+               <button onClick={onLogout} className="p-2 text-gray-500">
+                   <LogOut className="w-5 h-5" />
+               </button>
+           )}
         </header>
         <div className="p-4 md:p-8 max-w-7xl mx-auto">
           {children}
