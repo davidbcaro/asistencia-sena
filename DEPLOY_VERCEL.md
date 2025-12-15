@@ -74,6 +74,9 @@ supabase functions deploy save-students
 
 # Desplegar función de fichas
 supabase functions deploy save-fichas
+
+# Desplegar función de sesiones
+supabase functions deploy save-sessions
 ```
 
 **Nota sobre Docker**: Si ves un warning sobre Docker, puedes ignorarlo si solo estás desplegando funciones. Docker solo es necesario para desarrollo local.
@@ -90,6 +93,7 @@ Las funciones estarán disponibles en:
 - `https://tu-project-ref.supabase.co/functions/v1/save-attendance`
 - `https://tu-project-ref.supabase.co/functions/v1/save-students`
 - `https://tu-project-ref.supabase.co/functions/v1/save-fichas`
+- `https://tu-project-ref.supabase.co/functions/v1/save-sessions`
 
 ## 🌐 Paso 3: Desplegar Frontend en Vercel
 

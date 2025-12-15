@@ -150,6 +150,39 @@ export const sendFichasToCloud = async (fichas: Ficha[]): Promise<void> => {
     }
 };
 
+export const sendSessionsToCloud = async (sessions: ClassSession[]): Promise<void> => {
+    const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
+    if (!edgeUrl) {
+        console.warn("VITE_SUPABASE_EDGE_URL not configured, skipping cloud sync");
+        return;
+    }
+
+    try {
+        const payload = sessions.map(s => ({
+            id: s.id,
+            date: s.date,
+            group: s.group,
+            description: s.description
+        }));
+
+        const response = await fetch(`${edgeUrl}/save-sessions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sessions: payload })
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+            throw new Error(error.message || `HTTP ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Failed to sync sessions to cloud:", error);
+        throw error;
+    }
+};
+
 // --- SUPABASE CLIENT HELPER (READ-ONLY) ---
 // This client is ONLY used for reading data and Realtime subscriptions
 // All write operations go through Edge Functions
@@ -331,7 +364,8 @@ export const saveSessions = (sessions: ClassSession[]) => {
 export const addSession = (session: ClassSession) => {
     const current = getSessions();
     saveSessions([...current, session]);
-    // Sessions are read-only from cloud, no write operations needed
+    // Sync to cloud via Edge Function
+    sendSessionsToCloud([session]).catch(err => console.error("Cloud Sync Error:", err));
 };
 
 export const deleteSession = async (id: string) => {
@@ -386,12 +420,15 @@ export const deleteSession = async (id: string) => {
             notifyChange();
         }
 
-        // 4. CLOUD DELETION (Async) - handled via Edge Functions if needed
-        // For now, we sync the updated attendance records
+        // 4. CLOUD DELETION (Async) - handled via Edge Functions
+        // Sync updated attendance records
         if (attendance.length !== recordsToKeep.length) {
             sendAttendanceToCloud(recordsToKeep).catch(err => console.error("Cloud Sync Error:", err));
         }
     }
+    
+    // Sync updated sessions list to cloud
+    sendSessionsToCloud(updatedSessions).catch(err => console.error("Cloud Sync Error:", err));
 };
 
 // Attendance

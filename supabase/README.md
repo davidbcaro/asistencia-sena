@@ -69,6 +69,27 @@ Guarda/actualiza fichas en la base de datos.
 }
 ```
 
+### 4. `save-sessions`
+Guarda/actualiza sesiones en la base de datos.
+
+**Endpoint:** `{VITE_SUPABASE_EDGE_URL}/save-sessions`
+
+**Método:** POST
+
+**Body:**
+```json
+{
+  "sessions": [
+    {
+      "id": "session-id-123",
+      "date": "2024-01-15",
+      "group": "FICHA-001",
+      "description": "Sesión de clase"
+    }
+  ]
+}
+```
+
 ## Despliegue
 
 Para desplegar estas funciones en Supabase:
@@ -93,6 +114,7 @@ Para desplegar estas funciones en Supabase:
    supabase functions deploy save-attendance
    supabase functions deploy save-students
    supabase functions deploy save-fichas
+   supabase functions deploy save-sessions
    ```
 
 ## Variables de Entorno

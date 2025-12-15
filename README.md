@@ -80,6 +80,7 @@ Para una guía completa paso a paso, consulta **[DEPLOY_VERCEL.md](./DEPLOY_VERC
    supabase functions deploy save-attendance
    supabase functions deploy save-students
    supabase functions deploy save-fichas
+   supabase functions deploy save-sessions
    ```
 
 2. **Conectar repositorio con Vercel:**
