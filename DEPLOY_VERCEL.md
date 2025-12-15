@@ -71,6 +71,9 @@ supabase functions deploy save-attendance
 
 # Desplegar función de estudiantes
 supabase functions deploy save-students
+
+# Desplegar función de fichas
+supabase functions deploy save-fichas
 ```
 
 **Nota sobre Docker**: Si ves un warning sobre Docker, puedes ignorarlo si solo estás desplegando funciones. Docker solo es necesario para desarrollo local.
@@ -86,6 +89,7 @@ Function save-attendance deployed successfully
 Las funciones estarán disponibles en:
 - `https://tu-project-ref.supabase.co/functions/v1/save-attendance`
 - `https://tu-project-ref.supabase.co/functions/v1/save-students`
+- `https://tu-project-ref.supabase.co/functions/v1/save-fichas`
 
 ## 🌐 Paso 3: Desplegar Frontend en Vercel
 
@@ -98,6 +102,8 @@ Las funciones estarán disponibles en:
 
 ### 3.2 Configurar Variables de Entorno
 
+**📖 Para una guía detallada, consulta [CONFIGURAR_VERCEL.md](./CONFIGURAR_VERCEL.md)**
+
 En la pantalla de configuración del proyecto, agrega estas variables de entorno:
 
 #### Variables Requeridas:
@@ -107,6 +113,11 @@ VITE_SUPABASE_URL=https://tu-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=tu-anon-key-aqui
 VITE_SUPABASE_EDGE_URL=https://tu-project-ref.supabase.co/functions/v1
 ```
+
+**⚠️ IMPORTANTE**: Solo necesitas **UNA** variable `VITE_SUPABASE_EDGE_URL` (URL base). 
+El código automáticamente construye las URLs completas:
+- `{VITE_SUPABASE_EDGE_URL}/save-attendance`
+- `{VITE_SUPABASE_EDGE_URL}/save-students`
 
 #### Variables Opcionales:
 

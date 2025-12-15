@@ -48,6 +48,27 @@ Guarda/actualiza estudiantes en la base de datos.
 }
 ```
 
+### 3. `save-fichas`
+Guarda/actualiza fichas en la base de datos.
+
+**Endpoint:** `{VITE_SUPABASE_EDGE_URL}/save-fichas`
+
+**Método:** POST
+
+**Body:**
+```json
+{
+  "fichas": [
+    {
+      "id": "ficha-id-123",
+      "code": "FICHA-001",
+      "program": "Programa de Ejemplo",
+      "description": "Descripción de la ficha"
+    }
+  ]
+}
+```
+
 ## Despliegue
 
 Para desplegar estas funciones en Supabase:
@@ -71,6 +92,7 @@ Para desplegar estas funciones en Supabase:
    ```bash
    supabase functions deploy save-attendance
    supabase functions deploy save-students
+   supabase functions deploy save-fichas
    ```
 
 ## Variables de Entorno

@@ -79,6 +79,7 @@ Para una guía completa paso a paso, consulta **[DEPLOY_VERCEL.md](./DEPLOY_VERC
    supabase link --project-ref your-project-ref
    supabase functions deploy save-attendance
    supabase functions deploy save-students
+   supabase functions deploy save-fichas
    ```
 
 2. **Conectar repositorio con Vercel:**

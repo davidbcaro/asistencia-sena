@@ -117,6 +117,39 @@ export const sendStudentsToCloud = async (students: Student[]): Promise<void> =>
     }
 };
 
+export const sendFichasToCloud = async (fichas: Ficha[]): Promise<void> => {
+    const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
+    if (!edgeUrl) {
+        console.warn("VITE_SUPABASE_EDGE_URL not configured, skipping cloud sync");
+        return;
+    }
+
+    try {
+        const payload = fichas.map(f => ({
+            id: f.id,
+            code: f.code,
+            program: f.program,
+            description: f.description
+        }));
+
+        const response = await fetch(`${edgeUrl}/save-fichas`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ fichas: payload })
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+            throw new Error(error.message || `HTTP ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Failed to sync fichas to cloud:", error);
+        throw error;
+    }
+};
+
 // --- SUPABASE CLIENT HELPER (READ-ONLY) ---
 // This client is ONLY used for reading data and Realtime subscriptions
 // All write operations go through Edge Functions
@@ -237,7 +270,8 @@ export const saveFichas = (fichas: Ficha[]) => {
 export const addFicha = (ficha: Ficha) => {
   const current = getFichas();
   saveFichas([...current, ficha]);
-  // Fichas are read-only from cloud, no write operations needed
+  // Sync to cloud via Edge Function
+  sendFichasToCloud([ficha]).catch(err => console.error("Cloud Sync Error:", err));
 };
 
 export const updateFicha = (updatedFicha: Ficha) => {
@@ -246,7 +280,8 @@ export const updateFicha = (updatedFicha: Ficha) => {
   if (index !== -1) {
     fichas[index] = updatedFicha;
     saveFichas(fichas);
-    // Fichas are read-only from cloud, no write operations needed
+    // Sync to cloud via Edge Function
+    sendFichasToCloud([updatedFicha]).catch(err => console.error("Cloud Sync Error:", err));
   }
 };
 
@@ -260,8 +295,10 @@ export const deleteFicha = (id: string) => {
     // Sync updated students list to cloud
     sendStudentsToCloud(studentsToKeep).catch(err => console.error("Cloud Sync Error:", err));
   }
-  saveFichas(fichas.filter(f => f.id !== id));
-  // Fichas are read-only from cloud, no write operations needed
+  const updatedFichas = fichas.filter(f => f.id !== id);
+  saveFichas(updatedFichas);
+  // Sync updated fichas list to cloud
+  sendFichasToCloud(updatedFichas).catch(err => console.error("Cloud Sync Error:", err));
 };
 
 // --- SESSIONS (Authorized Dates) ---
