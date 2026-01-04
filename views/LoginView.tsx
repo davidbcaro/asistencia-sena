@@ -97,10 +97,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSelectRole }) => {
                     <p className="text-sm text-gray-500">Ingresa tu contraseña de seguridad</p>
                 </div>
 
-                <form onSubmit={handleInstructorLogin} className="space-y-4">
+                <form onSubmit={handleInstructorLogin} className="space-y-4" autoComplete="on">
                     <div>
                         <input 
-                            type="password" 
+                            type="password"
+                            id="instructor-password"
+                            name="password"
+                            autoComplete="current-password"
                             autoFocus
                             placeholder="Contraseña"
                             className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center text-lg tracking-widest"

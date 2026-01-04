@@ -55,7 +55,7 @@ const App: React.FC = () => {
       case 'settings':
         return <SettingsView />;
       case 'student-portal':
-        return <StudentAttendanceView />;
+        return <StudentAttendanceView onLogout={handleLogout} />;
       default:
         return <StudentsView />;
     }

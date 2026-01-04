@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { QrCode, CheckCircle, XCircle, History, AlertTriangle, UserCheck, Calendar, ArrowRight, Search, FileText } from 'lucide-react';
+import { QrCode, CheckCircle, XCircle, History, AlertTriangle, UserCheck, Calendar, ArrowRight, Search, FileText, LogOut } from 'lucide-react';
 import { getStudents, getAttendance, saveAttendanceRecord, getSessions } from '../services/db';
 import { Student, AttendanceRecord } from '../types';
 
-export const StudentAttendanceView: React.FC = () => {
+interface StudentAttendanceViewProps {
+  onLogout?: () => void;
+}
+
+export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ onLogout }) => {
   const [mode, setMode] = useState<'register' | 'consult'>('register');
   const [step, setStep] = useState<'input' | 'success'>('input');
   
@@ -111,7 +115,18 @@ export const StudentAttendanceView: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] bg-gray-50 p-4">
+    <div className="flex flex-col items-center justify-center min-h-[80vh] bg-gray-50 p-4 relative">
+      
+      {/* Cerrar Sesión Button */}
+      {onLogout && (
+        <button
+          onClick={onLogout}
+          className="absolute top-4 right-4 flex items-center gap-2 text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Cerrar Sesión</span>
+        </button>
+      )}
       
       {/* HEADER LOGO AREA */}
       <div className="mb-6 text-center">
