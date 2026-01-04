@@ -223,12 +223,14 @@ create table public.students (
   last_name text not null,
   email text,
   active boolean default true,
-  "group" text
+  "group" text,
+  status text default 'Formación',
+  description text
 );
 
 create table public.attendance (
   date text not null,
-  student_id text references public.students(id),
+  student_id text references public.students(id) ON DELETE CASCADE,
   present boolean default false,
   primary key (date, student_id)
 );
@@ -252,6 +254,39 @@ GRANT ALL ON TABLE public.sessions TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.students TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.attendance TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.app_settings TO anon, authenticated, service_role;
+
+-- 5. MIGRACIÓN: Agregar columnas status y description a tabla students existente
+-- (Solo ejecutar si las columnas no existen. Si ya existen, estos comandos fallarán pero no afectarán los datos)
+DO $$ 
+BEGIN
+    -- Agregar columna status si no existe
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'students' 
+                   AND column_name = 'status') THEN
+        ALTER TABLE public.students ADD COLUMN status text DEFAULT 'Formación';
+    END IF;
+    
+    -- Agregar columna description si no existe
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'students' 
+                   AND column_name = 'description') THEN
+        ALTER TABLE public.students ADD COLUMN description text;
+    END IF;
+    
+    -- Actualizar registros existentes sin status a 'Formación'
+    UPDATE public.students SET status = 'Formación' WHERE status IS NULL;
+END $$;
+
+-- 6. NOTA IMPORTANTE SOBRE ELIMINACIÓN DE FICHAS
+-- La eliminación de fichas ahora permite eliminar fichas incluso si tienen estudiantes asociados.
+-- El Edge Function 'delete-ficha' maneja automáticamente:
+--   - Eliminación de todos los registros de asistencia de estudiantes en la ficha
+--   - Eliminación de todos los estudiantes asociados a la ficha
+--   - Eliminación de la ficha
+-- Esto se hace mediante lógica en el Edge Function, no mediante restricciones de foreign key.
+-- La relación entre students.group y fichas.code es por valor de texto, no por foreign key.
 `;
 
   const copyToClipboard = () => {

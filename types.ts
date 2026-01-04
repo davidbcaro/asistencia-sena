@@ -9,6 +9,8 @@ export interface Student {
   email: string;
   active: boolean;
   group?: string; // Ficha o Grupo
+  status?: 'Formación' | 'Cancelado' | 'Retiro Voluntario' | 'Deserción'; // Estado del aprendiz
+  description?: string; // Comentarios y novedades
 }
 
 export interface Ficha {

@@ -118,7 +118,9 @@ export const sendStudentsToCloud = async (students: Student[]): Promise<void> =>
             last_name: s.lastName,
             email: s.email,
             active: s.active,
-            group: s.group
+            group: s.group,
+            status: s.status || 'Formación',
+            description: s.description || null
         }));
 
         const url = `${edgeUrl}/save-students`;
@@ -355,7 +357,15 @@ export const getStudents = (): Student[] => {
   // MIGRATION SHIM: Handle old data formats
   const migrated = parsed.map((s: any) => {
       // Case 1: Already correct
-      if (s.firstName !== undefined) return s as Student;
+      if (s.firstName !== undefined) {
+          return {
+              ...s,
+              status: s.status || s.estado || 'Formación',
+              description: s.description || s.descripcion || undefined,
+              estado: undefined,
+              descripcion: undefined
+          } as Student;
+      }
       
       // Case 2: Snake_case from DB raw sync (Fix for the bug)
       if (s.first_name !== undefined) {
@@ -364,7 +374,11 @@ export const getStudents = (): Student[] => {
               firstName: s.first_name, 
               lastName: s.last_name, 
               first_name: undefined, 
-              last_name: undefined 
+              last_name: undefined,
+              status: s.status || s.estado || 'Formación',
+              description: s.description || s.descripcion || undefined,
+              estado: undefined,
+              descripcion: undefined
           } as Student;
       }
 
@@ -377,7 +391,16 @@ export const getStudents = (): Student[] => {
           lastName = parts.pop() || '';
           firstName = parts.join(' ');
       }
-      return { ...s, firstName, lastName, name: undefined } as Student;
+      return { 
+          ...s, 
+          firstName, 
+          lastName, 
+          name: undefined,
+          status: s.status || s.estado || 'Formación',
+          description: s.description || s.descripcion || undefined,
+          estado: undefined,
+          descripcion: undefined
+      } as Student;
   });
   return migrated;
 };
@@ -389,9 +412,14 @@ export const saveStudents = (students: Student[]) => {
 
 export const addStudent = (student: Student) => {
   const current = getStudents();
-  saveStudents([...current, student]);
+  // Ensure status has a default value
+  const studentWithDefaults = {
+    ...student,
+    status: student.status || 'Formación'
+  };
+  saveStudents([...current, studentWithDefaults]);
   // Sync to cloud via Edge Function
-  sendStudentsToCloud([student]);
+  sendStudentsToCloud([studentWithDefaults]);
 };
 
 export const bulkAddStudents = (newStudents: Student[]) => {
@@ -771,7 +799,9 @@ export const syncFromCloud = async () => {
                 lastName: x.last_name || '',
                 email: x.email, 
                 active: x.active, 
-                group: x.group 
+                group: x.group,
+                status: x.status || 'Formación',
+                description: x.description || undefined
             }));
             saveStudents(mappedStudents);
         }
@@ -825,17 +855,44 @@ export const importFullBackup = (jsonString: string): boolean => {
 
         const migratedStudents = backup.data.students.map((s: any) => {
              // Shim to handle backup format variations
-             if (s.firstName !== undefined) return s;
+             if (s.firstName !== undefined) {
+                 return {
+                     ...s,
+                     status: s.status || s.estado || 'Formación',
+                     description: s.description || s.descripcion || undefined,
+                     estado: undefined,
+                     descripcion: undefined
+                 };
+             }
              
              // Check for snake case in backup
              if (s.first_name !== undefined) {
-                 return { ...s, firstName: s.first_name, lastName: s.last_name, first_name: undefined, last_name: undefined };
+                 return { 
+                     ...s, 
+                     firstName: s.first_name, 
+                     lastName: s.last_name, 
+                     first_name: undefined, 
+                     last_name: undefined,
+                     status: s.status || s.estado || 'Formación',
+                     description: s.description || s.descripcion || undefined,
+                     estado: undefined,
+                     descripcion: undefined
+                 };
              }
 
              const parts = (s.name || '').split(' ');
              const lastName = parts.length > 1 ? parts.pop() : '';
              const firstName = parts.join(' ');
-             return { ...s, firstName, lastName, name: undefined };
+             return { 
+                 ...s, 
+                 firstName, 
+                 lastName, 
+                 name: undefined,
+                 status: s.status || s.estado || 'Formación',
+                 description: s.description || s.descripcion || undefined,
+                 estado: undefined,
+                 descripcion: undefined
+             };
         });
 
         saveStudents(migratedStudents);

@@ -28,7 +28,15 @@ export const StudentsView: React.FC = () => {
 
   // Editing State
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', group: '', documentNumber: '' });
+  const [editForm, setEditForm] = useState({ 
+    firstName: '', 
+    lastName: '', 
+    email: '', 
+    group: '', 
+    documentNumber: '',
+    status: 'Formación' as 'Formación' | 'Cancelado' | 'Retiro Voluntario' | 'Deserción',
+    description: ''
+  });
 
   // Delete State
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
@@ -101,6 +109,7 @@ export const StudentsView: React.FC = () => {
       email: newEmail,
       group: newGroup || 'General',
       active: true,
+      status: 'Formación',
     };
     addStudent(student);
     setNewFirstName('');
@@ -132,7 +141,8 @@ export const StudentsView: React.FC = () => {
             lastName: parts[2].trim(),
             email: parts[3] ? parts[3].trim() : '',
             group: bulkSelectedFicha, 
-            active: true
+            active: true,
+            status: 'Formación'
           });
         }
       });
@@ -179,7 +189,9 @@ export const StudentsView: React.FC = () => {
       lastName: student.lastName,
       email: student.email,
       group: student.group || 'General',
-      documentNumber: student.documentNumber || ''
+      documentNumber: student.documentNumber || '',
+      status: student.status || 'Formación',
+      description: student.description || ''
     });
   };
 
@@ -191,7 +203,9 @@ export const StudentsView: React.FC = () => {
         lastName: editForm.lastName,
         email: editForm.email,
         group: editForm.group,
-        documentNumber: editForm.documentNumber
+        documentNumber: editForm.documentNumber,
+        status: editForm.status,
+        description: editForm.description || undefined
     };
     updateStudent(updated);
     setEditingStudent(null);
@@ -358,7 +372,7 @@ export const StudentsView: React.FC = () => {
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
-        <table className="w-full text-left min-w-[800px]">
+        <table className="w-full text-left min-w-[1000px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Documento</th>
@@ -371,13 +385,15 @@ export const StudentsView: React.FC = () => {
                   {sortOrder === 'firstname' && <span className="ml-1 text-indigo-600">↓</span>}
               </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Ficha</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Estado</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Descripción</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-right sticky right-0 bg-gray-50 z-10">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {paginatedStudents.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                    {students.length === 0 
                     ? "No hay aprendices registrados." 
                     : searchTerm 
@@ -402,6 +418,26 @@ export const StudentsView: React.FC = () => {
                        <Users className="w-3 h-3 mr-1" />
                        {student.group || 'General'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      student.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                      student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                      student.status === 'Retiro Voluntario' ? 'bg-blue-100 text-blue-800' :
+                      student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {student.status || 'Formación'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-gray-600 text-sm max-w-xs">
+                    {student.description ? (
+                      <span className="truncate block" title={student.description}>
+                        {student.description.length > 30 ? student.description.substring(0, 30) + '...' : student.description}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   
                   {/* Sticky actions column for mobile/overflow support */}
@@ -545,6 +581,29 @@ export const StudentsView: React.FC = () => {
                                 <option key={f.id} value={f.code}>{f.code} - {f.program}</option>
                             ))}
                         </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                        <select
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            value={editForm.status}
+                            onChange={(e) => setEditForm({...editForm, status: e.target.value as 'Formación' | 'Cancelado' | 'Retiro Voluntario' | 'Deserción'})}
+                        >
+                            <option value="Formación">Formación</option>
+                            <option value="Cancelado">Cancelado</option>
+                            <option value="Retiro Voluntario">Retiro Voluntario</option>
+                            <option value="Deserción">Deserción</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Descripción / Comentarios</label>
+                        <textarea
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                            rows={3}
+                            placeholder="Comentarios y novedades sobre el aprendiz..."
+                            value={editForm.description}
+                            onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                        />
                     </div>
                     <div className="pt-2 flex space-x-3">
                         <button 
