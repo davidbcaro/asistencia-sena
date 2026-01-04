@@ -38,7 +38,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     // Security check: If student tries to access restricted views, default to portal
     if (role === 'student' && activeTab !== 'student-portal') {
-        return <StudentAttendanceView />;
+        return <StudentAttendanceView onLogout={handleLogout} />;
     }
 
     switch (activeTab) {
