@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Upload, User, Users, Pencil, X, FileSpreadsheet, FileText, Filter, ChevronLeft, ChevronRight, Search, AlertTriangle, ArrowUpDown } from 'lucide-react';
+import { Plus, Trash2, Upload, User, Users, Pencil, X, FileSpreadsheet, FileText, Filter, ChevronLeft, ChevronRight, Search, AlertTriangle, ArrowUpDown, FileDown } from 'lucide-react';
 import { Student, Ficha } from '../types';
-import { getStudents, saveStudents, addStudent, updateStudent, getFichas, deleteStudent, bulkAddStudents } from '../services/db';
+import { getStudents, saveStudents, addStudent, updateStudent, getFichas, deleteStudent, bulkAddStudents, bulkDeleteStudents, getAttendance, getSessions } from '../services/db';
 
 export const StudentsView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
@@ -40,6 +40,10 @@ export const StudentsView: React.FC = () => {
 
   // Delete State
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
+  
+  // Bulk Selection State
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   // Safe ID Generator
   const generateId = () => {
@@ -97,7 +101,114 @@ export const StudentsView: React.FC = () => {
 
   useEffect(() => {
       setCurrentPage(1);
+      // Clear selection when filters change
+      setSelectedStudents(new Set());
   }, [filterFicha, searchTerm, sortOrder]);
+  
+  // Bulk selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedStudents(new Set(paginatedStudents.map(s => s.id)));
+    } else {
+      setSelectedStudents(new Set());
+    }
+  };
+  
+  const handleSelectStudent = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedStudents);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedStudents(newSelected);
+  };
+  
+  const handleBulkDelete = async () => {
+    if (selectedStudents.size === 0) return;
+    await bulkDeleteStudents(Array.from(selectedStudents));
+    setSelectedStudents(new Set());
+    setShowBulkDeleteConfirm(false);
+  };
+  
+  // Generate report function
+  const generateReport = () => {
+    const allStudents = getStudents();
+    const allAttendance = getAttendance();
+    const allSessions = getSessions();
+    
+    // Filter students based on current filters
+    const filtered = allStudents.filter(student => {
+      const matchesFicha = filterFicha === 'Todas' || (student.group || 'General') === filterFicha;
+      const term = searchTerm.toLowerCase();
+      const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
+      const matchesSearch = 
+        fullName.includes(term) || 
+        (student.documentNumber || '').includes(term);
+      return matchesFicha && matchesSearch;
+    });
+    
+    // Calculate stats for each student
+    const stats = filtered.map(student => {
+      const validSessions = allSessions.filter(s => 
+        s.group === 'Todas' || s.group === 'Todos' || s.group === student.group
+      );
+      const validDates = new Set(validSessions.map(s => s.date));
+      const presentCount = allAttendance.filter(r => 
+        r.studentId === student.id && r.present && validDates.has(r.date)
+      ).length;
+      const totalDays = validSessions.length;
+      const absentCount = totalDays - presentCount;
+      const rate = totalDays > 0 ? (presentCount / totalDays) * 100 : 0;
+      
+      return {
+        document: student.documentNumber || '',
+        lastName: student.lastName,
+        firstName: student.firstName,
+        email: student.email,
+        group: student.group || 'General',
+        status: student.status || 'Formación',
+        description: student.description || '',
+        total: totalDays,
+        present: presentCount,
+        absent: absentCount,
+        rate: rate.toFixed(1)
+      };
+    });
+    
+    // Sort by lastname
+    stats.sort((a, b) => {
+      const cmp = a.lastName.localeCompare(b.lastName);
+      return cmp !== 0 ? cmp : a.firstName.localeCompare(b.firstName);
+    });
+    
+    // Generate CSV
+    const headers = ['Documento', 'Apellidos', 'Nombres', 'Email', 'Ficha/Grupo', 'Estado', 'Descripción', 'Total Clases', 'Asistencias', 'Fallas', '% Asistencia'];
+    const rows = stats.map(s => [
+      `"${s.document}"`,
+      `"${s.lastName}"`,
+      `"${s.firstName}"`,
+      `"${s.email}"`,
+      `"${s.group}"`,
+      `"${s.status}"`,
+      `"${s.description}"`,
+      s.total,
+      s.present,
+      s.absent,
+      `${s.rate}%`
+    ]);
+    
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const fichaName = filterFicha === 'Todas' ? 'todas' : filterFicha;
+    link.setAttribute("download", `reporte_aprendices_${fichaName}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleAddSingle = () => {
     if (!newFirstName || !newLastName) return;
@@ -258,6 +369,14 @@ export const StudentsView: React.FC = () => {
             </button>
 
             <button
+            onClick={generateReport}
+            className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+            >
+            <FileDown className="w-4 h-4" />
+            <span>Generar Reporte</span>
+            </button>
+
+            <button
             onClick={() => setIsAdding(!isAdding)}
             className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
             >
@@ -265,6 +384,22 @@ export const StudentsView: React.FC = () => {
             </button>
         </div>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedStudents.size > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-indigo-900 font-medium">
+            {selectedStudents.size} aprendiz{selectedStudents.size > 1 ? 'es' : ''} seleccionado{selectedStudents.size > 1 ? 's' : ''}
+          </span>
+          <button
+            onClick={() => setShowBulkDeleteConfirm(true)}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            Eliminar Seleccionados
+          </button>
+        </div>
+      )}
 
       {isAdding && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 grid md:grid-cols-2 gap-8 animate-fade-in">
@@ -375,6 +510,14 @@ export const StudentsView: React.FC = () => {
         <table className="w-full text-left min-w-[1000px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-12">
+                <input
+                  type="checkbox"
+                  checked={paginatedStudents.length > 0 && paginatedStudents.every(s => selectedStudents.has(s.id))}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                />
+              </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Documento</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
                   Apellidos
@@ -393,7 +536,7 @@ export const StudentsView: React.FC = () => {
           <tbody className="divide-y divide-gray-100">
             {paginatedStudents.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                    {students.length === 0 
                     ? "No hay aprendices registrados." 
                     : searchTerm 
@@ -404,6 +547,14 @@ export const StudentsView: React.FC = () => {
             ) : (
                 paginatedStudents.map((student) => (
                 <tr key={student.id} className="hover:bg-gray-50 group">
+                  <td className="px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedStudents.has(student.id)}
+                      onChange={(e) => handleSelectStudent(student.id, e.target.checked)}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    />
+                  </td>
                    <td className="px-6 py-4 text-gray-600 font-mono text-xs">
                         {student.documentNumber || '-'}
                    </td>

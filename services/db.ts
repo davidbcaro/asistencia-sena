@@ -449,6 +449,16 @@ export const deleteStudent = async (id: string) => {
   await softDeleteStudentFromCloud(id);
 };
 
+export const bulkDeleteStudents = async (ids: string[]) => {
+  const current = getStudents();
+  const updated = current.filter(s => !ids.includes(s.id));
+  saveStudents(updated);
+  // Delete from cloud
+  for (const id of ids) {
+    await softDeleteStudentFromCloud(id);
+  }
+};
+
 // Fichas
 export const getFichas = (): Ficha[] => {
   const data = localStorage.getItem(STORAGE_KEYS.FICHAS);
