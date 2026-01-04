@@ -462,7 +462,22 @@ export const deleteFicha = async (id: string) => {
       await deleteFichaFromCloud(id);
       
       const allStudents = getStudents();
+      const studentsToDelete = allStudents.filter(s => s.group === fichaToDelete.code);
       const studentsToKeep = allStudents.filter(s => s.group !== fichaToDelete.code);
+      
+      // Delete attendance records for students in this ficha
+      if (studentsToDelete.length > 0) {
+          const studentIdsToDelete = new Set(studentsToDelete.map(s => s.id));
+          const allAttendance = getAttendance();
+          const attendanceToKeep = allAttendance.filter(record => !studentIdsToDelete.has(record.studentId));
+          
+          if (attendanceToKeep.length !== allAttendance.length) {
+              localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(attendanceToKeep));
+              notifyChange();
+          }
+      }
+      
+      // Delete students
       if (studentsToKeep.length !== allStudents.length) {
           saveStudents(studentsToKeep);
       }

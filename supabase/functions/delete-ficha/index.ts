@@ -1,5 +1,5 @@
 // Supabase Edge Function: delete-ficha
-// Deletes a ficha if there are no active students in that ficha
+// Deletes a ficha and all associated students and their attendance records
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
@@ -72,17 +72,16 @@ serve(async (req) => {
       );
     }
 
-    // Check for active students in this ficha
-    const { count, error: countError } = await supabase
+    // Get all students in this ficha (active and inactive)
+    const { data: students, error: studentsError } = await supabase
       .from("students")
-      .select("id", { count: "exact", head: true })
-      .eq("group", ficha.code)
-      .eq("active", true);
+      .select("id")
+      .eq("group", ficha.code);
 
-    if (countError) {
-      console.error("Student count error:", countError);
+    if (studentsError) {
+      console.error("Student fetch error:", studentsError);
       return new Response(
-        JSON.stringify({ error: "Failed to verify students", details: countError.message }),
+        JSON.stringify({ error: "Failed to fetch students", details: studentsError.message }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -90,16 +89,47 @@ serve(async (req) => {
       );
     }
 
-    if ((count || 0) > 0) {
-      return new Response(
-        JSON.stringify({ error: "Ficha has active students. Remove them before deleting." }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+    // Delete attendance records for all students in this ficha
+    if (students && students.length > 0) {
+      const studentIds = students.map(s => s.id);
+      
+      const { error: attendanceError } = await supabase
+        .from("attendance")
+        .delete()
+        .in("student_id", studentIds);
+
+      if (attendanceError) {
+        console.error("Attendance delete error:", attendanceError);
+        return new Response(
+          JSON.stringify({ error: "Failed to delete attendance records", details: attendanceError.message }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      // Delete all students in this ficha
+      const { error: studentsDeleteError } = await supabase
+        .from("students")
+        .delete()
+        .in("id", studentIds);
+
+      if (studentsDeleteError) {
+        console.error("Students delete error:", studentsDeleteError);
+        return new Response(
+          JSON.stringify({ error: "Failed to delete students", details: studentsDeleteError.message }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      console.log(`Deleted ${students.length} students and their attendance records`);
     }
 
+    // Finally, delete the ficha
     const { error: deleteError } = await supabase
       .from("fichas")
       .delete()
@@ -117,7 +147,10 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ 
+        success: true, 
+        message: `Ficha and ${students?.length || 0} associated student(s) deleted successfully` 
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {
