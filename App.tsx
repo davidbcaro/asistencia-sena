@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { LoginView } from './views/LoginView';
 import { StudentsView } from './views/StudentsView';
@@ -11,9 +12,41 @@ import { StudentAttendanceView } from './views/StudentAttendanceView';
 import { syncFromCloud, subscribeToRealtime } from './services/db';
 import { UserRole } from './types';
 
+const instructorRouteToTab: Record<string, string> = {
+  fichas: 'fichas',
+  students: 'students',
+  attendance: 'attendance',
+  reports: 'reports',
+  alerts: 'alerts',
+  settings: 'settings',
+};
+
+const getActiveTabFromPath = (pathname: string) => {
+  if (pathname.startsWith('/student')) return 'student-portal';
+  if (pathname.startsWith('/instructor')) {
+    const segment = pathname.split('/')[2];
+    if (segment && instructorRouteToTab[segment]) return instructorRouteToTab[segment];
+    return 'students';
+  }
+  return 'students';
+};
+
+const RequireRole: React.FC<{
+  role: UserRole | null;
+  allowed: UserRole[];
+  fallback: string;
+  children: React.ReactElement;
+}> = ({ role, allowed, fallback, children }) => {
+  if (!role || !allowed.includes(role)) {
+    return <Navigate to={fallback} replace />;
+  }
+  return children;
+};
+
 const App: React.FC = () => {
   const [role, setRole] = useState<UserRole | null>(null);
-  const [activeTab, setActiveTab] = useState('students');
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // 1. Initial Pull
@@ -22,53 +55,77 @@ const App: React.FC = () => {
     subscribeToRealtime();
   }, []);
 
-  // Reset tab when role changes
-  useEffect(() => {
-      if (role === 'student') {
-          setActiveTab('student-portal');
-      } else if (role === 'professor') {
-          setActiveTab('students');
-      }
-  }, [role]);
+  const activeTab = useMemo(() => getActiveTabFromPath(location.pathname), [location.pathname]);
 
   const handleLogout = () => {
-      setRole(null);
+    setRole(null);
+    navigate('/', { replace: true });
   };
 
-  const renderContent = () => {
-    // Security check: If student tries to access restricted views, default to portal
-    if (role === 'student' && activeTab !== 'student-portal') {
-        return <StudentAttendanceView onLogout={handleLogout} />;
-    }
-
-    switch (activeTab) {
-      case 'fichas':
-        return <FichasView />;
-      case 'students':
-        return <StudentsView />;
-      case 'attendance':
-        return <AttendanceView />;
-      case 'reports':
-        return <ReportsView />;
-      case 'alerts':
-        return <AlertsView />;
-      case 'settings':
-        return <SettingsView />;
-      case 'student-portal':
-        return <StudentAttendanceView onLogout={handleLogout} />;
-      default:
-        return <StudentsView />;
-    }
+  const handleSelectRole = (selectedRole: UserRole) => {
+    setRole(selectedRole);
+    const target = selectedRole === 'student' ? '/student' : '/instructor/students';
+    navigate(target, { replace: true });
   };
 
-  if (!role) {
-      return <LoginView onSelectRole={setRole} />;
-  }
+  const handleTabChange = (tab: string) => {
+    if (tab === 'student-portal') {
+      navigate('/student');
+      return;
+    }
+    navigate(`/instructor/${tab}`);
+  };
+
+  const defaultLanding = role === 'student' ? '/student' : '/instructor/students';
 
   return (
-    <Layout activeTab={activeTab} onTabChange={setActiveTab} role={role} onLogout={handleLogout}>
-      {renderContent()}
-    </Layout>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          role ? <Navigate to={defaultLanding} replace /> : <LoginView onSelectRole={handleSelectRole} />
+        }
+      />
+      <Route
+        path="/student"
+        element={
+          <RequireRole role={role} allowed={['student', 'professor']} fallback="/">
+            <Layout
+              activeTab="student-portal"
+              onTabChange={handleTabChange}
+              role={role as UserRole}
+              onLogout={handleLogout}
+            >
+              <StudentAttendanceView onLogout={handleLogout} />
+            </Layout>
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/instructor"
+        element={
+          <RequireRole role={role} allowed={['professor']} fallback="/">
+            <Layout
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              role={role as UserRole}
+              onLogout={handleLogout}
+            >
+              <Outlet />
+            </Layout>
+          </RequireRole>
+        }
+      >
+        <Route index element={<Navigate to="students" replace />} />
+        <Route path="fichas" element={<FichasView />} />
+        <Route path="students" element={<StudentsView />} />
+        <Route path="attendance" element={<AttendanceView />} />
+        <Route path="reports" element={<ReportsView />} />
+        <Route path="alerts" element={<AlertsView />} />
+        <Route path="settings" element={<SettingsView />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 
