@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { GraduationCap, UserCheck, ShieldCheck, Lock, X, ArrowRight, Loader2 } from 'lucide-react';
 import { UserRole } from '../types';
 import { verifyInstructorPassword } from '../services/db';
@@ -45,13 +46,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSelectRole }) => {
         <span>Acceso Instructor</span>
       </button>
 
-      <div className="text-center mb-10 animate-fade-in mt-10 md:mt-0">
+      <Link to="/" className="text-center mb-10 animate-fade-in mt-10 md:mt-0">
         <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-200 transform rotate-3">
             <GraduationCap className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">AsistenciaPro</h1>
         <p className="text-gray-500 text-lg">Sistema de Gestión Académica</p>
-      </div>
+      </Link>
 
       <div className="w-full max-w-md animate-fade-in-up">
         {/* Student Card - Main Focus */}
