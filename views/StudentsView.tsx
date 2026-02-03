@@ -10,6 +10,7 @@ export const StudentsView: React.FC = () => {
   
   // Filtering & Pagination State
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
+  const [filterStatus, setFilterStatus] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState(''); 
   const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname'>('lastname'); // Default to lastname
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,6 +74,7 @@ export const StudentsView: React.FC = () => {
   const filteredStudents = students
     .filter(student => {
       const matchesFicha = filterFicha === 'Todas' || (student.group || 'General') === filterFicha;
+      const matchesStatus = filterStatus === 'Todos' || (student.status || 'Formación') === filterStatus;
       const term = searchTerm.toLowerCase();
       const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
       
@@ -80,7 +82,7 @@ export const StudentsView: React.FC = () => {
         fullName.includes(term) || 
         (student.documentNumber || '').includes(term);
 
-      return matchesFicha && matchesSearch;
+      return matchesFicha && matchesStatus && matchesSearch;
     })
     .sort((a, b) => {
         if (sortOrder === 'lastname') {
@@ -103,7 +105,7 @@ export const StudentsView: React.FC = () => {
       setCurrentPage(1);
       // Clear selection when filters change
       setSelectedStudents(new Set());
-  }, [filterFicha, searchTerm, sortOrder]);
+  }, [filterFicha, filterStatus, searchTerm, sortOrder]);
   
   // Bulk selection handlers
   const handleSelectAll = (checked: boolean) => {
@@ -140,12 +142,13 @@ export const StudentsView: React.FC = () => {
     // Filter students based on current filters
     const filtered = allStudents.filter(student => {
       const matchesFicha = filterFicha === 'Todas' || (student.group || 'General') === filterFicha;
+      const matchesStatus = filterStatus === 'Todos' || (student.status || 'Formación') === filterStatus;
       const term = searchTerm.toLowerCase();
       const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
       const matchesSearch = 
         fullName.includes(term) || 
         (student.documentNumber || '').includes(term);
-      return matchesFicha && matchesSearch;
+      return matchesFicha && matchesStatus && matchesSearch;
     });
     
     // Calculate stats for each student
@@ -353,6 +356,21 @@ export const StudentsView: React.FC = () => {
                     {fichas.map(f => (
                         <option key={f.id} value={f.code}>{f.code}</option>
                     ))}
+                </select>
+            </div>
+
+            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm">
+                <Filter className="w-4 h-4 text-gray-500" />
+                <select 
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="bg-white border-none text-sm focus:ring-0 text-gray-700 outline-none pr-4 font-medium"
+                >
+                    <option value="Todos">Todos los Estados</option>
+                    <option value="Formación">Formación</option>
+                    <option value="Cancelado">Cancelado</option>
+                    <option value="Retiro Voluntario">Retiro Voluntario</option>
+                    <option value="Deserción">Deserción</option>
                 </select>
             </div>
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { QrCode, CheckCircle, XCircle, History, AlertTriangle, UserCheck, Calendar, ArrowRight, Search, FileText, LogOut } from 'lucide-react';
 import { getStudents, getAttendance, saveAttendanceRecord, getSessions } from '../services/db';
 import { Student, AttendanceRecord } from '../types';
@@ -130,13 +131,13 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
       )}
       
       {/* HEADER LOGO AREA */}
-      <div className="mb-6 text-center">
+      <Link to="/" className="mb-6 text-center">
         <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
-            <UserCheck className="w-8 h-8 text-white" />
+          <UserCheck className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Portal Aprendiz</h1>
         <p className="text-gray-500 mt-2">Gestiona tu asistencia académica.</p>
-      </div>
+      </Link>
 
       {step === 'input' && (
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-fade-in">

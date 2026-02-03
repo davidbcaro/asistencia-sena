@@ -1,4 +1,5 @@
 import React, { ReactNode, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Users, CalendarCheck, BarChart3, Mail, GraduationCap, Layers, Settings, Database, Cloud, AlertCircle, ClipboardCheck, LogOut } from 'lucide-react';
 import { isSupabaseConfigured } from '../services/db';
 import { UserRole } from '../types';
@@ -53,17 +54,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
       {/* Sidebar */}
       <aside className="w-full md:w-64 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col">
-        <div className="p-6 flex items-center space-x-3 border-b border-gray-100">
+        <Link to="/" className="p-6 flex items-center space-x-3 border-b border-gray-100">
           <div className={`p-2 rounded-lg ${role === 'professor' ? 'bg-indigo-600' : 'bg-green-600'}`}>
-             <GraduationCap className="w-6 h-6 text-white" />
+            <GraduationCap className="w-6 h-6 text-white" />
           </div>
           <div>
-              <h1 className="text-xl font-bold text-gray-800">AsistenciaPro</h1>
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {role === 'professor' ? 'Panel Instructor' : 'Portal Aprendiz'}
-              </span>
+            <h1 className="text-xl font-bold text-gray-800">AsistenciaPro</h1>
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+              {role === 'professor' ? 'Panel Instructor' : 'Portal Aprendiz'}
+            </span>
           </div>
-        </div>
+        </Link>
         
         <nav className="p-4 space-y-2 flex-1">
           {navItems.map((item) => {
@@ -118,10 +119,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <header className="bg-white shadow-sm sticky top-0 z-10 md:hidden p-4 flex items-center justify-between">
-           <div className="flex items-center space-x-2">
+           <Link to="/" className="flex items-center space-x-2">
               <GraduationCap className={`w-6 h-6 ${role === 'professor' ? 'text-indigo-600' : 'text-green-600'}`} />
               <span className="font-bold text-gray-800">AsistenciaPro</span>
-           </div>
+           </Link>
            {role !== 'student' && (
                <button onClick={onLogout} className="p-2 text-gray-500">
                    <LogOut className="w-5 h-5" />
