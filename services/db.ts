@@ -22,6 +22,17 @@ const notifyChange = () => {
 // --- CRYPTO HELPERS (SHA-256) ---
 // Default Password Hash (SHA-256 for "AdminSecure2024!")
 const DEFAULT_HASH_SHA256 = "d7d10f84852928373a0b5e406322810817454f358392147321685044ca57b3f9";
+const DEFAULT_INSTRUCTOR_PASSWORD = "AdminSecure2024!";
+
+const hashPasswordInsecure = (plainText: string): string => {
+    let hash = 0;
+    for (let i = 0; i < plainText.length; i++) {
+        const char = plainText.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return "insecure_" + hash.toString(16);
+};
 
 export const hashPassword = async (plainText: string): Promise<string> => {
     // 1. Try Web Crypto API (Standard, Secure)
@@ -37,13 +48,7 @@ export const hashPassword = async (plainText: string): Promise<string> => {
     }
     
     // 2. Fallback for insecure contexts (HTTP) where crypto.subtle is undefined
-    let hash = 0;
-    for (let i = 0; i < plainText.length; i++) {
-        const char = plainText.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return "insecure_" + hash.toString(16);
+    return hashPasswordInsecure(plainText);
 };
 
 // --- EDGE FUNCTIONS (WRITE OPERATIONS) ---
@@ -689,17 +694,25 @@ export const verifyInstructorPassword = async (inputPassword: string): Promise<b
             storedHash = localStorage.getItem(STORAGE_KEYS.INSTRUCTOR_PWD_HASH);
         }
 
-        // 2. Logic to verify
-        // If no stored password exists, we check against default
-        
+        // 2. If no stored password exists, use default
+        if (!storedHash) {
+            storedHash = await hashPassword(DEFAULT_INSTRUCTOR_PASSWORD);
+            localStorage.setItem(STORAGE_KEYS.INSTRUCTOR_PWD_HASH, storedHash);
+        }
 
-        // If stored password exists, compare hash
+        // 3. Compare hash
         if (inputHash === storedHash) {
             return true;
         }
 
-        // 3. Fallback / Recovery for Default Password
-        
+        // 4. Fallbacks for insecure contexts / defaults
+        if (hashPasswordInsecure(cleanInput) === storedHash) {
+            return true;
+        }
+
+        if (storedHash === DEFAULT_HASH_SHA256 && cleanInput === DEFAULT_INSTRUCTOR_PASSWORD) {
+            return true;
+        }
 
         return false;
 

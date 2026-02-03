@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Upload, User, Users, Pencil, X, FileSpreadsheet, FileText, Filter, ChevronLeft, ChevronRight, Search, AlertTriangle, ArrowUpDown, FileDown } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Plus, Trash2, Upload, User, Users, Pencil, X, FileSpreadsheet, FileText, Filter, ChevronLeft, ChevronRight, Search, AlertTriangle, FileDown } from 'lucide-react';
 import { Student, Ficha } from '../types';
 import { getStudents, saveStudents, addStudent, updateStudent, getFichas, deleteStudent, bulkAddStudents, bulkDeleteStudents, getAttendance, getSessions } from '../services/db';
 
@@ -12,8 +12,11 @@ export const StudentsView: React.FC = () => {
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterStatus, setFilterStatus] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState(''); 
-  const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname'>('lastname'); // Default to lastname
+  const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname' | 'document' | 'group' | 'status'>('lastname'); // Default to lastname
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
+  const filtersRef = useRef<HTMLDivElement | null>(null);
   const ITEMS_PER_PAGE = 15;
   
   // Single Add State
@@ -70,6 +73,15 @@ export const StudentsView: React.FC = () => {
     return () => window.removeEventListener('asistenciapro-storage-update', loadData);
   }, []);
 
+  const handleSort = (column: 'lastname' | 'firstname' | 'document' | 'group' | 'status') => {
+    if (sortOrder === column) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortOrder(column);
+    setSortDirection('asc');
+  };
+
   // Filter and Sort students
   const filteredStudents = students
     .filter(student => {
@@ -85,13 +97,25 @@ export const StudentsView: React.FC = () => {
       return matchesFicha && matchesStatus && matchesSearch;
     })
     .sort((a, b) => {
-        if (sortOrder === 'lastname') {
-             const cmp = a.lastName.localeCompare(b.lastName);
-             return cmp !== 0 ? cmp : a.firstName.localeCompare(b.firstName);
+        const direction = sortDirection === 'asc' ? 1 : -1;
+        let cmp = 0;
+        if (sortOrder === 'document') {
+            cmp = (a.documentNumber || '').localeCompare(b.documentNumber || '');
+            if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
+        } else if (sortOrder === 'group') {
+            cmp = (a.group || 'General').localeCompare(b.group || 'General');
+            if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
+        } else if (sortOrder === 'status') {
+            cmp = (a.status || 'Formación').localeCompare(b.status || 'Formación');
+            if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
+        } else if (sortOrder === 'lastname') {
+            cmp = a.lastName.localeCompare(b.lastName);
+            if (cmp === 0) cmp = a.firstName.localeCompare(b.firstName);
         } else {
-             const cmp = a.firstName.localeCompare(b.firstName);
-             return cmp !== 0 ? cmp : a.lastName.localeCompare(b.lastName);
+            cmp = a.firstName.localeCompare(b.firstName);
+            if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
         }
+        return direction * cmp;
     });
 
   // Pagination Logic
@@ -105,7 +129,18 @@ export const StudentsView: React.FC = () => {
       setCurrentPage(1);
       // Clear selection when filters change
       setSelectedStudents(new Set());
-  }, [filterFicha, filterStatus, searchTerm, sortOrder]);
+  }, [filterFicha, filterStatus, searchTerm, sortOrder, sortDirection]);
+
+  useEffect(() => {
+      if (!showFilters) return;
+      const handleClickOutside = (event: MouseEvent) => {
+          if (filtersRef.current && !filtersRef.current.contains(event.target as Node)) {
+              setShowFilters(false);
+          }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFilters]);
   
   // Bulk selection handlers
   const handleSelectAll = (checked: boolean) => {
@@ -345,53 +380,62 @@ export const StudentsView: React.FC = () => {
                 />
             </div>
 
-            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm">
-                <Filter className="w-4 h-4 text-gray-500" />
-                <select 
-                    value={filterFicha}
-                    onChange={(e) => setFilterFicha(e.target.value)}
-                    className="bg-white border-none text-sm focus:ring-0 text-gray-700 outline-none pr-4 font-medium"
+            <div className="relative" ref={filtersRef}>
+                <button
+                    type="button"
+                    onClick={() => setShowFilters(prev => !prev)}
+                    className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
-                    <option value="Todas">Todas las Fichas</option>
-                    {fichas.map(f => (
-                        <option key={f.id} value={f.code}>{f.code}</option>
-                    ))}
-                </select>
-            </div>
+                    <Filter className="w-4 h-4 text-gray-500" />
+                    <span>Filtros</span>
+                </button>
 
-            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm">
-                <Filter className="w-4 h-4 text-gray-500" />
-                <select 
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="bg-white border-none text-sm focus:ring-0 text-gray-700 outline-none pr-4 font-medium"
-                >
-                    <option value="Todos">Todos los Estados</option>
-                    <option value="Formación">Formación</option>
-                    <option value="Cancelado">Cancelado</option>
-                    <option value="Retiro Voluntario">Retiro Voluntario</option>
-                    <option value="Deserción">Deserción</option>
-                </select>
-            </div>
+                {showFilters && (
+                    <div className="absolute right-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-lg z-20 p-4 space-y-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 mb-1">Ficha</label>
+                            <select 
+                                value={filterFicha}
+                                onChange={(e) => {
+                                    setFilterFicha(e.target.value);
+                                    setShowFilters(false);
+                                }}
+                                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            >
+                                <option value="Todas">Todas las Fichas</option>
+                                {fichas.map(f => (
+                                    <option key={f.id} value={f.code}>{f.code}</option>
+                                ))}
+                            </select>
+                        </div>
 
-            <button
-                onClick={() => setSortOrder(prev => prev === 'firstname' ? 'lastname' : 'firstname')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg border shadow-sm text-sm font-medium transition-colors ${
-                    sortOrder === 'lastname' 
-                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200' 
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                }`}
-            >
-                <ArrowUpDown className="w-4 h-4" />
-                <span className="hidden md:inline">{sortOrder === 'firstname' ? 'Orden: Nombre' : 'Orden: Apellido'}</span>
-            </button>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 mb-1">Estado</label>
+                            <select 
+                                value={filterStatus}
+                                onChange={(e) => {
+                                    setFilterStatus(e.target.value);
+                                    setShowFilters(false);
+                                }}
+                                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            >
+                                <option value="Todos">Todos los Estados</option>
+                                <option value="Formación">Formación</option>
+                                <option value="Cancelado">Cancelado</option>
+                                <option value="Retiro Voluntario">Retiro Voluntario</option>
+                                <option value="Deserción">Deserción</option>
+                            </select>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             <button
             onClick={generateReport}
             className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
             >
             <FileDown className="w-4 h-4" />
-            <span>Generar Reporte</span>
+            <span>Reporte</span>
             </button>
 
             <button
@@ -536,17 +580,76 @@ export const StudentsView: React.FC = () => {
                   className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                 />
               </th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Documento</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
-                  Apellidos
-                  {sortOrder === 'lastname' && <span className="ml-1 text-indigo-600">↓</span>}
+                  <button
+                      type="button"
+                      onClick={() => handleSort('document')}
+                      className={`inline-flex items-center gap-1 hover:text-gray-900 ${
+                          sortOrder === 'document' ? 'text-indigo-700' : ''
+                      }`}
+                  >
+                      Documento
+                      {sortOrder === 'document' && (
+                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                  </button>
+              </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                  <button
+                      type="button"
+                      onClick={() => handleSort('lastname')}
+                      className={`inline-flex items-center gap-1 hover:text-gray-900 ${
+                          sortOrder === 'lastname' ? 'text-indigo-700' : ''
+                      }`}
+                  >
+                      Apellidos
+                      {sortOrder === 'lastname' && (
+                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                  </button>
               </th>
                <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
-                  Nombres
-                  {sortOrder === 'firstname' && <span className="ml-1 text-indigo-600">↓</span>}
+                  <button
+                      type="button"
+                      onClick={() => handleSort('firstname')}
+                      className={`inline-flex items-center gap-1 hover:text-gray-900 ${
+                          sortOrder === 'firstname' ? 'text-indigo-700' : ''
+                      }`}
+                  >
+                      Nombres
+                      {sortOrder === 'firstname' && (
+                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                  </button>
               </th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Ficha</th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Estado</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                  <button
+                      type="button"
+                      onClick={() => handleSort('group')}
+                      className={`inline-flex items-center gap-1 hover:text-gray-900 ${
+                          sortOrder === 'group' ? 'text-indigo-700' : ''
+                      }`}
+                  >
+                      Ficha
+                      {sortOrder === 'group' && (
+                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                  </button>
+              </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                  <button
+                      type="button"
+                      onClick={() => handleSort('status')}
+                      className={`inline-flex items-center gap-1 hover:text-gray-900 ${
+                          sortOrder === 'status' ? 'text-indigo-700' : ''
+                      }`}
+                  >
+                      Estado
+                      {sortOrder === 'status' && (
+                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                  </button>
+              </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Descripción</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-right sticky right-0 bg-gray-50 z-10">Acciones</th>
             </tr>
