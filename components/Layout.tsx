@@ -14,6 +14,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, role, onLogout }) => {
   const [hasCloud, setHasCloud] = useState(false);
+  const homePath = role === 'student' ? '/student' : '/instructor/students';
 
   useEffect(() => {
     // Check initial state
@@ -54,7 +55,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
       {/* Sidebar */}
       <aside className="w-full md:w-64 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col">
-        <Link to="/" className="p-6 flex items-center space-x-3 border-b border-gray-100">
+        <Link to={homePath} className="p-6 flex items-center space-x-3 border-b border-gray-100">
           <div className={`p-2 rounded-lg ${role === 'professor' ? 'bg-indigo-600' : 'bg-green-600'}`}>
             <GraduationCap className="w-6 h-6 text-white" />
           </div>
@@ -119,7 +120,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <header className="bg-white shadow-sm sticky top-0 z-10 md:hidden p-4 flex items-center justify-between">
-           <Link to="/" className="flex items-center space-x-2">
+           <Link to={homePath} className="flex items-center space-x-2">
               <GraduationCap className={`w-6 h-6 ${role === 'professor' ? 'text-indigo-600' : 'text-green-600'}`} />
               <span className="font-bold text-gray-800">AsistenciaPro</span>
            </Link>
