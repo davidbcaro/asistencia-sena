@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, CalendarCheck, BarChart3, Mail, GraduationCap, Layers, Settings, Database, Cloud, AlertCircle, ClipboardCheck, LogOut } from 'lucide-react';
+import { Users, CalendarCheck, BarChart3, Mail, GraduationCap, Layers, Settings, Database, Cloud, AlertCircle, ClipboardCheck, LogOut, FileSpreadsheet } from 'lucide-react';
 import { isSupabaseConfigured } from '../services/db';
 import { UserRole } from '../types';
 
@@ -34,6 +34,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
     { id: 'students', label: 'Aprendices', icon: Users, roles: ['professor'] },
     { id: 'attendance', label: 'Tomar Asistencia', icon: CalendarCheck, roles: ['professor'] },
     { id: 'reports', label: 'Reportes', icon: BarChart3, roles: ['professor'] },
+    { id: 'grades', label: 'Calificaciones', icon: FileSpreadsheet, roles: ['professor'] },
     { id: 'alerts', label: 'Alertas', icon: Mail, roles: ['professor'] },
     { id: 'settings', label: 'Datos y Config', icon: Database, roles: ['professor'] },
     { id: 'student-portal', label: 'Registro Asistencia', icon: ClipboardCheck, roles: ['professor', 'student'] },

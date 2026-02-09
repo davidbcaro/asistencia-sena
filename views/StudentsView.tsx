@@ -17,6 +17,8 @@ export const StudentsView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const filtersRef = useRef<HTMLDivElement | null>(null);
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const statusFilterRef = useRef<HTMLDivElement | null>(null);
   const ITEMS_PER_PAGE = 15;
   
   // Single Add State
@@ -48,6 +50,9 @@ export const StudentsView: React.FC = () => {
   // Bulk Selection State
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  // Detail modal (click on name/lastname)
+  const [studentDetailModal, setStudentDetailModal] = useState<Student | null>(null);
 
   // Safe ID Generator
   const generateId = () => {
@@ -141,6 +146,17 @@ export const StudentsView: React.FC = () => {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showFilters]);
+
+  useEffect(() => {
+      if (!showStatusFilter) return;
+      const handleClickOutside = (event: MouseEvent) => {
+          if (statusFilterRef.current && !statusFilterRef.current.contains(event.target as Node)) {
+              setShowStatusFilter(false);
+          }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showStatusFilter]);
   
   // Bulk selection handlers
   const handleSelectAll = (checked: boolean) => {
@@ -580,6 +596,7 @@ export const StudentsView: React.FC = () => {
                   className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                 />
               </th>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-14 text-center">No.</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
                   <button
                       type="button"
@@ -594,7 +611,7 @@ export const StudentsView: React.FC = () => {
                       )}
                   </button>
               </th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm min-w-[11rem] w-52">
                   <button
                       type="button"
                       onClick={() => handleSort('lastname')}
@@ -608,7 +625,7 @@ export const StudentsView: React.FC = () => {
                       )}
                   </button>
               </th>
-               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+               <th className="px-6 py-4 font-semibold text-gray-600 text-sm min-w-[11rem] w-52">
                   <button
                       type="button"
                       onClick={() => handleSort('firstname')}
@@ -622,6 +639,7 @@ export const StudentsView: React.FC = () => {
                       )}
                   </button>
               </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-80 min-w-[20rem]">Correo electrónico</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
                   <button
                       type="button"
@@ -637,27 +655,69 @@ export const StudentsView: React.FC = () => {
                   </button>
               </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                <div className="relative inline-flex items-center gap-2" ref={statusFilterRef}>
                   <button
-                      type="button"
-                      onClick={() => handleSort('status')}
-                      className={`inline-flex items-center gap-1 hover:text-gray-900 ${
-                          sortOrder === 'status' ? 'text-indigo-700' : ''
-                      }`}
+                    type="button"
+                    onClick={() => setShowStatusFilter(prev => !prev)}
+                    className="inline-flex items-center gap-1 hover:text-gray-900"
                   >
-                      Estado
-                      {sortOrder === 'status' && (
-                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                      )}
+                    Estado
+                    <Filter className="w-3.5 h-3.5 text-gray-400" />
+                    {filterStatus !== 'Todos' && (
+                      <span className="text-indigo-600 text-xs">({filterStatus})</span>
+                    )}
                   </button>
+                  {showStatusFilter && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowStatusFilter(false)} />
+                      <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                        <button
+                          type="button"
+                          onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }}
+                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          Todos los Estados
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }}
+                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          Formación
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }}
+                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          Cancelado
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setFilterStatus('Retiro Voluntario'); setShowStatusFilter(false); }}
+                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          Retiro Voluntario
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setFilterStatus('Deserción'); setShowStatusFilter(false); }}
+                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          Deserción
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Descripción</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-right sticky right-0 bg-gray-50 z-10">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {paginatedStudents.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
                    {students.length === 0 
                     ? "No hay aprendices registrados." 
                     : searchTerm 
@@ -666,7 +726,7 @@ export const StudentsView: React.FC = () => {
                 </td>
               </tr>
             ) : (
-                paginatedStudents.map((student) => (
+                paginatedStudents.map((student, index) => (
                 <tr key={student.id} className="hover:bg-gray-50 group">
                   <td className="px-4 py-4">
                     <input
@@ -676,15 +736,21 @@ export const StudentsView: React.FC = () => {
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                     />
                   </td>
+                  <td className="px-4 py-4 text-center text-gray-500 text-xs tabular-nums">
+                    {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+                  </td>
                    <td className="px-6 py-4 text-gray-600 font-mono text-xs">
                         {student.documentNumber || '-'}
                    </td>
-                   <td className="px-6 py-4 font-medium text-gray-900 text-sm">
+                   <td className="px-6 py-4 font-medium text-gray-900 text-xs cursor-pointer hover:text-indigo-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
                         {student.lastName}
                    </td>
-                   <td className="px-6 py-4 text-gray-800 text-sm">
+                   <td className="px-6 py-4 text-gray-800 text-xs cursor-pointer hover:text-indigo-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
                         {student.firstName}
                    </td>
+                  <td className="px-6 py-4 text-gray-600 text-sm w-80 min-w-[20rem] whitespace-nowrap" title={student.email || undefined}>
+                    {student.email || <span className="text-gray-400">-</span>}
+                  </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                        <Users className="w-3 h-3 mr-1" />
@@ -702,16 +768,6 @@ export const StudentsView: React.FC = () => {
                       {student.status || 'Formación'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-gray-600 text-sm max-w-xs">
-                    {student.description ? (
-                      <span className="truncate block" title={student.description}>
-                        {student.description.length > 30 ? student.description.substring(0, 30) + '...' : student.description}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  
                   {/* Sticky actions column for mobile/overflow support */}
                   <td className="px-6 py-4 text-right sticky right-0 bg-white group-hover:bg-gray-50 transition-colors z-10 shadow-[-10px_0_10px_-10px_rgba(0,0,0,0.05)]">
                     <div className="flex justify-end space-x-2">
@@ -765,6 +821,36 @@ export const StudentsView: React.FC = () => {
             </div>
         )}
       </div>
+
+      {/* Student detail modal (click on Apellidos/Nombres) */}
+      {studentDetailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setStudentDetailModal(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Detalle del aprendiz</h3>
+              <button onClick={() => setStudentDetailModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div><span className="font-medium text-gray-500">Documento:</span> <span className="text-gray-900 font-mono">{studentDetailModal.documentNumber || '-'}</span></div>
+              <div><span className="font-medium text-gray-500">Apellidos:</span> <span className="text-gray-900">{studentDetailModal.lastName}</span></div>
+              <div><span className="font-medium text-gray-500">Nombres:</span> <span className="text-gray-900">{studentDetailModal.firstName}</span></div>
+              <div><span className="font-medium text-gray-500">Correo:</span> <span className="text-gray-900">{studentDetailModal.email || '-'}</span></div>
+              <div><span className="font-medium text-gray-500">Ficha:</span> <span className="text-gray-900">{studentDetailModal.group || 'General'}</span></div>
+              <div><span className="font-medium text-gray-500">Estado:</span> <span className="text-gray-900">{studentDetailModal.status || 'Formación'}</span></div>
+              {studentDetailModal.description && (
+                <div><span className="font-medium text-gray-500">Descripción:</span> <span className="text-gray-900">{studentDetailModal.description}</span></div>
+              )}
+            </div>
+            <div className="pt-4 mt-4">
+              <button onClick={() => setStudentDetailModal(null)} className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {studentToDelete && (

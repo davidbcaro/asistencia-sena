@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { GraduationCap, UserCheck, ShieldCheck, Lock, X, ArrowRight, Loader2 } from 'lucide-react';
 import { UserRole } from '../types';
-import { verifyInstructorPassword } from '../services/db';
+import { isInstructorPasswordSet, saveInstructorPassword, verifyInstructorPassword } from '../services/db';
 
 interface LoginViewProps {
   onSelectRole: (role: UserRole) => void;
@@ -13,6 +13,29 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSelectRole }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isPasswordInitialized, setIsPasswordInitialized] = useState<boolean | null>(null);
+  const [setupPassword, setSetupPassword] = useState('');
+  const [setupConfirm, setSetupConfirm] = useState('');
+  const [setupError, setSetupError] = useState('');
+  const [isSetupLoading, setIsSetupLoading] = useState(false);
+
+  useEffect(() => {
+    if (!showPasswordModal) return;
+    let isMounted = true;
+    setIsPasswordInitialized(null);
+    setSetupError('');
+    setError('');
+    isInstructorPasswordSet()
+      .then(result => {
+        if (isMounted) setIsPasswordInitialized(result);
+      })
+      .catch(() => {
+        if (isMounted) setIsPasswordInitialized(true);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [showPasswordModal]);
 
   const handleInstructorLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +54,32 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSelectRole }) => {
         setError('Error al verificar credenciales.');
     } finally {
         setIsLoading(false);
+    }
+  };
+
+  const handleSetupPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSetupError('');
+    setIsSetupLoading(true);
+
+    try {
+      if (setupPassword.length < 4) {
+        setSetupError('La contraseña debe tener al menos 4 caracteres.');
+        setIsSetupLoading(false);
+        return;
+      }
+      if (setupPassword !== setupConfirm) {
+        setSetupError('Las contraseñas no coinciden.');
+        setIsSetupLoading(false);
+        return;
+      }
+
+      await saveInstructorPassword(setupPassword);
+      onSelectRole('professor');
+    } catch (e) {
+      setSetupError('Error al guardar la contraseña.');
+    } finally {
+      setIsSetupLoading(false);
     }
   };
 
@@ -95,38 +144,87 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSelectRole }) => {
                         <Lock className="w-6 h-6" />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900">Acceso Instructor</h3>
-                    <p className="text-sm text-gray-500">Ingresa tu contraseña de seguridad</p>
+                    <p className="text-sm text-gray-500">
+                      {isPasswordInitialized === false
+                        ? 'Crea tu contraseña de seguridad'
+                        : 'Ingresa tu contraseña de seguridad'}
+                    </p>
                 </div>
 
-                <form onSubmit={handleInstructorLogin} className="space-y-4" autoComplete="on">
+                {isPasswordInitialized === false ? (
+                  <form onSubmit={handleSetupPassword} className="space-y-4" autoComplete="off">
                     <div>
-                        <input 
-                            type="password"
-                            id="instructor-password"
-                            name="password"
-                            autoComplete="current-password"
-                            autoFocus
-                            placeholder="Contraseña"
-                            className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center text-lg tracking-widest"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            disabled={isLoading}
-                        />
+                      <input
+                        type="password"
+                        id="setup-password"
+                        name="new-password"
+                        autoComplete="new-password"
+                        autoFocus
+                        placeholder="Nueva contraseña"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center text-lg tracking-widest"
+                        value={setupPassword}
+                        onChange={(e) => setSetupPassword(e.target.value)}
+                        disabled={isSetupLoading}
+                      />
                     </div>
-                    
-                    {error && (
-                        <p className="text-sm text-red-600 text-center font-medium bg-red-50 py-2 rounded-lg">{error}</p>
+                    <div>
+                      <input
+                        type="password"
+                        id="setup-password-confirm"
+                        name="confirm-password"
+                        autoComplete="new-password"
+                        placeholder="Confirmar contraseña"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center text-lg tracking-widest"
+                        value={setupConfirm}
+                        onChange={(e) => setSetupConfirm(e.target.value)}
+                        disabled={isSetupLoading}
+                      />
+                    </div>
+
+                    {setupError && (
+                      <p className="text-sm text-red-600 text-center font-medium bg-red-50 py-2 rounded-lg">{setupError}</p>
                     )}
 
-                    <button 
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
+                    <button
+                      type="submit"
+                      disabled={isSetupLoading}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
                     >
-                        {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
-                        Ingresar
+                      {isSetupLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+                      Guardar contraseña
                     </button>
-                </form>
+                  </form>
+                ) : (
+                  <form onSubmit={handleInstructorLogin} className="space-y-4" autoComplete="on">
+                      <div>
+                          <input 
+                              type="password"
+                              id="instructor-password"
+                              name="password"
+                              autoComplete="current-password"
+                              autoFocus
+                              placeholder="Contraseña"
+                              className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center text-lg tracking-widest"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              disabled={isLoading}
+                          />
+                      </div>
+                      
+                      {error && (
+                          <p className="text-sm text-red-600 text-center font-medium bg-red-50 py-2 rounded-lg">{error}</p>
+                      )}
+
+                      <button 
+                          type="submit"
+                          disabled={isLoading}
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
+                      >
+                          {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+                          Ingresar
+                      </button>
+                  </form>
+                )}
             </div>
         </div>
       )}

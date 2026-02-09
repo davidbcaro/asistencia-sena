@@ -9,6 +9,8 @@ import { AlertsView } from './views/AlertsView';
 import { FichasView } from './views/FichasView';
 import { SettingsView } from './views/SettingsView';
 import { StudentAttendanceView } from './views/StudentAttendanceView';
+import { CalificacionesView } from './views/CalificacionesView';
+import { CronogramaView } from './views/CronogramaView';
 import { syncFromCloud, subscribeToRealtime } from './services/db';
 import { UserRole } from './types';
 
@@ -19,6 +21,7 @@ const instructorRouteToTab: Record<string, string> = {
   reports: 'reports',
   alerts: 'alerts',
   settings: 'settings',
+  grades: 'grades',
 };
 
 const getActiveTabFromPath = (pathname: string) => {
@@ -118,9 +121,11 @@ const App: React.FC = () => {
       >
         <Route index element={<Navigate to="students" replace />} />
         <Route path="fichas" element={<FichasView />} />
+        <Route path="fichas/:fichaId/cronograma" element={<CronogramaView />} />
         <Route path="students" element={<StudentsView />} />
         <Route path="attendance" element={<AttendanceView />} />
         <Route path="reports" element={<ReportsView />} />
+        <Route path="grades" element={<CalificacionesView />} />
         <Route path="alerts" element={<AlertsView />} />
         <Route path="settings" element={<SettingsView />} />
       </Route>

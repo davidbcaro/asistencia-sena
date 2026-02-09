@@ -1,20 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Layers, BookOpen, Pencil, X, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Ficha } from '../types';
 import { getFichas, addFicha, deleteFicha, updateFicha } from '../services/db';
 
 export const FichasView: React.FC = () => {
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const navigate = useNavigate();
   
   // Create State
   const [newCode, setNewCode] = useState('');
   const [newProgram, setNewProgram] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [newCronogramaProgramName, setNewCronogramaProgramName] = useState('');
+  const [newCronogramaCenter, setNewCronogramaCenter] = useState('');
+  const [newCronogramaStartDate, setNewCronogramaStartDate] = useState('');
+  const [newCronogramaTrainingStartDate, setNewCronogramaTrainingStartDate] = useState('');
+  const [newCronogramaEndDate, setNewCronogramaEndDate] = useState('');
+  const [newCronogramaDownloadUrl, setNewCronogramaDownloadUrl] = useState('');
 
   // Edit State
   const [editingFicha, setEditingFicha] = useState<Ficha | null>(null);
-  const [editForm, setEditForm] = useState({ code: '', program: '', description: '' });
+  const [editForm, setEditForm] = useState({
+    code: '',
+    program: '',
+    description: '',
+    cronogramaProgramName: '',
+    cronogramaCenter: '',
+    cronogramaStartDate: '',
+    cronogramaTrainingStartDate: '',
+    cronogramaEndDate: '',
+    cronogramaDownloadUrl: ''
+  });
 
   // Delete State
   const [fichaToDelete, setFichaToDelete] = useState<{id: string, code: string} | null>(null);
@@ -44,13 +62,25 @@ export const FichasView: React.FC = () => {
       id: generateId(),
       code: newCode,
       program: newProgram,
-      description: newDesc
+      description: newDesc,
+      cronogramaProgramName: newCronogramaProgramName || undefined,
+      cronogramaCenter: newCronogramaCenter || undefined,
+      cronogramaStartDate: newCronogramaStartDate || undefined,
+      cronogramaTrainingStartDate: newCronogramaTrainingStartDate || undefined,
+      cronogramaEndDate: newCronogramaEndDate || undefined,
+      cronogramaDownloadUrl: newCronogramaDownloadUrl || undefined
     };
 
     addFicha(newFicha);
     setNewCode('');
     setNewProgram('');
     setNewDesc('');
+    setNewCronogramaProgramName('');
+    setNewCronogramaCenter('');
+    setNewCronogramaStartDate('');
+    setNewCronogramaTrainingStartDate('');
+    setNewCronogramaEndDate('');
+    setNewCronogramaDownloadUrl('');
     setIsAdding(false);
   };
 
@@ -59,7 +89,13 @@ export const FichasView: React.FC = () => {
     setEditForm({
         code: ficha.code,
         program: ficha.program,
-        description: ficha.description || ''
+        description: ficha.description || '',
+        cronogramaProgramName: ficha.cronogramaProgramName || '',
+        cronogramaCenter: ficha.cronogramaCenter || '',
+        cronogramaStartDate: ficha.cronogramaStartDate || '',
+        cronogramaTrainingStartDate: ficha.cronogramaTrainingStartDate || '',
+        cronogramaEndDate: ficha.cronogramaEndDate || '',
+        cronogramaDownloadUrl: ficha.cronogramaDownloadUrl || ''
     });
   };
 
@@ -69,7 +105,13 @@ export const FichasView: React.FC = () => {
         ...editingFicha,
         code: editForm.code,
         program: editForm.program,
-        description: editForm.description
+        description: editForm.description,
+        cronogramaProgramName: editForm.cronogramaProgramName || undefined,
+        cronogramaCenter: editForm.cronogramaCenter || undefined,
+        cronogramaStartDate: editForm.cronogramaStartDate || undefined,
+        cronogramaTrainingStartDate: editForm.cronogramaTrainingStartDate || undefined,
+        cronogramaEndDate: editForm.cronogramaEndDate || undefined,
+        cronogramaDownloadUrl: editForm.cronogramaDownloadUrl || undefined
     };
     updateFicha(updated);
     setEditingFicha(null);
@@ -84,6 +126,10 @@ export const FichasView: React.FC = () => {
       deleteFicha(fichaToDelete.id);
       setFichaToDelete(null);
     }
+  };
+
+  const handleOpenCronograma = (ficha: Ficha) => {
+    navigate(`/instructor/fichas/${ficha.id}/cronograma`);
   };
 
   return (
@@ -130,6 +176,54 @@ export const FichasView: React.FC = () => {
                     onChange={(e) => setNewDesc(e.target.value)}
                 />
             </div>
+            <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50/60 p-4">
+                <p className="text-sm font-semibold text-gray-800">Datos del cronograma (opcional)</p>
+                <p className="text-xs text-gray-500">Estos datos personalizan el cronograma por ficha.</p>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                        type="text"
+                        placeholder="Nombre completo del programa"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        value={newCronogramaProgramName}
+                        onChange={(e) => setNewCronogramaProgramName(e.target.value)}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Centro / Regional"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        value={newCronogramaCenter}
+                        onChange={(e) => setNewCronogramaCenter(e.target.value)}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Fecha de inicio (Ej: 29 DE SEPTIEMBRE 2025)"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        value={newCronogramaStartDate}
+                        onChange={(e) => setNewCronogramaStartDate(e.target.value)}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Inicio de formación (Ej: 14 DE OCTUBRE 2025)"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        value={newCronogramaTrainingStartDate}
+                        onChange={(e) => setNewCronogramaTrainingStartDate(e.target.value)}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Fecha fin (Ej: 27 DE JUNIO 2027)"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        value={newCronogramaEndDate}
+                        onChange={(e) => setNewCronogramaEndDate(e.target.value)}
+                    />
+                    <input
+                        type="text"
+                        placeholder="URL cronograma descargable"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        value={newCronogramaDownloadUrl}
+                        onChange={(e) => setNewCronogramaDownloadUrl(e.target.value)}
+                    />
+                </div>
+            </div>
             <div className="mt-4 flex justify-end">
                 <button
                     onClick={handleAdd}
@@ -173,6 +267,14 @@ export const FichasView: React.FC = () => {
                     <p className="text-indigo-600 font-medium text-sm">{ficha.program}</p>
                     {ficha.description && <p className="text-gray-500 text-sm mt-2">{ficha.description}</p>}
                 </div>
+                <div className="mt-4">
+                    <button
+                        onClick={() => handleOpenCronograma(ficha)}
+                        className="w-full rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+                    >
+                        Ver cronograma por fases
+                    </button>
+                </div>
             </div>
         ))}
       </div>
@@ -214,6 +316,66 @@ export const FichasView: React.FC = () => {
                             value={editForm.description}
                             onChange={e => setEditForm({...editForm, description: e.target.value})}
                         />
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4">
+                        <p className="text-sm font-semibold text-gray-800">Datos del cronograma</p>
+                        <p className="text-xs text-gray-500">Opcional: personaliza el cronograma para esta ficha.</p>
+                        <div className="mt-3 grid grid-cols-1 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Nombre completo del programa</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    value={editForm.cronogramaProgramName}
+                                    onChange={e => setEditForm({...editForm, cronogramaProgramName: e.target.value})}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Centro / Regional</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    value={editForm.cronogramaCenter}
+                                    onChange={e => setEditForm({...editForm, cronogramaCenter: e.target.value})}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha de inicio</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    value={editForm.cronogramaStartDate}
+                                    onChange={e => setEditForm({...editForm, cronogramaStartDate: e.target.value})}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Inicio de formación</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    value={editForm.cronogramaTrainingStartDate}
+                                    onChange={e => setEditForm({...editForm, cronogramaTrainingStartDate: e.target.value})}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha fin</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    value={editForm.cronogramaEndDate}
+                                    onChange={e => setEditForm({...editForm, cronogramaEndDate: e.target.value})}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">URL cronograma descargable</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    value={editForm.cronogramaDownloadUrl}
+                                    onChange={e => setEditForm({...editForm, cronogramaDownloadUrl: e.target.value})}
+                                />
+                            </div>
+                        </div>
                     </div>
                     
                     <div className="pt-2 flex space-x-3">

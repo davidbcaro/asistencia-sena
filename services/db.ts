@@ -1,5 +1,5 @@
 import { createClient, RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { Student, Ficha, AttendanceRecord, EmailDraft, EmailSettings, ClassSession } from '../types';
+import { Student, Ficha, AttendanceRecord, EmailDraft, EmailSettings, ClassSession, GradeActivity, GradeEntry } from '../types';
 
 const STORAGE_KEYS = {
   STUDENTS: 'asistenciapro_students',
@@ -9,6 +9,11 @@ const STORAGE_KEYS = {
   DRAFTS: 'asistenciapro_drafts',
   EMAIL_SETTINGS: 'asistenciapro_email_settings',
   INSTRUCTOR_PWD_HASH: 'asistenciapro_instructor_password_hash',
+  GRADE_ACTIVITIES: 'asistenciapro_grade_activities',
+  GRADES: 'asistenciapro_grades',
+  RAP_NOTES: 'asistenciapro_rap_notes',
+  RAP_COLUMNS: 'asistenciapro_rap_columns',
+  STUDENT_GRADE_OBSERVATIONS: 'asistenciapro_student_grade_observations',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -20,9 +25,6 @@ const notifyChange = () => {
 };
 
 // --- CRYPTO HELPERS (SHA-256) ---
-// Default Password Hash (SHA-256 for "AdminSecure2024!")
-const DEFAULT_HASH_SHA256 = "d7d10f84852928373a0b5e406322810817454f358392147321685044ca57b3f9";
-const DEFAULT_INSTRUCTOR_PASSWORD = "AdminSecure2024!";
 
 const hashPasswordInsecure = (plainText: string): string => {
     let hash = 0;
@@ -176,7 +178,13 @@ export const sendFichasToCloud = async (fichas: Ficha[]): Promise<void> => {
             id: f.id,
             code: f.code,
             program: f.program,
-            description: f.description
+            description: f.description,
+            cronograma_program_name: f.cronogramaProgramName ?? null,
+            cronograma_center: f.cronogramaCenter ?? null,
+            cronograma_start_date: f.cronogramaStartDate ?? null,
+            cronograma_training_start_date: f.cronogramaTrainingStartDate ?? null,
+            cronograma_end_date: f.cronogramaEndDate ?? null,
+            cronograma_download_url: f.cronogramaDownloadUrl ?? null
         }));
 
         const url = `${edgeUrl}/save-fichas`;
@@ -365,10 +373,12 @@ export const getStudents = (): Student[] => {
       if (s.firstName !== undefined) {
           return {
               ...s,
+              username: s.username || s.usuario || undefined,
               status: s.status || s.estado || 'Formación',
               description: s.description || s.descripcion || undefined,
               estado: undefined,
-              descripcion: undefined
+              descripcion: undefined,
+              usuario: undefined
           } as Student;
       }
       
@@ -380,10 +390,12 @@ export const getStudents = (): Student[] => {
               lastName: s.last_name, 
               first_name: undefined, 
               last_name: undefined,
+              username: s.username || s.usuario || undefined,
               status: s.status || s.estado || 'Formación',
               description: s.description || s.descripcion || undefined,
               estado: undefined,
-              descripcion: undefined
+              descripcion: undefined,
+              usuario: undefined
           } as Student;
       }
 
@@ -401,10 +413,12 @@ export const getStudents = (): Student[] => {
           firstName, 
           lastName, 
           name: undefined,
+          username: s.username || s.usuario || undefined,
           status: s.status || s.estado || 'Formación',
           description: s.description || s.descripcion || undefined,
           estado: undefined,
-          descripcion: undefined
+          descripcion: undefined,
+          usuario: undefined
       } as Student;
   });
   return migrated;
@@ -470,7 +484,20 @@ export const getFichas = (): Ficha[] => {
   if (!data) {
      return []; // Return empty if nothing exists
   }
-  return JSON.parse(data);
+  const parsed = JSON.parse(data);
+  const migrated = parsed.map((f: any) => ({
+      ...f,
+      cronogramaProgramName: f.cronogramaProgramName || f.cronograma_program_name || f.program_full_name || undefined,
+      cronogramaCenter: f.cronogramaCenter || f.cronograma_center || undefined,
+      cronogramaStartDate: f.cronogramaStartDate || f.cronograma_start_date || undefined,
+      cronogramaTrainingStartDate: f.cronogramaTrainingStartDate || f.cronograma_training_start_date || undefined,
+      cronogramaEndDate: f.cronogramaEndDate || f.cronograma_end_date || undefined,
+      cronogramaDownloadUrl: f.cronogramaDownloadUrl || f.cronograma_download_url || undefined
+  })) as Ficha[];
+  if (JSON.stringify(parsed) !== JSON.stringify(migrated)) {
+      localStorage.setItem(STORAGE_KEYS.FICHAS, JSON.stringify(migrated));
+  }
+  return migrated;
 };
 
 export const saveFichas = (fichas: Ficha[]) => {
@@ -624,6 +651,117 @@ export const deleteSession = async (id: string) => {
     await deleteSessionFromCloud(idStr);
 };
 
+// --- GRADES ---
+export const getGradeActivities = (): GradeActivity[] => {
+    const data = localStorage.getItem(STORAGE_KEYS.GRADE_ACTIVITIES);
+    const parsed = data ? JSON.parse(data) : [];
+    const migrated = parsed.map((a: any) => ({
+        ...a,
+        phase: a.phase || 'Fase 1: Análisis',
+        detail: a.detail || undefined
+    }));
+    if (migrated.length !== parsed.length || migrated.some((a: any, i: number) => a.phase !== parsed[i]?.phase)) {
+        localStorage.setItem(STORAGE_KEYS.GRADE_ACTIVITIES, JSON.stringify(migrated));
+    }
+    return migrated;
+};
+
+export const saveGradeActivities = (activities: GradeActivity[]) => {
+    localStorage.setItem(STORAGE_KEYS.GRADE_ACTIVITIES, JSON.stringify(activities));
+    notifyChange();
+};
+
+export const addGradeActivity = (activity: GradeActivity) => {
+    const current = getGradeActivities();
+    saveGradeActivities([...current, activity]);
+};
+
+export const updateGradeActivity = (updated: GradeActivity) => {
+    const current = getGradeActivities();
+    const index = current.findIndex(a => a.id === updated.id);
+    if (index !== -1) {
+        current[index] = updated;
+        saveGradeActivities(current);
+    }
+};
+
+export const deleteGradeActivity = (activityId: string) => {
+    const current = getGradeActivities().filter(a => a.id !== activityId);
+    saveGradeActivities(current);
+    const grades = getGrades().filter(g => g.activityId !== activityId);
+    saveGrades(grades);
+};
+
+export const getGrades = (): GradeEntry[] => {
+    const data = localStorage.getItem(STORAGE_KEYS.GRADES);
+    return data ? JSON.parse(data) : [];
+};
+
+export const saveGrades = (grades: GradeEntry[]) => {
+    localStorage.setItem(STORAGE_KEYS.GRADES, JSON.stringify(grades));
+    notifyChange();
+};
+
+export const upsertGrades = (entries: GradeEntry[]) => {
+    if (entries.length === 0) return;
+    const current = getGrades();
+    const updated = [...current];
+    entries.forEach(entry => {
+        const index = updated.findIndex(g => g.studentId === entry.studentId && g.activityId === entry.activityId);
+        if (index !== -1) {
+            updated[index] = entry;
+        } else {
+            updated.push(entry);
+        }
+    });
+    saveGrades(updated);
+};
+
+export const deleteGradeEntry = (studentId: string, activityId: string) => {
+    const current = getGrades();
+    const updated = current.filter(g => !(g.studentId === studentId && g.activityId === activityId));
+    if (updated.length !== current.length) {
+        saveGrades(updated);
+    }
+};
+
+// --- RAP NOTES ---
+export type RapNotes = Record<string, Record<string, string>>;
+export type RapColumns = Record<string, string[]>;
+
+export const getRapNotes = (): RapNotes => {
+    const data = localStorage.getItem(STORAGE_KEYS.RAP_NOTES);
+    return data ? JSON.parse(data) : {};
+};
+
+export const saveRapNotes = (notes: RapNotes) => {
+    localStorage.setItem(STORAGE_KEYS.RAP_NOTES, JSON.stringify(notes));
+    notifyChange();
+};
+
+export const getRapColumns = (): RapColumns => {
+    const data = localStorage.getItem(STORAGE_KEYS.RAP_COLUMNS);
+    return data ? JSON.parse(data) : {};
+};
+
+export const saveRapColumns = (columns: RapColumns) => {
+    localStorage.setItem(STORAGE_KEYS.RAP_COLUMNS, JSON.stringify(columns));
+    notifyChange();
+};
+
+// --- STUDENT GRADE OBSERVATIONS (observaciones en detalle del aprendiz en Calificaciones) ---
+export type StudentGradeObservations = Record<string, string>;
+
+export const getStudentGradeObservations = (): StudentGradeObservations => {
+    const data = localStorage.getItem(STORAGE_KEYS.STUDENT_GRADE_OBSERVATIONS);
+    return data ? JSON.parse(data) : {};
+};
+
+export const saveStudentGradeObservations = (obs: StudentGradeObservations) => {
+    localStorage.setItem(STORAGE_KEYS.STUDENT_GRADE_OBSERVATIONS, JSON.stringify(obs));
+    notifyChange();
+};
+
 // Attendance
 export const getAttendance = (): AttendanceRecord[] => {
   const data = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
@@ -670,35 +808,41 @@ export const saveEmailSettings = (settings: EmailSettings) => {
 
 // --- INSTRUCTOR PASSWORD SYSTEM (HASHED + CLOUD) ---
 
+const getStoredInstructorHash = async (): Promise<string | null> => {
+    let storedHash: string | null = null;
+    const sb = getClient();
+    if (sb) {
+        const { data } = await sb.from('app_settings').select('value').eq('id', 'instructor_pwd_hash').single();
+        if (data && data.value) {
+            storedHash = data.value;
+            localStorage.setItem(STORAGE_KEYS.INSTRUCTOR_PWD_HASH, storedHash);
+        }
+    }
+
+    if (!storedHash) {
+        storedHash = localStorage.getItem(STORAGE_KEYS.INSTRUCTOR_PWD_HASH);
+    }
+
+    return storedHash || null;
+};
+
+export const isInstructorPasswordSet = async (): Promise<boolean> => {
+    try {
+        const storedHash = await getStoredInstructorHash();
+        return !!storedHash;
+    } catch (e) {
+        console.error("Password state check error:", e);
+        return false;
+    }
+};
+
 export const verifyInstructorPassword = async (inputPassword: string): Promise<boolean> => {
     const cleanInput = inputPassword.trim();
 
     try {
         const inputHash = await hashPassword(cleanInput);
-        
-        // 1. Get Stored Hash (Cloud -> Local)
-        let storedHash = null;
-        
-        // Try Cloud
-        const sb = getClient();
-        if (sb) {
-            const { data } = await sb.from('app_settings').select('value').eq('id', 'instructor_pwd_hash').single();
-            if (data && data.value) {
-                storedHash = data.value;
-                localStorage.setItem(STORAGE_KEYS.INSTRUCTOR_PWD_HASH, storedHash);
-            }
-        }
-        
-        // Try Local if Cloud failed or empty
-        if (!storedHash) {
-            storedHash = localStorage.getItem(STORAGE_KEYS.INSTRUCTOR_PWD_HASH);
-        }
-
-        // 2. If no stored password exists, use default
-        if (!storedHash) {
-            storedHash = await hashPassword(DEFAULT_INSTRUCTOR_PASSWORD);
-            localStorage.setItem(STORAGE_KEYS.INSTRUCTOR_PWD_HASH, storedHash);
-        }
+        const storedHash = await getStoredInstructorHash();
+        if (!storedHash) return false;
 
         // 3. Compare hash
         if (inputHash === storedHash) {
@@ -707,10 +851,6 @@ export const verifyInstructorPassword = async (inputPassword: string): Promise<b
 
         // 4. Fallbacks for insecure contexts / defaults
         if (hashPasswordInsecure(cleanInput) === storedHash) {
-            return true;
-        }
-
-        if (storedHash === DEFAULT_HASH_SHA256 && cleanInput === DEFAULT_INSTRUCTOR_PASSWORD) {
             return true;
         }
 
@@ -801,7 +941,18 @@ export const syncFromCloud = async () => {
         // Fichas
         const { data: f } = await client.from('fichas').select('*');
         if (f) {
-             const mappedFichas = f.map((x: any) => ({ id: x.id, code: x.code, program: x.program, description: x.description }));
+             const mappedFichas = f.map((x: any) => ({
+                 id: x.id,
+                 code: x.code,
+                 program: x.program,
+                 description: x.description,
+                 cronogramaProgramName: x.cronograma_program_name || undefined,
+                 cronogramaCenter: x.cronograma_center || undefined,
+                 cronogramaStartDate: x.cronograma_start_date || undefined,
+                 cronogramaTrainingStartDate: x.cronograma_training_start_date || undefined,
+                 cronogramaEndDate: x.cronograma_end_date || undefined,
+                 cronogramaDownloadUrl: x.cronograma_download_url || undefined
+             }));
              saveFichas(mappedFichas);
         }
 
@@ -853,6 +1004,11 @@ export interface AppBackup {
         attendance: AttendanceRecord[];
         sessions: ClassSession[];
         emailSettings: EmailSettings;
+        gradeActivities: GradeActivity[];
+        grades: GradeEntry[];
+        rapNotes: RapNotes;
+        rapColumns: RapColumns;
+        studentGradeObservations?: StudentGradeObservations;
     };
 }
 
@@ -865,7 +1021,12 @@ export const exportFullBackup = (): string => {
             fichas: getFichas(),
             attendance: getAttendance(),
             sessions: getSessions(),
-            emailSettings: getEmailSettings()
+            emailSettings: getEmailSettings(),
+            gradeActivities: getGradeActivities(),
+            grades: getGrades(),
+            rapNotes: getRapNotes(),
+            rapColumns: getRapColumns(),
+            studentGradeObservations: getStudentGradeObservations()
         }
     };
     return JSON.stringify(backup, null, 2);
@@ -925,6 +1086,13 @@ export const importFullBackup = (jsonString: string): boolean => {
         notifyChange();
         
         saveEmailSettings(backup.data.emailSettings || { teacherName: '', teacherEmail: '', serviceId: '', templateId: '', publicKey: '' });
+        saveGradeActivities(backup.data.gradeActivities || []);
+        saveGrades(backup.data.grades || []);
+        saveRapNotes(backup.data.rapNotes || {});
+        saveRapColumns(backup.data.rapColumns || {});
+        if (backup.data.studentGradeObservations) {
+            saveStudentGradeObservations(backup.data.studentGradeObservations);
+        }
         return true;
     } catch (e) {
         console.error("Import failed", e);
@@ -938,6 +1106,11 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.FICHAS);
     localStorage.removeItem(STORAGE_KEYS.SESSIONS);
     localStorage.removeItem(STORAGE_KEYS.EMAIL_SETTINGS);
+    localStorage.removeItem(STORAGE_KEYS.GRADE_ACTIVITIES);
+    localStorage.removeItem(STORAGE_KEYS.GRADES);
+    localStorage.removeItem(STORAGE_KEYS.RAP_NOTES);
+    localStorage.removeItem(STORAGE_KEYS.RAP_COLUMNS);
+    localStorage.removeItem(STORAGE_KEYS.STUDENT_GRADE_OBSERVATIONS);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };
