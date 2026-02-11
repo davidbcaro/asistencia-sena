@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Calendar, Check, X, Save, Filter, Users, Upload, FileText, Download, CheckCircle, Search, ChevronLeft, ChevronRight, Settings, Plus, Trash2, RotateCcw, History, AlertTriangle, Lock } from 'lucide-react';
 import { Student, AttendanceRecord, ClassSession } from '../types';
-import { getStudents, getAttendanceForDate, bulkSaveAttendance, getSessions, addSession, deleteSession, getAttendance } from '../services/db';
+import { getStudents, getAttendanceForDate, bulkSaveAttendance, getSessions, addSession, deleteSession, getAttendance, syncFromCloud } from '../services/db';
 
 export const AttendanceView: React.FC = () => {
   // Helper to get local date YYYY-MM-DD correctly
@@ -61,7 +61,8 @@ export const AttendanceView: React.FC = () => {
   };
 
   useEffect(() => {
-    loadData();
+    // Sync from cloud first to get latest attendance records from students
+    syncFromCloud().then(() => loadData()).catch(() => loadData());
     window.addEventListener('asistenciapro-storage-update', loadData);
     return () => window.removeEventListener('asistenciapro-storage-update', loadData);
   }, []);

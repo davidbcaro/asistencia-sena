@@ -893,21 +893,31 @@ export const subscribeToRealtime = () => {
         return; // Already subscribed
     }
 
-    console.log("Initializing Realtime Subscription (attendance only)...");
-    
-    // Limit Realtime to attendance table only
-    realtimeChannel = client.channel('attendance-changes')
+    console.log("Initializing Realtime Subscription (attendance + sessions)...");
+
+    realtimeChannel = client.channel('data-changes')
         .on(
-            'postgres_changes', 
-            { 
-                event: '*', 
+            'postgres_changes',
+            {
+                event: '*',
                 schema: 'public',
                 table: 'attendance'
-            }, 
+            },
             (payload) => {
                 console.log("Realtime attendance change detected:", payload);
-                // Only sync attendance from cloud
                 syncAttendanceFromCloud();
+            }
+        )
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'sessions'
+            },
+            (payload) => {
+                console.log("Realtime sessions change detected:", payload);
+                syncSessionsFromCloud();
             }
         )
         .subscribe();
@@ -927,6 +937,22 @@ const syncAttendanceFromCloud = async () => {
         }
     } catch (e) {
         console.error("Attendance sync failed", e);
+    }
+};
+
+// Sync sessions from cloud (used by Realtime)
+const syncSessionsFromCloud = async () => {
+    const client = getClient();
+    if (!client) return;
+
+    try {
+        const { data: sess } = await client.from('sessions').select('*');
+        if (sess) {
+            const mappedSessions = sess.map((x: any) => ({ id: x.id, date: x.date, group: x.group, description: x.description }));
+            saveSessions(mappedSessions);
+        }
+    } catch (e) {
+        console.error("Sessions sync failed", e);
     }
 };
 
