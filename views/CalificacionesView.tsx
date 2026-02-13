@@ -267,7 +267,7 @@ export const CalificacionesView: React.FC = () => {
   const studentsForFicha = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     const filtered = students.filter(s => {
-      if ((s.group || 'General') !== selectedFicha) return false;
+      if (selectedFicha !== 'Todas' && (s.group || 'General') !== selectedFicha) return false;
       if (!term) return true;
       const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
       return (
@@ -316,10 +316,10 @@ export const CalificacionesView: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showFinalFilter]);
 
-  const activitiesForFicha = useMemo(
-    () => activities.filter(a => a.group === selectedFicha && (a.phase || phases[1]) === selectedPhase),
-    [activities, selectedFicha, selectedPhase]
-  );
+  const activitiesForFicha = useMemo(() => {
+    if (selectedFicha === 'Todas') return [];
+    return activities.filter(a => a.group === selectedFicha && (a.phase || phases[1]) === selectedPhase);
+  }, [activities, selectedFicha, selectedPhase]);
 
   const visibleActivities = useMemo(
     () =>
@@ -566,8 +566,8 @@ export const CalificacionesView: React.FC = () => {
   const handleFileUpload = async (file: File) => {
     setUploadError('');
     setUploadInfo('');
-    if (!selectedFicha) {
-      setUploadError('Selecciona una ficha antes de cargar el Excel.');
+    if (!selectedFicha || selectedFicha === 'Todas') {
+      setUploadError('Selecciona una ficha específica antes de cargar el Excel.');
       return;
     }
 
@@ -622,46 +622,74 @@ export const CalificacionesView: React.FC = () => {
         return;
       }
 
-      const existingByName = new Map<string, GradeActivity>(
+      const existingByDetail = new Map<string, GradeActivity>(
         activitiesForFicha.map(activity => {
-          const split = splitActivityHeader(activity.name);
-          return [normalizeText(split.baseName), activity];
+          const key = normalizeText(activity.detail || activity.name);
+          return [key, activity];
         })
       );
+
+      const activityColumns = new Map<
+        string,
+        { activity: GradeActivity; realIndex?: number; letterIndex?: number; fallbackIndex?: number; detail: string }
+      >();
       const newActivities: GradeActivity[] = [];
-      const activityMap = new Map<string, GradeActivity>();
-      const activityColumns = new Map<string, { activity: GradeActivity; realIndex?: number; letterIndex?: number; fallbackIndex?: number }>();
+
+      const existingEvNumbers = activitiesForFicha
+        .map(activity => {
+          const match = activity.name.match(/EV(\d+)/i);
+          return match ? Number(match[1]) : null;
+        })
+        .filter((value): value is number => value !== null);
+      let nextEvNumber = existingEvNumbers.length > 0 ? Math.max(...existingEvNumbers) + 1 : 1;
+
+      const evidenceMap = new Map<
+        string,
+        { baseName: string; realIndex?: number; letterIndex?: number; fallbackIndex?: number }
+      >();
 
       activityIndexes.forEach(({ header, index }) => {
         const { baseName, kind } = splitActivityHeader(header);
         const normalized = normalizeText(baseName);
-        if (!baseName) return;
-        const existing = existingByName.get(normalized);
-        if (existing) {
-          activityMap.set(baseName, existing);
-        } else {
-          const activity: GradeActivity = {
+        if (!baseName || !normalized) return;
+        const entry = evidenceMap.get(normalized) || { baseName };
+        if (kind === 'real') {
+          entry.realIndex = index;
+        } else if (kind === 'letter') {
+          entry.letterIndex = index;
+        } else if (entry.fallbackIndex === undefined) {
+          entry.fallbackIndex = index;
+        }
+        evidenceMap.set(normalized, entry);
+      });
+
+      evidenceMap.forEach((entry, normalizedKey) => {
+        const existing = existingByDetail.get(normalizedKey);
+        let activity = existing;
+        if (!activity) {
+          const evLabel = `EV${String(nextEvNumber).padStart(2, '0')}`;
+          nextEvNumber += 1;
+          activity = {
             id: generateId(),
-            name: baseName,
+            name: evLabel,
             group: selectedFicha,
             phase: selectedPhase,
             maxScore: 100,
+            detail: entry.baseName,
             createdAt: new Date().toISOString(),
           };
           newActivities.push(activity);
-          activityMap.set(baseName, activity);
+        } else if (!activity.detail) {
+          updateGradeActivity({ ...activity, detail: entry.baseName });
         }
-        const activity = activityMap.get(baseName);
-        if (!activity) return;
-        const existingCols = activityColumns.get(baseName) || { activity };
-        if (kind === 'real') {
-          existingCols.realIndex = index;
-        } else if (kind === 'letter') {
-          existingCols.letterIndex = index;
-        } else {
-          existingCols.fallbackIndex = index;
-        }
-        activityColumns.set(baseName, existingCols);
+
+        activityColumns.set(normalizedKey, {
+          activity,
+          realIndex: entry.realIndex,
+          letterIndex: entry.letterIndex,
+          fallbackIndex: entry.fallbackIndex,
+          detail: entry.baseName,
+        });
       });
 
       newActivities.forEach(addGradeActivity);
@@ -836,6 +864,7 @@ export const CalificacionesView: React.FC = () => {
                         }}
                         className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                       >
+                        <option value="Todas">Todas las fichas</option>
                         {fichas.map(f => (
                           <option key={f.id} value={f.code}>{f.code} - {f.program}</option>
                         ))}
