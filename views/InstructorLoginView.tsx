@@ -157,7 +157,27 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
             </button>
           </form>
         ) : (
-          <form onSubmit={handleInstructorLogin} className="space-y-4" autoComplete="on">
+          <form
+            onSubmit={handleInstructorLogin}
+            className="space-y-4"
+            autoComplete="on"
+            method="post"
+            action={window.location.origin + '/login/instructor'}
+          >
+            {/* Campo fijo para que el navegador reconozca usuario+contraseña y ofrezca guardar/sugerir */}
+            <div className="sr-only" aria-hidden="true">
+              <label htmlFor="instructor-username">Usuario</label>
+              <input
+                type="text"
+                id="instructor-username"
+                name="username"
+                autoComplete="username"
+                defaultValue="instructor"
+                readOnly
+                tabIndex={-1}
+                className="absolute opacity-0 pointer-events-none h-0 w-0"
+              />
+            </div>
             <div>
               <input
                 type="password"
