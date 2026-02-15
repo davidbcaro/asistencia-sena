@@ -438,7 +438,7 @@ export const StudentsView: React.FC = () => {
                                 <option value="Todos">Todos los Estados</option>
                                 <option value="Formación">Formación</option>
                                 <option value="Cancelado">Cancelado</option>
-                                <option value="Retiro Voluntario">Retiro Voluntario</option>
+                                <option value="Retiro">Retiro</option>
                                 <option value="Deserción">Deserción</option>
                             </select>
                         </div>

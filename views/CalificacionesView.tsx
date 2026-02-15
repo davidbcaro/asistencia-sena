@@ -144,6 +144,7 @@ export const CalificacionesView: React.FC = () => {
   const [studentDetailModal, setStudentDetailModal] = useState<Student | null>(null);
   const [studentDetailObservation, setStudentDetailObservation] = useState('');
   const activityNameRef = useRef<HTMLTextAreaElement | null>(null);
+  const selectedFichaRef = useRef<string>('');
   const phases = [
     'Fase Inducción',
     'Fase 1: Análisis',
@@ -169,6 +170,10 @@ export const CalificacionesView: React.FC = () => {
     setSortDirection('asc');
   };
 
+  useEffect(() => {
+    selectedFichaRef.current = selectedFicha;
+  }, [selectedFicha]);
+
   const loadData = () => {
     const loadedStudents = getStudents();
     const loadedFichas = getFichas();
@@ -182,7 +187,7 @@ export const CalificacionesView: React.FC = () => {
     setGrades(loadedGrades);
     setRapNotes(loadedRapNotes);
     setRapColumns(loadedRapColumns);
-    if (!selectedFicha && loadedFichas.length > 0) {
+    if (!selectedFichaRef.current && loadedFichas.length > 0) {
       setSelectedFicha(loadedFichas[0].code);
     }
   };

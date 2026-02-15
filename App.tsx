@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { LoginView } from './views/LoginView';
+import { InstructorLoginView } from './views/InstructorLoginView';
 import { StudentsView } from './views/StudentsView';
 import { AttendanceView } from './views/AttendanceView';
 import { ReportsView } from './views/ReportsView';
@@ -87,6 +88,16 @@ const App: React.FC = () => {
         path="/"
         element={
           role ? <Navigate to={defaultLanding} replace /> : <LoginView onSelectRole={handleSelectRole} />
+        }
+      />
+      <Route
+        path="/login/instructor"
+        element={
+          role === 'professor' ? (
+            <Navigate to="/instructor/students" replace />
+          ) : (
+            <InstructorLoginView onSelectRole={handleSelectRole} />
+          )
         }
       />
       <Route
