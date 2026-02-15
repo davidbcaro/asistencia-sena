@@ -195,7 +195,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
             )}
           </div>
         </header>
-        <div className="p-4 md:p-8 max-w-7xl mx-auto flex-1 w-full">
+        <div
+          className={`p-4 md:p-8 flex-1 w-full mx-auto ${sidebarCollapsed ? 'max-w-none' : 'max-w-7xl'}`}
+        >
           {children}
         </div>
       </main>
