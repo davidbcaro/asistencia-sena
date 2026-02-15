@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { AlertTriangle, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet, Filter, Pencil, Plus, Trash2, Upload, X, Search } from 'lucide-react';
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet, Filter, Pencil, Plus, Trash2, Upload, X, Search } from 'lucide-react';
 import { Ficha, GradeActivity, GradeEntry, Student } from '../types';
 import {
   addGradeActivity,
@@ -12,12 +12,14 @@ import {
   getFichas,
   getGradeActivities,
   getGrades,
+  getJuiciosEvaluativos,
   getRapColumns,
   getRapNotes,
   getStudentGradeObservations,
   getStudents,
   saveGradeActivities,
   saveGrades,
+  saveJuiciosEvaluativos,
   saveRapColumns,
   saveRapNotes,
   saveStudentGradeObservations,
@@ -124,6 +126,7 @@ export const CalificacionesView: React.FC = () => {
   const [rapNotes, setRapNotes] = useState<Record<string, Record<string, string>>>({});
   const [rapModal, setRapModal] = useState<{ key: string; text: string } | null>(null);
   const [rapColumns, setRapColumns] = useState<Record<string, string[]>>({});
+  const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<Record<string, Record<string, boolean>>>({});
   const [rapManagerOpen, setRapManagerOpen] = useState(false);
   const [rapNewName, setRapNewName] = useState('');
   const [rapNewDetail, setRapNewDetail] = useState('');
@@ -181,12 +184,14 @@ export const CalificacionesView: React.FC = () => {
     const loadedGrades = getGrades();
     const loadedRapNotes = getRapNotes();
     const loadedRapColumns = getRapColumns();
+    const loadedJuicios = getJuiciosEvaluativos();
     setStudents(loadedStudents);
     setFichas(loadedFichas);
     setActivities(loadedActivities);
     setGrades(loadedGrades);
     setRapNotes(loadedRapNotes);
     setRapColumns(loadedRapColumns);
+    setJuiciosEvaluativos(loadedJuicios);
     if (!selectedFichaRef.current && loadedFichas.length > 0) {
       setSelectedFicha(loadedFichas[0].code);
     }
@@ -417,6 +422,16 @@ export const CalificacionesView: React.FC = () => {
     setSelectedStudents(updated);
   };
 
+  const toggleJuicioEvaluativo = (studentId: string) => {
+    const byKey = juiciosEvaluativos[rapKey] || {};
+    const next = { ...byKey, [studentId]: !byKey[studentId] };
+    const updated = { ...juiciosEvaluativos, [rapKey]: next };
+    setJuiciosEvaluativos(updated);
+    saveJuiciosEvaluativos(updated);
+  };
+
+  const isJuicioEvaluado = (studentId: string) => !!(juiciosEvaluativos[rapKey] || {})[studentId];
+
   const buildReportData = () => {
     if (!selectedFicha) return null;
     const headers = [
@@ -425,6 +440,7 @@ export const CalificacionesView: React.FC = () => {
       'Nombres',
       'Correo',
       'Ficha',
+      'Juicios Evaluativos',
       ...visibleActivities.map(a => a.name),
       ...rapColumnsForFicha,
       ...(hasActivities ? ['Pendientes', 'Promedio', 'FINAL'] : []),
@@ -454,6 +470,7 @@ export const CalificacionesView: React.FC = () => {
         student.firstName || '',
         student.email || '',
         student.group || '',
+        (juiciosEvaluativos[rapKey] || {})[student.id] ? 'Sí' : '-',
         ...activityScores,
         ...rapValues,
         ...finalValues,
@@ -1029,7 +1046,8 @@ export const CalificacionesView: React.FC = () => {
                 </button>
               </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-56 min-w-56 max-w-56 sticky left-[592px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Correo electrónico</th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 max-w-28 sticky left-[816px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 max-w-28 sticky left-[816px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 max-w-24 sticky left-[928px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para marcar como evaluado">Juicios Evaluativos</th>
               {visibleActivities.map(activity => (
                 <th key={activity.id} className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                   <div className="flex items-center gap-2">
@@ -1079,13 +1097,13 @@ export const CalificacionesView: React.FC = () => {
           <tbody className="divide-y divide-gray-100">
             {studentsForFicha.length === 0 ? (
               <tr>
-                <td colSpan={7 + visibleActivities.length + rapColumnsForFicha.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={8 + visibleActivities.length + rapColumnsForFicha.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
                   No hay aprendices en esta ficha.
                 </td>
               </tr>
             ) : studentsFilteredByFinal.length === 0 ? (
               <tr>
-                <td colSpan={7 + visibleActivities.length + rapColumnsForFicha.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={8 + visibleActivities.length + rapColumnsForFicha.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
                   Ningún aprendiz coincide con el filtro FINAL seleccionado.
                 </td>
               </tr>
@@ -1100,7 +1118,21 @@ export const CalificacionesView: React.FC = () => {
                   <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[208px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-indigo-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.lastName}</td>
                   <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[400px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-indigo-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.firstName}</td>
                   <td className="px-6 py-4 w-56 min-w-56 max-w-56 text-sm text-gray-700 sticky left-[592px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.email || <span className="text-gray-400">-</span>}</td>
-                  <td className="px-6 py-4 w-28 min-w-28 max-w-28 text-sm text-gray-700 sticky left-[816px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.group || <span className="text-gray-400">-</span>}</td>
+                  <td className="px-6 py-4 w-28 min-w-28 max-w-28 text-sm text-gray-700 sticky left-[816px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.group || <span className="text-gray-400">-</span>}</td>
+                  <td
+                    className="px-4 py-4 w-24 min-w-24 max-w-24 sticky left-[928px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] align-middle transition-colors cursor-pointer text-center"
+                    style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}
+                    onClick={() => toggleJuicioEvaluativo(student.id)}
+                    title={isJuicioEvaluado(student.id) ? 'Clic para marcar como no evaluado' : 'Clic para marcar como evaluado'}
+                  >
+                    {isJuicioEvaluado(student.id) ? (
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700">
+                        <Check className="w-5 h-5" strokeWidth={3} />
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
                   {visibleActivities.map(activity => {
                     const grade = gradeMap.get(`${student.id}-${activity.id}`);
                     const isEditing = editingCell?.studentId === student.id && editingCell?.activityId === activity.id;

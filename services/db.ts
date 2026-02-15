@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
   RAP_NOTES: 'asistenciapro_rap_notes',
   RAP_COLUMNS: 'asistenciapro_rap_columns',
   STUDENT_GRADE_OBSERVATIONS: 'asistenciapro_student_grade_observations',
+  JUICIOS_EVALUATIVOS: 'asistenciapro_juicios_evaluativos',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -762,6 +763,19 @@ export const saveStudentGradeObservations = (obs: StudentGradeObservations) => {
     notifyChange();
 };
 
+// --- JUICIOS EVALUATIVOS (por ficha+fase, por estudiante: evaluado sí/no) ---
+export type JuiciosEvaluativos = Record<string, Record<string, boolean>>;
+
+export const getJuiciosEvaluativos = (): JuiciosEvaluativos => {
+    const data = localStorage.getItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS);
+    return data ? JSON.parse(data) : {};
+};
+
+export const saveJuiciosEvaluativos = (juicios: JuiciosEvaluativos) => {
+    localStorage.setItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS, JSON.stringify(juicios));
+    notifyChange();
+};
+
 // Attendance
 export const getAttendance = (): AttendanceRecord[] => {
   const data = localStorage.getItem(STORAGE_KEYS.ATTENDANCE);
@@ -1035,6 +1049,7 @@ export interface AppBackup {
         rapNotes: RapNotes;
         rapColumns: RapColumns;
         studentGradeObservations?: StudentGradeObservations;
+        juiciosEvaluativos?: JuiciosEvaluativos;
     };
 }
 
@@ -1052,7 +1067,8 @@ export const exportFullBackup = (): string => {
             grades: getGrades(),
             rapNotes: getRapNotes(),
             rapColumns: getRapColumns(),
-            studentGradeObservations: getStudentGradeObservations()
+            studentGradeObservations: getStudentGradeObservations(),
+            juiciosEvaluativos: getJuiciosEvaluativos()
         }
     };
     return JSON.stringify(backup, null, 2);
@@ -1119,6 +1135,9 @@ export const importFullBackup = (jsonString: string): boolean => {
         if (backup.data.studentGradeObservations) {
             saveStudentGradeObservations(backup.data.studentGradeObservations);
         }
+        if (backup.data.juiciosEvaluativos) {
+            saveJuiciosEvaluativos(backup.data.juiciosEvaluativos);
+        }
         return true;
     } catch (e) {
         console.error("Import failed", e);
@@ -1137,6 +1156,7 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.RAP_NOTES);
     localStorage.removeItem(STORAGE_KEYS.RAP_COLUMNS);
     localStorage.removeItem(STORAGE_KEYS.STUDENT_GRADE_OBSERVATIONS);
+    localStorage.removeItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };
