@@ -75,28 +75,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
   const isInstructor = role === 'professor';
   const showSidebarToggle = isInstructor;
 
+  const sidebarCollapsed = isInstructor && !sidebarOpen;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-      {/* Toggle: open sidebar when closed (solo instructor) */}
-      {showSidebarToggle && !sidebarOpen && (
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          className="fixed left-3 top-4 z-50 flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 shadow-md text-gray-700 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-700 transition-colors text-sm font-medium"
-          title="Abrir menú"
-        >
-          <PanelLeft className="w-5 h-5" />
-          <span className="hidden sm:inline">Abrir menú</span>
-        </button>
-      )}
-
       {/* Sidebar */}
       <aside
-        className={`flex flex-col flex-shrink-0 bg-white border-r border-gray-200 transition-[width] duration-200 ease-out overflow-hidden
-          w-full
-          ${!isInstructor || sidebarOpen ? 'md:w-64' : 'md:w-0 md:min-w-0 md:border-0'}`}
+        className={`flex flex-col flex-shrink-0 bg-white border-r border-gray-200 transition-[width] duration-200 ease-out overflow-hidden w-full ${!sidebarCollapsed ? 'md:w-64' : ''}`}
+        style={
+          sidebarCollapsed
+            ? { width: 0, minWidth: 0, borderRightWidth: 0 }
+            : undefined
+        }
       >
-        <div className="flex flex-col flex-shrink-0 min-w-[16rem] md:min-w-0">
+        <div
+          className="flex flex-col flex-1 min-w-[16rem]"
+          style={sidebarCollapsed ? { width: 0, minWidth: 0, overflow: 'hidden', pointerEvents: 'none' } : undefined}
+        >
           <div className="p-4 pb-2 flex items-center justify-between gap-2 border-b border-gray-100">
             <Link to={homePath} className="flex items-center space-x-3 flex-1 min-w-0">
               <div className={`p-2 rounded-lg flex-shrink-0 ${role === 'professor' ? 'bg-indigo-600' : 'bg-green-600'}`}>
@@ -109,16 +104,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                 </span>
               </div>
             </Link>
-            {showSidebarToggle && (
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="flex-shrink-0 p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-                title="Cerrar menú"
-              >
-                <PanelLeftClose className="w-5 h-5" />
-              </button>
-            )}
           </div>
         
         <nav className="p-4 space-y-2 flex-1">
@@ -173,19 +158,44 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <header className="bg-white shadow-sm sticky top-0 z-10 md:hidden p-4 flex items-center justify-between">
-           <Link to={homePath} className="flex items-center space-x-2">
-              <GraduationCap className={`w-6 h-6 ${role === 'professor' ? 'text-indigo-600' : 'text-green-600'}`} />
-              <span className="font-bold text-gray-800">AsistenciaPro</span>
-           </Link>
-           {role !== 'student' && (
-               <button onClick={onLogout} className="p-2 text-gray-500">
-                   <LogOut className="w-5 h-5" />
-               </button>
-           )}
+      <main className="flex-1 overflow-auto flex flex-col min-w-0">
+        {/* Barra superior: instructor siempre (toggle); estudiante solo en móvil (logo + logout) */}
+        <header
+          className={`bg-white shadow-sm sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-gray-100 ${!showSidebarToggle ? 'md:hidden' : ''}`}
+        >
+          {showSidebarToggle && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-indigo-700 transition-colors text-sm font-medium border border-gray-200 hover:border-indigo-200 shrink-0"
+              title={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
+            >
+              {sidebarOpen ? (
+                <>
+                  <PanelLeftClose className="w-5 h-5" />
+                  <span className="hidden sm:inline">Cerrar menú</span>
+                </>
+              ) : (
+                <>
+                  <PanelLeft className="w-5 h-5" />
+                  <span className="hidden sm:inline">Abrir menú</span>
+                </>
+              )}
+            </button>
+          )}
+          <div className="md:hidden flex-1 flex items-center justify-between min-w-0">
+            <Link to={homePath} className="flex items-center space-x-2 min-w-0">
+              <GraduationCap className={`w-6 h-6 shrink-0 ${role === 'professor' ? 'text-indigo-600' : 'text-green-600'}`} />
+              <span className="font-bold text-gray-800 truncate">AsistenciaPro</span>
+            </Link>
+            {role !== 'student' && (
+              <button onClick={onLogout} className="p-2 text-gray-500 shrink-0">
+                <LogOut className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </header>
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto flex-1 w-full">
           {children}
         </div>
       </main>
