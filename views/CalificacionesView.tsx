@@ -1120,14 +1120,14 @@ export const CalificacionesView: React.FC = () => {
                   <td className="px-6 py-4 w-56 min-w-56 max-w-56 text-sm text-gray-700 sticky left-[592px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.email || <span className="text-gray-400">-</span>}</td>
                   <td className="px-6 py-4 w-28 min-w-28 max-w-28 text-sm text-gray-700 sticky left-[816px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.group || <span className="text-gray-400">-</span>}</td>
                   <td
-                    className="px-4 py-4 w-24 min-w-24 max-w-24 sticky left-[928px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] align-middle transition-colors cursor-pointer text-center"
-                    style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}
+                    className="px-4 py-4 w-24 min-w-24 max-w-24 sticky left-[928px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] align-middle transition-colors cursor-pointer text-center overflow-hidden"
+                    style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX }}
                     onClick={() => toggleJuicioEvaluativo(student.id)}
                     title={isJuicioEvaluado(student.id) ? 'Clic para marcar como no evaluado' : 'Clic para marcar como evaluado'}
                   >
                     {isJuicioEvaluado(student.id) ? (
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700">
-                        <Check className="w-5 h-5" strokeWidth={3} />
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-700 flex-shrink-0">
+                        <Check className="w-3.5 h-3.5" strokeWidth={3} />
                       </span>
                     ) : (
                       <span className="text-gray-400">-</span>
