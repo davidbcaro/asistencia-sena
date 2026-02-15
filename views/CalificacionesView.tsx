@@ -126,7 +126,7 @@ export const CalificacionesView: React.FC = () => {
   const [rapNotes, setRapNotes] = useState<Record<string, Record<string, string>>>({});
   const [rapModal, setRapModal] = useState<{ key: string; text: string } | null>(null);
   const [rapColumns, setRapColumns] = useState<Record<string, string[]>>({});
-  const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<Record<string, Record<string, boolean>>>({});
+  const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<Record<string, Record<string, 'orange' | 'green'>>>({});
   const [rapManagerOpen, setRapManagerOpen] = useState(false);
   const [rapNewName, setRapNewName] = useState('');
   const [rapNewDetail, setRapNewDetail] = useState('');
@@ -424,13 +424,19 @@ export const CalificacionesView: React.FC = () => {
 
   const toggleJuicioEvaluativo = (studentId: string) => {
     const byKey = juiciosEvaluativos[rapKey] || {};
-    const next = { ...byKey, [studentId]: !byKey[studentId] };
+    const current = byKey[studentId];
+    const nextEstado: 'orange' | 'green' | undefined =
+      current === undefined ? 'orange' : current === 'orange' ? 'green' : undefined;
+    const next = nextEstado === undefined ? (() => { const { [studentId]: _, ...rest } = byKey; return rest; })() : { ...byKey, [studentId]: nextEstado };
     const updated = { ...juiciosEvaluativos, [rapKey]: next };
     setJuiciosEvaluativos(updated);
     saveJuiciosEvaluativos(updated);
   };
 
-  const isJuicioEvaluado = (studentId: string) => !!(juiciosEvaluativos[rapKey] || {})[studentId];
+  const getJuicioEstado = (studentId: string): '-' | 'orange' | 'green' => {
+    const v = (juiciosEvaluativos[rapKey] || {})[studentId];
+    return v === 'orange' ? 'orange' : v === 'green' ? 'green' : '-';
+  };
 
   const buildReportData = () => {
     if (!selectedFicha) return null;
@@ -470,7 +476,7 @@ export const CalificacionesView: React.FC = () => {
         student.firstName || '',
         student.email || '',
         student.group || '',
-        (juiciosEvaluativos[rapKey] || {})[student.id] ? 'Sí' : '-',
+        (() => { const e = (juiciosEvaluativos[rapKey] || {})[student.id]; return e === 'green' ? 'Sí' : e === 'orange' ? 'En proceso' : '-'; })(),
         ...activityScores,
         ...rapValues,
         ...finalValues,
@@ -1123,14 +1129,26 @@ export const CalificacionesView: React.FC = () => {
                     className="px-4 py-4 w-24 min-w-24 max-w-24 sticky left-[928px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] align-middle transition-colors cursor-pointer text-center overflow-hidden"
                     style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX }}
                     onClick={() => toggleJuicioEvaluativo(student.id)}
-                    title={isJuicioEvaluado(student.id) ? 'Clic para marcar como no evaluado' : 'Clic para marcar como evaluado'}
+                    title={
+                      getJuicioEstado(student.id) === '-'
+                        ? 'Clic: en proceso (naranja)'
+                        : getJuicioEstado(student.id) === 'orange'
+                          ? 'Clic: evaluado (verde)'
+                          : 'Clic: quitar (guión)'
+                    }
                   >
-                    {isJuicioEvaluado(student.id) ? (
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-700 flex-shrink-0">
+                    {getJuicioEstado(student.id) === '-' ? (
+                      <span className="text-gray-400">-</span>
+                    ) : (
+                      <span
+                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full flex-shrink-0 ${
+                          getJuicioEstado(student.id) === 'orange'
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-green-100 text-green-700'
+                        }`}
+                      >
                         <Check className="w-3.5 h-3.5" strokeWidth={3} />
                       </span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
                     )}
                   </td>
                   {visibleActivities.map(activity => {

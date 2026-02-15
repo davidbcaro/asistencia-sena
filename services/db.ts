@@ -763,12 +763,26 @@ export const saveStudentGradeObservations = (obs: StudentGradeObservations) => {
     notifyChange();
 };
 
-// --- JUICIOS EVALUATIVOS (por ficha+fase, por estudiante: evaluado sí/no) ---
-export type JuiciosEvaluativos = Record<string, Record<string, boolean>>;
+// --- JUICIOS EVALUATIVOS (por ficha+fase, por estudiante: '-' | 'orange' | 'green') ---
+export type JuicioEstado = 'orange' | 'green';
+export type JuiciosEvaluativos = Record<string, Record<string, JuicioEstado>>;
 
 export const getJuiciosEvaluativos = (): JuiciosEvaluativos => {
     const data = localStorage.getItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS);
-    return data ? JSON.parse(data) : {};
+    const raw = data ? JSON.parse(data) : {};
+    const result: JuiciosEvaluativos = {};
+    Object.keys(raw).forEach(key => {
+        const byStudent = raw[key];
+        if (byStudent && typeof byStudent === 'object') {
+            result[key] = {};
+            Object.keys(byStudent).forEach(sid => {
+                const v = byStudent[sid];
+                if (v === 'orange' || v === 'green') result[key][sid] = v;
+                else if (v === true) result[key][sid] = 'green';
+            });
+        }
+    });
+    return result;
 };
 
 export const saveJuiciosEvaluativos = (juicios: JuiciosEvaluativos) => {
