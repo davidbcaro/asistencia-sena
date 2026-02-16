@@ -277,14 +277,16 @@ export const CalificacionesView: React.FC = () => {
   const studentsForFicha = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     const filtered = students.filter(s => {
-      if (selectedFicha !== 'Todas' && (s.group || 'General') !== selectedFicha) return false;
-      if (!term) return true;
-      const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
-      return (
-        fullName.includes(term) ||
-        (s.documentNumber || '').includes(term) ||
-        (s.email || '').toLowerCase().includes(term)
-      );
+      const matchSearch = !term || (() => {
+        const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+        const doc = String(s.documentNumber || '').toLowerCase();
+        const email = (s.email || '').toLowerCase();
+        return fullName.includes(term) || doc.includes(term) || email.includes(term);
+      })();
+      if (!matchSearch) return false;
+      // Si hay búsqueda, mostrar aprendices de todas las fichas; si no, filtrar por ficha seleccionada
+      if (term) return true;
+      return selectedFicha === 'Todas' || (s.group || 'General') === selectedFicha;
     });
     return [...filtered].sort((a, b) => {
       const direction = sortDirection === 'asc' ? 1 : -1;
