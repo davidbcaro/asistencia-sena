@@ -131,27 +131,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
           })}
         </nav>
         
-        {/* Footer */}
+        {/* Footer (solo estado nube para instructor; Cerrar sesión está en el header superior) */}
         <div className="p-4 space-y-3">
              {role === 'professor' && (
-                 <>
-                    <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium ${
-                        hasCloud ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                        {hasCloud ? <Cloud className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                        <span>{hasCloud ? 'Nube Conectada' : 'Nube no config.'}</span>
-                    </div>
-                 </>
-             )}
-             
-             {role !== 'student' && (
-                 <button 
-                    onClick={onLogout}
-                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all font-medium text-sm"
-                 >
-                     <LogOut className="w-4 h-4" />
-                     <span>Cerrar Sesión</span>
-                 </button>
+                 <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium ${
+                     hasCloud ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
+                 }`}>
+                     <Cloud className="w-3 h-3" />
+                     <span>{hasCloud ? 'Nube Conectada' : 'Nube no config.'}</span>
+                 </div>
              )}
         </div>
         </div>
@@ -161,39 +149,45 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       <main className="flex-1 overflow-auto flex flex-col min-w-0">
         {/* Barra superior: instructor siempre (toggle); estudiante solo en móvil (logo + logout) */}
         <header
-          className={`bg-white shadow-sm sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-gray-100 ${!showSidebarToggle ? 'md:hidden' : ''}`}
+          className={`bg-white shadow-sm sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 ${!showSidebarToggle ? 'md:hidden' : ''}`}
         >
-          {showSidebarToggle && (
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-indigo-700 transition-colors text-sm font-medium border border-gray-200 hover:border-indigo-200 shrink-0"
-              title={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
-            >
-              {sidebarOpen ? (
-                <>
-                  <PanelLeftClose className="w-5 h-5" />
-                  <span className="hidden sm:inline">Cerrar menú</span>
-                </>
-              ) : (
-                <>
-                  <PanelLeft className="w-5 h-5" />
-                  <span className="hidden sm:inline">Abrir menú</span>
-                </>
-              )}
-            </button>
-          )}
-          <div className="md:hidden flex-1 flex items-center justify-between min-w-0">
-            <Link to={homePath} className="flex items-center space-x-2 min-w-0">
-              <GraduationCap className={`w-6 h-6 shrink-0 ${role === 'professor' ? 'text-indigo-600' : 'text-green-600'}`} />
-              <span className="font-bold text-gray-800 truncate">AsistenciaPro</span>
-            </Link>
-            {role !== 'student' && (
-              <button onClick={onLogout} className="p-2 text-gray-500 shrink-0">
-                <LogOut className="w-5 h-5" />
+          <div className="flex items-center gap-3 min-w-0">
+            {showSidebarToggle && (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-indigo-700 transition-colors text-sm font-medium border border-gray-200 hover:border-indigo-200 shrink-0"
+                title={sidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
+              >
+                {sidebarOpen ? (
+                  <>
+                    <PanelLeftClose className="w-5 h-5" />
+                    <span className="hidden sm:inline">Cerrar menú</span>
+                  </>
+                ) : (
+                  <>
+                    <PanelLeft className="w-5 h-5" />
+                    <span className="hidden sm:inline">Abrir menú</span>
+                  </>
+                )}
               </button>
             )}
+            <div className="md:hidden flex items-center min-w-0">
+              <Link to={homePath} className="flex items-center space-x-2 min-w-0">
+                <GraduationCap className={`w-6 h-6 shrink-0 ${role === 'professor' ? 'text-indigo-600' : 'text-green-600'}`} />
+                <span className="font-bold text-gray-800 truncate">AsistenciaPro</span>
+              </Link>
+            </div>
           </div>
+          {role !== 'student' && (
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all font-medium text-sm shrink-0"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Cerrar sesión</span>
+            </button>
+          )}
         </header>
         <div
           className={`p-4 md:p-8 flex-1 w-full mx-auto ${sidebarCollapsed ? 'max-w-none' : 'max-w-7xl'}`}
