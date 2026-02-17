@@ -15,6 +15,7 @@ const STORAGE_KEYS = {
   RAP_COLUMNS: 'asistenciapro_rap_columns',
   STUDENT_GRADE_OBSERVATIONS: 'asistenciapro_student_grade_observations',
   JUICIOS_EVALUATIVOS: 'asistenciapro_juicios_evaluativos',
+  LMS_LAST_ACCESS: 'asistenciapro_lms_last_access',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -477,6 +478,22 @@ export const bulkDeleteStudents = async (ids: string[]) => {
   for (const id of ids) {
     await softDeleteStudentFromCloud(id);
   }
+};
+
+// LMS Last Access (studentId -> lastAccessDate YYYY-MM-DD)
+export const getLmsLastAccess = (): Record<string, string> => {
+  const data = localStorage.getItem(STORAGE_KEYS.LMS_LAST_ACCESS);
+  if (!data) return {};
+  try {
+    return JSON.parse(data);
+  } catch {
+    return {};
+  }
+};
+
+export const saveLmsLastAccess = (data: Record<string, string>) => {
+  localStorage.setItem(STORAGE_KEYS.LMS_LAST_ACCESS, JSON.stringify(data));
+  notifyChange();
 };
 
 // Fichas
@@ -1171,6 +1188,7 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.RAP_COLUMNS);
     localStorage.removeItem(STORAGE_KEYS.STUDENT_GRADE_OBSERVATIONS);
     localStorage.removeItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS);
+    localStorage.removeItem(STORAGE_KEYS.LMS_LAST_ACCESS);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };

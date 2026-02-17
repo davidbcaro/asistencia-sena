@@ -1,0 +1,572 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users } from 'lucide-react';
+import { Student, Ficha } from '../types';
+import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess } from '../services/db';
+
+function parseDate(value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  // YYYY-MM-DD
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(v);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmy = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/.exec(v);
+  if (dmy) {
+    const [, d, m, y] = dmy;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return null;
+}
+
+function daysSince(dateStr: string): number {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return -1;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  const diff = today.getTime() - d.getTime();
+  return Math.floor(diff / (24 * 60 * 60 * 1000));
+}
+
+export const AsistenciaLmsView: React.FC = () => {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [fichas, setFichas] = useState<Ficha[]>([]);
+  const [lmsLastAccess, setLmsLastAccess] = useState<Record<string, string>>({});
+
+  const [filterFicha, setFilterFicha] = useState<string>('Todas');
+  const [filterStatus, setFilterStatus] = useState<string>('Todos');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname' | 'document' | 'group' | 'status' | 'lastAccess' | 'daysInactive'>('lastname');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showAllStudents, setShowAllStudents] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const filtersRef = useRef<HTMLDivElement | null>(null);
+  const statusFilterRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const ITEMS_PER_PAGE = 15;
+
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+
+  const loadData = () => {
+    setStudents(getStudents());
+    setFichas(getFichas());
+    setLmsLastAccess(getLmsLastAccess());
+  };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener('asistenciapro-storage-update', loadData);
+    return () => window.removeEventListener('asistenciapro-storage-update', loadData);
+  }, []);
+
+  const handleSort = (column: typeof sortOrder) => {
+    if (sortOrder === column) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortOrder(column);
+    setSortDirection('asc');
+  };
+
+  const filteredStudents = students
+    .filter(student => {
+      const matchesFicha = filterFicha === 'Todas' || (student.group || 'General') === filterFicha;
+      const matchesStatus = filterStatus === 'Todos' || (student.status || 'Formación') === filterStatus;
+      const term = searchTerm.toLowerCase();
+      const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
+      const matchesSearch =
+        fullName.includes(term) ||
+        (student.documentNumber || '').includes(term) ||
+        (student.email || '').toLowerCase().includes(term);
+
+      return matchesFicha && matchesStatus && matchesSearch;
+    })
+    .sort((a, b) => {
+      const direction = sortDirection === 'asc' ? 1 : -1;
+      let cmp = 0;
+      const lastA = lmsLastAccess[a.id];
+      const lastB = lmsLastAccess[b.id];
+      const daysA = lastA != null ? daysSince(lastA) : -1;
+      const daysB = lastB != null ? daysSince(lastB) : -1;
+
+      if (sortOrder === 'document') {
+        cmp = (a.documentNumber || '').localeCompare(b.documentNumber || '');
+        if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
+      } else if (sortOrder === 'group') {
+        cmp = (a.group || 'General').localeCompare(b.group || 'General');
+        if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
+      } else if (sortOrder === 'status') {
+        cmp = (a.status || 'Formación').localeCompare(b.status || 'Formación');
+        if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
+      } else if (sortOrder === 'lastname') {
+        cmp = a.lastName.localeCompare(b.lastName);
+        if (cmp === 0) cmp = a.firstName.localeCompare(b.firstName);
+      } else if (sortOrder === 'firstname') {
+        cmp = a.firstName.localeCompare(b.firstName);
+        if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
+      } else if (sortOrder === 'lastAccess') {
+        cmp = (lastA || '').localeCompare(lastB || '');
+        if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
+      } else if (sortOrder === 'daysInactive') {
+        cmp = daysA - daysB;
+        if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
+      }
+      return direction * cmp;
+    });
+
+  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
+  const paginatedStudents = showAllStudents
+    ? filteredStudents
+    : filteredStudents.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+      );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterFicha, filterStatus, searchTerm, sortOrder, sortDirection]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [showAllStudents]);
+
+  useEffect(() => {
+    if (!showFilters) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filtersRef.current && !filtersRef.current.contains(event.target as Node)) {
+        setShowFilters(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFilters]);
+
+  useEffect(() => {
+    if (!showStatusFilter) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusFilterRef.current && !statusFilterRef.current.contains(event.target as Node)) {
+        setShowStatusFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showStatusFilter]);
+
+  const generateReport = () => {
+    const headers = [
+      'No.',
+      'Documento',
+      'Apellidos',
+      'Nombres',
+      'Correo electrónico',
+      'Ficha',
+      'Estado',
+      'Último acceso',
+      'Días sin ingresar',
+    ];
+    const rows = filteredStudents.map((student, idx) => {
+      const lastAccess = lmsLastAccess[student.id];
+      const days = lastAccess != null ? daysSince(lastAccess) : null;
+      return [
+        idx + 1,
+        `"${student.documentNumber || ''}"`,
+        `"${student.lastName}"`,
+        `"${student.firstName}"`,
+        `"${student.email || ''}"`,
+        `"${student.group || 'General'}"`,
+        `"${student.status || 'Formación'}"`,
+        lastAccess || '-',
+        days != null && days >= 0 ? String(days) : '-',
+      ];
+    });
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const fichaName = filterFicha === 'Todas' ? 'todas' : filterFicha;
+    link.setAttribute('download', `asistencia_lms_${fichaName}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    setUploadSuccess(null);
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = (event.target?.result as string) || '';
+      const current = getLmsLastAccess();
+      const studentsList = getStudents();
+      const byDoc = new Map(studentsList.map(s => [((s.documentNumber || '').trim().toLowerCase()), s]));
+
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      let updated = 0;
+      let skipped = 0;
+      const sep = text.includes(';') ? ';' : ',';
+      for (let i = 0; i < lines.length; i++) {
+        const parts = lines[i].split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''));
+        if (parts.length < 2) continue;
+        const doc = (parts[0] || '').trim();
+        const dateParsed = parseDate(parts[1] || '');
+        if (!doc || !dateParsed) {
+          skipped++;
+          continue;
+        }
+        const student = byDoc.get(doc.toLowerCase()) || studentsList.find(s => (s.documentNumber || '').trim() === doc);
+        if (student) {
+          current[student.id] = dateParsed;
+          updated++;
+        } else {
+          skipped++;
+        }
+      }
+      saveLmsLastAccess(current);
+      setLmsLastAccess(current);
+      setUploadSuccess(`Actualizados: ${updated}. Líneas no aplicadas: ${skipped}.`);
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Asistencia LMS</h2>
+          <p className="text-gray-500">Último acceso al LMS y días sin ingresar por aprendiz.</p>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-wrap">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-64 bg-white shadow-sm"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="relative" ref={filtersRef}>
+            <button
+              type="button"
+              onClick={() => setShowFilters(prev => !prev)}
+              className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Filter className="w-4 h-4 text-gray-500" />
+              <span>Filtros</span>
+            </button>
+            {showFilters && (
+              <div className="absolute right-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-lg z-20 p-4 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Ficha</label>
+                  <select
+                    value={filterFicha}
+                    onChange={e => {
+                      setFilterFicha(e.target.value);
+                      setShowFilters(false);
+                    }}
+                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="Todas">Todas las Fichas</option>
+                    {fichas.map(f => (
+                      <option key={f.id} value={f.code}>{f.code}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Estado</label>
+                  <select
+                    value={filterStatus}
+                    onChange={e => {
+                      setFilterStatus(e.target.value);
+                      setShowFilters(false);
+                    }}
+                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="Todos">Todos los Estados</option>
+                    <option value="Formación">Formación</option>
+                    <option value="Cancelado">Cancelado</option>
+                    <option value="Retiro Voluntario">Retiro Voluntario</option>
+                    <option value="Deserción">Deserción</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={generateReport}
+            className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+          >
+            <FileDown className="w-4 h-4" />
+            <span>Reporte</span>
+          </button>
+
+          <label className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
+            <Upload className="w-4 h-4" />
+            <span>Cargar documento</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.txt"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+          </label>
+        </div>
+      </div>
+
+      {uploadSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-800">
+          {uploadSuccess}
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+        <table className="w-full text-left min-w-[1000px]">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-14 text-center">No.</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                <button
+                  type="button"
+                  onClick={() => handleSort('document')}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'document' ? 'text-indigo-700' : ''}`}
+                >
+                  Documento
+                  {sortOrder === 'document' && (
+                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm min-w-[11rem]">
+                <button
+                  type="button"
+                  onClick={() => handleSort('lastname')}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'lastname' ? 'text-indigo-700' : ''}`}
+                >
+                  Apellidos
+                  {sortOrder === 'lastname' && (
+                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm min-w-[11rem]">
+                <button
+                  type="button"
+                  onClick={() => handleSort('firstname')}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'firstname' ? 'text-indigo-700' : ''}`}
+                >
+                  Nombres
+                  {sortOrder === 'firstname' && (
+                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-80 min-w-[20rem]">Correo electrónico</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                <button
+                  type="button"
+                  onClick={() => handleSort('group')}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'group' ? 'text-indigo-700' : ''}`}
+                >
+                  Ficha
+                  {sortOrder === 'group' && (
+                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                <div className="relative inline-flex items-center gap-2" ref={statusFilterRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowStatusFilter(prev => !prev)}
+                    className="inline-flex items-center gap-1 hover:text-gray-900"
+                  >
+                    Estado
+                    <Filter className="w-3.5 h-3.5 text-gray-400" />
+                    {filterStatus !== 'Todos' && (
+                      <span className="text-indigo-600 text-xs">({filterStatus})</span>
+                    )}
+                  </button>
+                  {showStatusFilter && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowStatusFilter(false)} />
+                      <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                        {['Todos los Estados', 'Formación', 'Cancelado', 'Retiro Voluntario', 'Deserción'].map(opt => {
+                          const val = opt === 'Todos los Estados' ? 'Todos' : opt;
+                          return (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => {
+                                setFilterStatus(val);
+                                setShowStatusFilter(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm ${filterStatus === val ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                <button
+                  type="button"
+                  onClick={() => handleSort('lastAccess')}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'lastAccess' ? 'text-indigo-700' : ''}`}
+                >
+                  Último acceso
+                  {sortOrder === 'lastAccess' && (
+                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                <button
+                  type="button"
+                  onClick={() => handleSort('daysInactive')}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'daysInactive' ? 'text-indigo-700' : ''}`}
+                >
+                  Días sin ingresar
+                  {sortOrder === 'daysInactive' && (
+                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {paginatedStudents.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                  {students.length === 0
+                    ? 'No hay aprendices registrados.'
+                    : searchTerm
+                    ? 'No se encontraron aprendices con ese criterio.'
+                    : 'No hay aprendices en esta ficha.'}
+                </td>
+              </tr>
+            ) : (
+              paginatedStudents.map((student, index) => {
+                const lastAccess = lmsLastAccess[student.id];
+                const days = lastAccess != null ? daysSince(lastAccess) : null;
+                return (
+                  <tr key={student.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 text-center text-gray-500 text-xs tabular-nums">
+                      {showAllStudents ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 font-mono text-xs">
+                      {student.documentNumber || '-'}
+                    </td>
+                    <td className="px-6 py-4 font-medium text-gray-900 text-xs min-w-[11rem]">
+                      {student.lastName}
+                    </td>
+                    <td className="px-6 py-4 text-gray-800 text-xs min-w-[11rem]">
+                      {student.firstName}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 text-sm w-80 min-w-[20rem] whitespace-nowrap" title={student.email || undefined}>
+                      {student.email || <span className="text-gray-400">-</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <Users className="w-3 h-3 mr-1" />
+                        {student.group || 'General'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          student.status === 'Formación'
+                            ? 'bg-green-100 text-green-800'
+                            : student.status === 'Cancelado'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : student.status === 'Retiro Voluntario'
+                            ? 'bg-orange-100 text-orange-800'
+                            : student.status === 'Deserción'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        {student.status || 'Formación'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 text-sm tabular-nums">
+                      {lastAccess || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 text-sm tabular-nums">
+                      {days != null && days >= 0 ? String(days) : '-'}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+
+        <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50 flex-wrap gap-2">
+          <span className="text-sm text-gray-500">
+            {showAllStudents
+              ? `Mostrando todos (${filteredStudents.length} aprendices)`
+              : `Mostrando ${(currentPage - 1) * ITEMS_PER_PAGE + 1} a ${Math.min(currentPage * ITEMS_PER_PAGE, filteredStudents.length)} de ${filteredStudents.length} resultados`}
+          </span>
+          <div className="flex items-center gap-3">
+            {showAllStudents ? (
+              <button
+                type="button"
+                onClick={() => setShowAllStudents(false)}
+                className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+              >
+                Mostrar 15 por página
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowAllStudents(true)}
+                  className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+                >
+                  Mostrar todos
+                </button>
+                {totalPages > 1 && (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-1 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-600" />
+                    </button>
+                    <span className="text-sm font-medium text-gray-700">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-1 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+};
