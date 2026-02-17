@@ -139,6 +139,9 @@ export const CalificacionesView: React.FC = () => {
   const [finalFilter, setFinalFilter] = useState<'all' | 'A' | '-'>('all');
   const [showFinalFilter, setShowFinalFilter] = useState(false);
   const finalFilterRef = useRef<HTMLDivElement | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>('Todos');
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const statusFilterRef = useRef<HTMLDivElement | null>(null);
   const ITEMS_PER_PAGE = 15;
   const [currentPage, setCurrentPage] = useState(1);
   const [showAllStudents, setShowAllStudents] = useState(false);
@@ -284,6 +287,8 @@ export const CalificacionesView: React.FC = () => {
         return fullName.includes(term) || doc.includes(term) || email.includes(term);
       })();
       if (!matchSearch) return false;
+      const matchStatus = filterStatus === 'Todos' || (s.status || 'Formación') === filterStatus;
+      if (!matchStatus) return false;
       // Si hay búsqueda, mostrar aprendices de todas las fichas; si no, filtrar por ficha seleccionada
       if (term) return true;
       return selectedFicha === 'Todas' || (s.group || 'General') === selectedFicha;
@@ -300,12 +305,12 @@ export const CalificacionesView: React.FC = () => {
       }
       return direction * cmp;
     });
-  }, [students, selectedFicha, searchTerm, sortOrder, sortDirection]);
+  }, [students, selectedFicha, searchTerm, filterStatus, sortOrder, sortDirection]);
 
 
   useEffect(() => {
     setSelectedStudents(new Set());
-  }, [selectedFicha, selectedPhase, searchTerm]);
+  }, [selectedFicha, selectedPhase, searchTerm, filterStatus]);
 
   useEffect(() => {
     if (studentDetailModal) {
@@ -315,7 +320,7 @@ export const CalificacionesView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedFicha, selectedPhase, searchTerm, finalFilter, sortOrder, sortDirection]);
+  }, [selectedFicha, selectedPhase, searchTerm, finalFilter, filterStatus, sortOrder, sortDirection]);
 
   useEffect(() => {
     if (!showFinalFilter) return;
@@ -327,6 +332,17 @@ export const CalificacionesView: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showFinalFilter]);
+
+  useEffect(() => {
+    if (!showStatusFilter) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusFilterRef.current && !statusFilterRef.current.contains(event.target as Node)) {
+        setShowStatusFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showStatusFilter]);
 
   const activitiesForFicha = useMemo(() => {
     if (selectedFicha === 'Todas') return [];
@@ -1053,7 +1069,34 @@ export const CalificacionesView: React.FC = () => {
                   )}
                 </button>
               </th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Estado</th>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-visible align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowStatusFilter(prev => !prev)}
+                    className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none whitespace-nowrap"
+                    title="Filtrar por estado"
+                  >
+                    Estado
+                    <Filter className="w-3.5 h-3.5 text-gray-400" />
+                    {filterStatus !== 'Todos' && (
+                      <span className="text-indigo-600 text-xs">({filterStatus})</span>
+                    )}
+                  </button>
+                  {showStatusFilter && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowStatusFilter(false)} />
+                      <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                        <button type="button" onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos los Estados</button>
+                        <button type="button" onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Formación</button>
+                        <button type="button" onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Cancelado</button>
+                        <button type="button" onClick={() => { setFilterStatus('Retiro Voluntario'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Retiro Voluntario</button>
+                        <button type="button" onClick={() => { setFilterStatus('Deserción'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Deserción</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 max-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
               <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 max-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para marcar como evaluado">Juicios Evaluativos</th>
               {visibleActivities.map(activity => (
@@ -1106,7 +1149,7 @@ export const CalificacionesView: React.FC = () => {
             {studentsForFicha.length === 0 ? (
               <tr>
                 <td colSpan={8 + visibleActivities.length + rapColumnsForFicha.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
-                  No hay aprendices en esta ficha.
+                  {filterStatus !== 'Todos' ? 'Ningún aprendiz coincide con el filtro de estado seleccionado.' : 'No hay aprendices en esta ficha.'}
                 </td>
               </tr>
             ) : studentsFilteredByFinal.length === 0 ? (
