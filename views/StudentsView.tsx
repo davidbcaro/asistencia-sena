@@ -15,6 +15,7 @@ export const StudentsView: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname' | 'document' | 'group' | 'status'>('lastname'); // Default to lastname
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showAllStudents, setShowAllStudents] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
@@ -125,16 +126,22 @@ export const StudentsView: React.FC = () => {
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
-  const paginatedStudents = filteredStudents.slice(
-      (currentPage - 1) * ITEMS_PER_PAGE,
-      currentPage * ITEMS_PER_PAGE
-  );
+  const paginatedStudents = showAllStudents
+    ? filteredStudents
+    : filteredStudents.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+      );
 
   useEffect(() => {
       setCurrentPage(1);
       // Clear selection when filters change
       setSelectedStudents(new Set());
   }, [filterFicha, filterStatus, searchTerm, sortOrder, sortDirection]);
+
+  useEffect(() => {
+      setCurrentPage(1);
+  }, [showAllStudents]);
 
   useEffect(() => {
       if (!showFilters) return;
@@ -737,7 +744,7 @@ export const StudentsView: React.FC = () => {
                     />
                   </td>
                   <td className="px-4 py-4 text-center text-gray-500 text-xs tabular-nums">
-                    {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+                    {showAllStudents ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                   </td>
                    <td className="px-6 py-4 text-gray-600 font-mono text-xs">
                         {student.documentNumber || '-'}
@@ -794,32 +801,55 @@ export const StudentsView: React.FC = () => {
         </table>
         
         {/* Pagination Footer */}
-        {totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50 sticky left-0">
-                <span className="text-sm text-gray-500">
-                    Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, filteredStudents.length)} de {filteredStudents.length} resultados
-                </span>
-                <div className="flex items-center space-x-2">
-                    <button 
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="p-1 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50 sticky left-0 flex-wrap gap-2">
+          <span className="text-sm text-gray-500">
+            {showAllStudents
+              ? `Mostrando todos (${filteredStudents.length} aprendices)`
+              : `Mostrando ${((currentPage - 1) * ITEMS_PER_PAGE) + 1} a ${Math.min(currentPage * ITEMS_PER_PAGE, filteredStudents.length)} de ${filteredStudents.length} resultados`}
+          </span>
+          <div className="flex items-center gap-3">
+            {showAllStudents ? (
+              <button
+                type="button"
+                onClick={() => setShowAllStudents(false)}
+                className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+              >
+                Mostrar 15 por página
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowAllStudents(true)}
+                  className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+                >
+                  Mostrar todos
+                </button>
+                {totalPages > 1 && (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-1 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <ChevronLeft className="w-5 h-5 text-gray-600" />
+                      <ChevronLeft className="w-5 h-5 text-gray-600" />
                     </button>
                     <span className="text-sm font-medium text-gray-700">
-                        Página {currentPage} de {totalPages}
+                      Página {currentPage} de {totalPages}
                     </span>
-                    <button 
-                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                         disabled={currentPage === totalPages}
-                         className="p-1 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-1 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <ChevronRight className="w-5 h-5 text-gray-600" />
+                      <ChevronRight className="w-5 h-5 text-gray-600" />
                     </button>
-                </div>
-            </div>
-        )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Student detail modal (click on Apellidos/Nombres) */}
