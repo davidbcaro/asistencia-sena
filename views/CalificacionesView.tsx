@@ -1069,7 +1069,7 @@ export const CalificacionesView: React.FC = () => {
                   )}
                 </button>
               </th>
-              <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-visible align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+              <th className={`px-4 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                 <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
                   <button
                     type="button"
@@ -1085,8 +1085,8 @@ export const CalificacionesView: React.FC = () => {
                   </button>
                   {showStatusFilter && (
                     <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowStatusFilter(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                      <div className="fixed inset-0 z-[99]" onClick={() => setShowStatusFilter(false)} />
+                      <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-[100] py-1">
                         <button type="button" onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos los Estados</button>
                         <button type="button" onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Formación</button>
                         <button type="button" onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Cancelado</button>
