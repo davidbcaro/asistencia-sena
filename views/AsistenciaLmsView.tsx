@@ -24,16 +24,17 @@ function normalizeDoc(value: unknown): string {
 }
 
 /**
- * Devuelve la "base" del documento para emparejar: solo los dígitos.
- * Así "78763222", "78763222cc", "78763222CC", "78763222 (CC)" siempre dan "78763222".
- * Evita problemas con tipo de celda en Excel, espacios o caracteres invisibles.
+ * Devuelve la "base" del documento para emparejar: solo dígitos y sin ceros a la izquierda.
+ * Así "78763222", "78763222cc", "01110553370" (app) y 1110553370 (Excel) coinciden.
+ * Excel quita el cero inicial en números; la app puede guardarlo con cero.
  */
 function documentBaseForMatch(doc: string): string {
   const raw = normalizeDoc(doc);
   if (!raw) return '';
-  // Dejar solo dígitos (ignoramos CC, TI, PP, espacios, paréntesis, etc.)
   const digits = raw.replace(/\D/g, '');
-  return digits;
+  if (!digits) return '';
+  // Quitar ceros a la izquierda para que 01110553370 y 1110553370 den el mismo key
+  return digits.replace(/^0+/, '') || '0';
 }
 
 /**
