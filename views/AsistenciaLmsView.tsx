@@ -259,36 +259,45 @@ export const AsistenciaLmsView: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const normalizeEmail = (value: unknown): string => {
+    const s = String(value ?? '').trim().toLowerCase();
+    return s;
+  };
+
   const processRows = (
     rows: unknown[][],
     docColIndex: number,
     dateColIndex: number,
-    startRowIndex: number
+    startRowIndex: number,
+    emailColIndex: number = -1
   ): { current: Record<string, string>; updated: number; skipped: number } => {
     const current = getLmsLastAccess();
     const studentsList = getStudents();
     const byDoc = new Map<string, Student>();
+    const byEmail = new Map<string, Student>();
     studentsList.forEach(s => {
       const base = documentBaseForMatch(normalizeDoc(s.documentNumber));
       if (base) byDoc.set(base, s);
+      const email = normalizeEmail(s.email);
+      if (email) byEmail.set(email, s);
     });
     let updated = 0;
     let skipped = 0;
     for (let i = startRowIndex; i < rows.length; i++) {
       const row = rows[i];
       if (!Array.isArray(row)) continue;
-      const docRaw = normalizeDoc(row[docColIndex]);
       const dateParsed = parseDateFromCell(row[dateColIndex]);
       if (!dateParsed) {
         skipped++;
         continue;
       }
+      const docRaw = normalizeDoc(row[docColIndex]);
       const base = documentBaseForMatch(docRaw);
-      if (!base) {
-        skipped++;
-        continue;
+      let student: Student | undefined = base ? byDoc.get(base) : undefined;
+      if (!student && emailColIndex >= 0 && row[emailColIndex] != null) {
+        const email = normalizeEmail(row[emailColIndex]);
+        if (email) student = byEmail.get(email);
       }
-      const student = byDoc.get(base);
       if (student) {
         current[student.id] = dateParsed;
         updated++;
@@ -345,8 +354,15 @@ export const AsistenciaLmsView: React.FC = () => {
             (h.includes('fecha') && !h.includes('nombre')) ||
             h.includes('acceso')
         );
+        const emailIdx = headers.findIndex(
+          h =>
+            h.includes('correo electronico') ||
+            (h.includes('correo') && !h.includes('nombre')) ||
+            h.includes('email')
+        );
         const docCol = docIdx >= 0 ? docIdx : 0;
         const dateCol = dateIdx >= 0 ? dateIdx : 1;
+        const emailCol = emailIdx >= 0 ? emailIdx : -1;
         const hasHeaderRow = headers.some(
           h =>
             h && (
@@ -359,7 +375,7 @@ export const AsistenciaLmsView: React.FC = () => {
             )
         );
         const startRow = hasHeaderRow ? 1 : 0;
-        const { current, updated, skipped } = processRows(rows, docCol, dateCol, startRow);
+        const { current, updated, skipped } = processRows(rows, docCol, dateCol, startRow, emailCol);
         saveLmsLastAccess(current);
         setLmsLastAccess(current);
         setUploadSuccess(`Actualizados: ${updated}. Sin match o sin fecha: ${skipped}.`);
@@ -405,10 +421,17 @@ export const AsistenciaLmsView: React.FC = () => {
           h.includes('fecha') ||
           h.includes('acceso')
       );
+      const emailIdxCsv = headers.findIndex(
+        h =>
+          h.includes('correo electronico') ||
+          (h.includes('correo') && !h.includes('nombre')) ||
+          h.includes('email')
+      );
       const docCol = hasHeader && docIdxCsv >= 0 ? docIdxCsv : 0;
       const dateCol = hasHeader && dateIdxCsv >= 0 ? dateIdxCsv : 1;
+      const emailCol = emailIdxCsv >= 0 ? emailIdxCsv : -1;
       const startRow = hasHeader ? 1 : 0;
-      const { current, updated, skipped } = processRows(rows, docCol, dateCol, startRow);
+      const { current, updated, skipped } = processRows(rows, docCol, dateCol, startRow, emailCol);
       saveLmsLastAccess(current);
       setLmsLastAccess(current);
       setUploadSuccess(`Actualizados: ${updated}. Sin match o sin fecha: ${skipped}.`);
