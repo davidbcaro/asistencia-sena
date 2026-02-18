@@ -1,25 +1,67 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Student, Ficha } from '../types';
 import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess } from '../services/db';
 
-function parseDate(value: string): string | null {
-  const v = value.trim();
+/** Normaliza valor de celda a string para documento (Excel puede devolver número). */
+function normalizeDoc(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'number') {
+    return String(Number.isInteger(value) ? value : Math.round(value)).trim();
+  }
+  return String(value).trim();
+}
+
+/**
+ * Parsea fecha desde el archivo. Acepta:
+ * - "2026-01-27 10:54:31"
+ * - "2026-01-27"
+ * - DD/MM/YYYY HH:mm:ss
+ * - Número serial de Excel (fecha)
+ * Devuelve string "YYYY-MM-DD HH:mm:ss" para guardar y mostrar.
+ */
+function parseDateFromCell(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  const v = String(value).trim();
   if (!v) return null;
-  // YYYY-MM-DD
-  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(v);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  // DD/MM/YYYY or DD-MM-YYYY
-  const dmy = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/.exec(v);
-  if (dmy) {
-    const [, d, m, y] = dmy;
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+
+  // Número serial de Excel (fecha)
+  const num = Number(value);
+  if (!isNaN(num) && num > 1000) {
+    const excelEpoch = new Date(1899, 11, 30);
+    const d = new Date(excelEpoch.getTime() + num * 86400000);
+    if (!isNaN(d.getTime())) {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+  }
+
+  // String: YYYY-MM-DD HH:mm:ss o YYYY-MM-DD
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{1,2}):(\d{2}):(\d{2}))?/.exec(v);
+  if (isoMatch) {
+    const [, y, m, d, H, M, S] = isoMatch;
+    const h = (H ?? '0').padStart(2, '0');
+    const min = (M ?? '0').padStart(2, '0');
+    const sec = (S ?? '0').padStart(2, '0');
+    return `${y}-${m}-${d} ${h}:${min}:${sec}`;
+  }
+
+  // DD/MM/YYYY HH:mm:ss o DD/MM/YYYY
+  const dmyMatch = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2}):(\d{2}))?/.exec(v);
+  if (dmyMatch) {
+    const [, d, m, y, H, M, S] = dmyMatch;
+    const h = (H ?? '0').padStart(2, '0');
+    const min = (M ?? '0').padStart(2, '0');
+    const sec = (S ?? '0').padStart(2, '0');
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')} ${h}:${min}:${sec}`;
   }
   return null;
 }
 
+/** Calcula días desde la fecha/hora indicada (ej. "2026-01-27 10:54:31") hasta hoy. */
 function daysSince(dateStr: string): number {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr.replace(' ', 'T'));
   if (isNaN(d.getTime())) return -1;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -193,43 +235,140 @@ export const AsistenciaLmsView: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processRows = (
+    rows: unknown[][],
+    docColIndex: number,
+    dateColIndex: number,
+    startRowIndex: number
+  ): { current: Record<string, string>; updated: number; skipped: number } => {
+    const current = getLmsLastAccess();
+    const studentsList = getStudents();
+    const byDoc = new Map(
+      studentsList.map(s => [(normalizeDoc(s.documentNumber).toLowerCase(), s)])
+    );
+    let updated = 0;
+    let skipped = 0;
+    for (let i = startRowIndex; i < rows.length; i++) {
+      const row = rows[i];
+      if (!Array.isArray(row)) continue;
+      const doc = normalizeDoc(row[docColIndex]);
+      const dateParsed = parseDateFromCell(row[dateColIndex]);
+      if (!doc || !dateParsed) {
+        skipped++;
+        continue;
+      }
+      const student =
+        byDoc.get(doc.toLowerCase()) ||
+        studentsList.find(s => normalizeDoc(s.documentNumber) === doc);
+      if (student) {
+        current[student.id] = dateParsed;
+        updated++;
+      } else {
+        skipped++;
+      }
+    }
+    return { current, updated, skipped };
+  };
+
+  const normalizeHeader = (h: string) =>
+    String(h || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '');
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     setUploadSuccess(null);
     if (!file) return;
 
+    const ext = (file.name || '').toLowerCase();
+    const isExcel = ext.endsWith('.xlsx') || ext.endsWith('.xls');
+
+    if (isExcel) {
+      try {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: '',
+          raw: true,
+        }) as unknown[][];
+        if (!rows.length) {
+          setUploadSuccess('El archivo no tiene filas.');
+          return;
+        }
+        const headers = (rows[0] || []).map(h => normalizeHeader(String(h)));
+        const docIdx = headers.findIndex(
+          h =>
+            h.includes('documento') ||
+            h.includes('doc') ||
+            h.includes('identificacion') ||
+            h.includes('cedula')
+        );
+        const dateIdx = headers.findIndex(
+          h =>
+            h.includes('ultimo acceso') ||
+            h.includes('ultimo ingreso') ||
+            h.includes('last access') ||
+            h.includes('fecha') ||
+            h.includes('acceso')
+        );
+        const docCol = docIdx >= 0 ? docIdx : 0;
+        const dateCol = dateIdx >= 0 ? dateIdx : 1;
+        const startRow = headers.some(h => h && (h.includes('documento') || h.includes('doc') || h.includes('fecha')))
+          ? 1
+          : 0;
+        const { current, updated, skipped } = processRows(rows, docCol, dateCol, startRow);
+        saveLmsLastAccess(current);
+        setLmsLastAccess(current);
+        setUploadSuccess(`Actualizados: ${updated}. Sin match o sin fecha: ${skipped}.`);
+      } catch (err) {
+        console.error(err);
+        setUploadSuccess('Error al leer el Excel. Revisa que el archivo sea válido.');
+      }
+      return;
+    }
+
+    // CSV
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = (event.target?.result as string) || '';
-      const current = getLmsLastAccess();
-      const studentsList = getStudents();
-      const byDoc = new Map(studentsList.map(s => [((s.documentNumber || '').trim().toLowerCase()), s]));
-
       const lines = text.split(/\r?\n/).filter(l => l.trim());
-      let updated = 0;
-      let skipped = 0;
       const sep = text.includes(';') ? ';' : ',';
-      for (let i = 0; i < lines.length; i++) {
-        const parts = lines[i].split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''));
-        if (parts.length < 2) continue;
-        const doc = (parts[0] || '').trim();
-        const dateParsed = parseDate(parts[1] || '');
-        if (!doc || !dateParsed) {
-          skipped++;
-          continue;
-        }
-        const student = byDoc.get(doc.toLowerCase()) || studentsList.find(s => (s.documentNumber || '').trim() === doc);
-        if (student) {
-          current[student.id] = dateParsed;
-          updated++;
-        } else {
-          skipped++;
-        }
-      }
+      const rows: unknown[][] = lines.map(line =>
+        line.split(sep).map(p => p.trim().replace(/^["']|["']$/g, ''))
+      );
+      const first = rows[0] || [];
+      const headers = first.map(h => normalizeHeader(String(h)));
+      const hasHeader = headers.some(
+        h =>
+          h.includes('documento') ||
+          h.includes('doc') ||
+          h.includes('ultimo') ||
+          h.includes('fecha')
+      );
+      const docIdxCsv = headers.findIndex(
+        h =>
+          h.includes('documento') ||
+          h.includes('doc') ||
+          h.includes('identificacion')
+      );
+      const dateIdxCsv = headers.findIndex(
+        h =>
+          h.includes('ultimo acceso') ||
+          h.includes('ultimo ingreso') ||
+          h.includes('fecha') ||
+          h.includes('acceso')
+      );
+      const docCol = hasHeader && docIdxCsv >= 0 ? docIdxCsv : 0;
+      const dateCol = hasHeader && dateIdxCsv >= 0 ? dateIdxCsv : 1;
+      const startRow = hasHeader ? 1 : 0;
+      const { current, updated, skipped } = processRows(rows, docCol, dateCol, startRow);
       saveLmsLastAccess(current);
       setLmsLastAccess(current);
-      setUploadSuccess(`Actualizados: ${updated}. Líneas no aplicadas: ${skipped}.`);
+      setUploadSuccess(`Actualizados: ${updated}. Sin match o sin fecha: ${skipped}.`);
     };
     reader.readAsText(file, 'UTF-8');
   };
@@ -316,7 +455,7 @@ export const AsistenciaLmsView: React.FC = () => {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,.txt"
+              accept=".xlsx,.xls,.csv,.txt"
               className="hidden"
               onChange={handleFileUpload}
             />
