@@ -4,24 +4,43 @@ import * as XLSX from 'xlsx';
 import { Student, Ficha } from '../types';
 import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess } from '../services/db';
 
-/** Normaliza valor de celda a string para documento (Excel puede devolver número). */
+/** Normaliza valor de celda a string para documento (Excel puede devolver número o notación científica). */
 function normalizeDoc(value: unknown): string {
   if (value == null) return '';
   if (typeof value === 'number') {
-    return String(Number.isInteger(value) ? value : Math.round(value)).trim();
+    if (!Number.isFinite(value)) return '';
+    if (Number.isInteger(value)) return String(value).trim();
+    const rounded = Math.round(value);
+    return String(rounded).trim();
   }
-  return String(value).trim();
+  let s = String(value).trim();
+  // Excel a veces exporta números largos como "1.23457E+7"
+  const sci = /^(\d+(?:\.\d+)?)[eE]([+-]?\d+)$/.exec(s);
+  if (sci) {
+    const num = parseFloat(s);
+    if (!isNaN(num)) return String(Math.round(num)).trim();
+  }
+  return s;
 }
 
-/** Si el documento viene con 2 letras al final (tipo doc: CC, TI, CE...), devuelve también sin sufijo para match. */
-function docKeysForMatch(doc: string): string[] {
-  const d = doc.trim();
-  if (!d) return [];
-  const keys = [d.toLowerCase()];
+/**
+ * Devuelve la "base" del documento para emparejar: sin sufijo (CC), (TI), (PP), (CE), etc.
+ * Acepta: "12345678CC", "12345678 (CC)", "12345678(CC)", "12345678 CC", "12345678 TI", etc.
+ */
+function documentBaseForMatch(doc: string): string {
+  let d = normalizeDoc(doc).trim();
+  if (!d) return '';
+  // Quitar sufijo con paréntesis o espacio: (CC), (TI), (PP), (CE), " CC", " TI"...
+  d = d.replace(/\s*\(?[A-Za-z]{2}\)?\s*$/i, '').trim();
+  // Por si quedó solo "12345678CC" sin espacio/paréntesis (dos letras al final)
   if (d.length >= 2 && /^[a-zA-Z]{2}$/.test(d.slice(-2))) {
-    keys.push(d.slice(0, -2).toLowerCase());
+    d = d.slice(0, -2).trim();
   }
-  return keys;
+  // Quitar .0 final por si Excel dejó decimal
+  d = d.replace(/\.0+$/, '');
+  // Quitar espacios internos (ej. "12 345 678" -> "12345678")
+  d = d.replace(/\s/g, '');
+  return d.toLowerCase();
 }
 
 /**
@@ -256,27 +275,26 @@ export const AsistenciaLmsView: React.FC = () => {
     const studentsList = getStudents();
     const byDoc = new Map<string, Student>();
     studentsList.forEach(s => {
-      const key = normalizeDoc(s.documentNumber).toLowerCase();
-      if (key) byDoc.set(key, s);
-      // También por documento sin las 2 letras finales (tipo CC, TI, CE)
-      if (key.length >= 2 && /^[a-z]{2}$/.test(key.slice(-2))) {
-        const keySinSufijo = key.slice(0, -2);
-        if (!byDoc.has(keySinSufijo)) byDoc.set(keySinSufijo, s);
-      }
+      const base = documentBaseForMatch(normalizeDoc(s.documentNumber));
+      if (base) byDoc.set(base, s);
     });
     let updated = 0;
     let skipped = 0;
     for (let i = startRowIndex; i < rows.length; i++) {
       const row = rows[i];
       if (!Array.isArray(row)) continue;
-      const doc = normalizeDoc(row[docColIndex]);
+      const docRaw = normalizeDoc(row[docColIndex]);
       const dateParsed = parseDateFromCell(row[dateColIndex]);
-      if (!doc || !dateParsed) {
+      if (!dateParsed) {
         skipped++;
         continue;
       }
-      const keysToTry = docKeysForMatch(doc);
-      const student = keysToTry.map(k => byDoc.get(k)).find(Boolean);
+      const base = documentBaseForMatch(docRaw);
+      if (!base) {
+        skipped++;
+        continue;
+      }
+      const student = byDoc.get(base);
       if (student) {
         current[student.id] = dateParsed;
         updated++;
