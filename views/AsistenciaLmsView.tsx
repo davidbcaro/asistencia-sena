@@ -13,6 +13,17 @@ function normalizeDoc(value: unknown): string {
   return String(value).trim();
 }
 
+/** Si el documento viene con 2 letras al final (tipo doc: CC, TI, CE...), devuelve también sin sufijo para match. */
+function docKeysForMatch(doc: string): string[] {
+  const d = doc.trim();
+  if (!d) return [];
+  const keys = [d.toLowerCase()];
+  if (d.length >= 2 && /^[a-zA-Z]{2}$/.test(d.slice(-2))) {
+    keys.push(d.slice(0, -2).toLowerCase());
+  }
+  return keys;
+}
+
 /**
  * Parsea fecha desde el archivo. Acepta:
  * - "2026-01-27 10:54:31"
@@ -243,9 +254,16 @@ export const AsistenciaLmsView: React.FC = () => {
   ): { current: Record<string, string>; updated: number; skipped: number } => {
     const current = getLmsLastAccess();
     const studentsList = getStudents();
-    const byDoc = new Map(
-      studentsList.map(s => [(normalizeDoc(s.documentNumber).toLowerCase(), s)])
-    );
+    const byDoc = new Map<string, Student>();
+    studentsList.forEach(s => {
+      const key = normalizeDoc(s.documentNumber).toLowerCase();
+      if (key) byDoc.set(key, s);
+      // También por documento sin las 2 letras finales (tipo CC, TI, CE)
+      if (key.length >= 2 && /^[a-z]{2}$/.test(key.slice(-2))) {
+        const keySinSufijo = key.slice(0, -2);
+        if (!byDoc.has(keySinSufijo)) byDoc.set(keySinSufijo, s);
+      }
+    });
     let updated = 0;
     let skipped = 0;
     for (let i = startRowIndex; i < rows.length; i++) {
@@ -257,9 +275,8 @@ export const AsistenciaLmsView: React.FC = () => {
         skipped++;
         continue;
       }
-      const student =
-        byDoc.get(doc.toLowerCase()) ||
-        studentsList.find(s => normalizeDoc(s.documentNumber) === doc);
+      const keysToTry = docKeysForMatch(doc);
+      const student = keysToTry.map(k => byDoc.get(k)).find(Boolean);
       if (student) {
         current[student.id] = dateParsed;
         updated++;
@@ -302,8 +319,9 @@ export const AsistenciaLmsView: React.FC = () => {
         const headers = (rows[0] || []).map(h => normalizeHeader(String(h)));
         const docIdx = headers.findIndex(
           h =>
+            h.includes('nombre de usuario') ||
+            h.includes('usuario') && !h.includes('correo') ||
             h.includes('documento') ||
-            h.includes('doc') ||
             h.includes('identificacion') ||
             h.includes('cedula')
         );
@@ -312,14 +330,23 @@ export const AsistenciaLmsView: React.FC = () => {
             h.includes('ultimo acceso') ||
             h.includes('ultimo ingreso') ||
             h.includes('last access') ||
-            h.includes('fecha') ||
+            (h.includes('fecha') && !h.includes('nombre')) ||
             h.includes('acceso')
         );
         const docCol = docIdx >= 0 ? docIdx : 0;
         const dateCol = dateIdx >= 0 ? dateIdx : 1;
-        const startRow = headers.some(h => h && (h.includes('documento') || h.includes('doc') || h.includes('fecha')))
-          ? 1
-          : 0;
+        const hasHeaderRow = headers.some(
+          h =>
+            h && (
+              h.includes('nombre de usuario') ||
+              h.includes('documento') ||
+              h.includes('ultimo acceso') ||
+              h.includes('apellido') ||
+              h.includes('nombre(s)') ||
+              h.includes('fecha')
+            )
+        );
+        const startRow = hasHeaderRow ? 1 : 0;
         const { current, updated, skipped } = processRows(rows, docCol, dateCol, startRow);
         saveLmsLastAccess(current);
         setLmsLastAccess(current);
@@ -344,13 +371,17 @@ export const AsistenciaLmsView: React.FC = () => {
       const headers = first.map(h => normalizeHeader(String(h)));
       const hasHeader = headers.some(
         h =>
+          h.includes('nombre de usuario') ||
           h.includes('documento') ||
           h.includes('doc') ||
           h.includes('ultimo') ||
-          h.includes('fecha')
+          h.includes('fecha') ||
+          h.includes('apellido')
       );
       const docIdxCsv = headers.findIndex(
         h =>
+          h.includes('nombre de usuario') ||
+          (h.includes('usuario') && !h.includes('correo')) ||
           h.includes('documento') ||
           h.includes('doc') ||
           h.includes('identificacion')
