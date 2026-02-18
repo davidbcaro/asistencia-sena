@@ -24,23 +24,16 @@ function normalizeDoc(value: unknown): string {
 }
 
 /**
- * Devuelve la "base" del documento para emparejar: sin sufijo (CC), (TI), (PP), (CE), etc.
- * Acepta: "12345678CC", "12345678 (CC)", "12345678(CC)", "12345678 CC", "12345678 TI", etc.
+ * Devuelve la "base" del documento para emparejar: solo los dígitos.
+ * Así "78763222", "78763222cc", "78763222CC", "78763222 (CC)" siempre dan "78763222".
+ * Evita problemas con tipo de celda en Excel, espacios o caracteres invisibles.
  */
 function documentBaseForMatch(doc: string): string {
-  let d = normalizeDoc(doc).trim();
-  if (!d) return '';
-  // Quitar sufijo con paréntesis o espacio: (CC), (TI), (PP), (CE), " CC", " TI"...
-  d = d.replace(/\s*\(?[A-Za-z]{2}\)?\s*$/i, '').trim();
-  // Por si quedó solo "12345678CC" sin espacio/paréntesis (dos letras al final)
-  if (d.length >= 2 && /^[a-zA-Z]{2}$/.test(d.slice(-2))) {
-    d = d.slice(0, -2).trim();
-  }
-  // Quitar .0 final por si Excel dejó decimal
-  d = d.replace(/\.0+$/, '');
-  // Quitar espacios internos (ej. "12 345 678" -> "12345678")
-  d = d.replace(/\s/g, '');
-  return d.toLowerCase();
+  const raw = normalizeDoc(doc);
+  if (!raw) return '';
+  // Dejar solo dígitos (ignoramos CC, TI, PP, espacios, paréntesis, etc.)
+  const digits = raw.replace(/\D/g, '');
+  return digits;
 }
 
 /**
