@@ -37,6 +37,15 @@ function documentBaseForMatch(doc: string): string {
   return digits.replace(/^0+/, '') || '0';
 }
 
+/** Normaliza texto general: minúsculas, sin tildes, sin espacios extras. */
+function normalizeText(value: unknown): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '');
+}
+
 /**
  * Parsea fecha desde el archivo. Acepta:
  * - "2026-01-27 10:54:31"
@@ -260,8 +269,7 @@ export const AsistenciaLmsView: React.FC = () => {
   };
 
   const normalizeEmail = (value: unknown): string => {
-    const s = String(value ?? '').trim().toLowerCase();
-    return s;
+    return String(value ?? '').trim().toLowerCase();
   };
 
   const processRows = (
@@ -270,42 +278,97 @@ export const AsistenciaLmsView: React.FC = () => {
     dateColIndex: number,
     startRowIndex: number,
     emailColIndex: number = -1
-  ): { current: Record<string, string>; updated: number; skipped: number } => {
+  ): { current: Record<string, string>; updated: number; skipped: number; noDate: number } => {
     const current = getLmsLastAccess();
     const studentsList = getStudents();
+
+    // Índices de búsqueda: por documento, por email, por username
     const byDoc = new Map<string, Student>();
     const byEmail = new Map<string, Student>();
+    const byUsername = new Map<string, Student>();
+
     studentsList.forEach(s => {
-      const base = documentBaseForMatch(normalizeDoc(s.documentNumber));
-      if (base) byDoc.set(base, s);
+      // Por número de documento (solo dígitos, sin ceros iniciales)
+      if (s.documentNumber) {
+        const base = documentBaseForMatch(normalizeDoc(s.documentNumber));
+        if (base) byDoc.set(base, s);
+      }
+      // Por email
       const email = normalizeEmail(s.email);
       if (email) byEmail.set(email, s);
+      // Por username (puede ser el email o el documento del LMS)
+      if (s.username) {
+        const uname = normalizeEmail(s.username);
+        if (uname) byUsername.set(uname, s);
+        // Si el username tiene dígitos, también indexar como doc
+        const ubase = documentBaseForMatch(normalizeDoc(uname));
+        if (ubase && !byDoc.has(ubase)) byDoc.set(ubase, s);
+      }
     });
+
     let updated = 0;
     let skipped = 0;
+    let noDate = 0;
+
     for (let i = startRowIndex; i < rows.length; i++) {
       const row = rows[i];
       if (!Array.isArray(row)) continue;
+
+      // Fila completamente vacía → ignorar
+      if (row.every(c => c == null || String(c).trim() === '')) continue;
+
       const dateParsed = parseDateFromCell(row[dateColIndex]);
-      if (!dateParsed) {
-        skipped++;
-        continue;
-      }
+
+      // Intentar encontrar el estudiante por múltiples métodos
       const docRaw = normalizeDoc(row[docColIndex]);
-      const base = documentBaseForMatch(docRaw);
-      let student: Student | undefined = base ? byDoc.get(base) : undefined;
+      const docBase = documentBaseForMatch(docRaw);
+      const docNormalized = normalizeText(docRaw);
+
+      let student: Student | undefined;
+
+      // 1. Match exacto por dígitos de documento (sin ceros iniciales)
+      if (!student && docBase) student = byDoc.get(docBase);
+
+      // 2. Match por email en la columna de documento (LMS usa correo como usuario)
+      if (!student && docNormalized.includes('@')) student = byEmail.get(docNormalized);
+
+      // 3. Match por username del estudiante
+      if (!student && docNormalized) student = byUsername.get(docNormalized);
+
+      // 4. Match por columna de email (si existe)
       if (!student && emailColIndex >= 0 && row[emailColIndex] != null) {
         const email = normalizeEmail(row[emailColIndex]);
-        if (email) student = byEmail.get(email);
+        if (email) {
+          student = byEmail.get(email) ?? byUsername.get(email);
+        }
       }
+
+      // 5. Match parcial: el username del LMS puede ser solo la parte antes del @ del correo del estudiante
+      if (!student && docNormalized && !docNormalized.includes('@')) {
+        studentsList.forEach(s => {
+          if (student) return;
+          const emailLocal = normalizeEmail(s.email).split('@')[0];
+          if (emailLocal && emailLocal === docNormalized) student = s;
+        });
+      }
+
       if (student) {
-        current[student.id] = dateParsed;
-        updated++;
+        if (dateParsed) {
+          // Solo actualizar si la nueva fecha es más reciente o no hay fecha previa
+          const existing = current[student.id];
+          if (!existing || dateParsed > existing) {
+            current[student.id] = dateParsed;
+          }
+          updated++;
+        } else {
+          // Encontró el estudiante pero sin fecha válida (ej: "nunca accedió")
+          noDate++;
+        }
       } else {
         skipped++;
       }
     }
-    return { current, updated, skipped };
+    return { current, updated, skipped, noDate };
   };
 
   const normalizeHeader = (h: string) =>
@@ -338,47 +401,80 @@ export const AsistenciaLmsView: React.FC = () => {
           return;
         }
         const headers = (rows[0] || []).map(h => normalizeHeader(String(h)));
-        const docIdx = headers.findIndex(
-          h =>
-            h.includes('nombre de usuario') ||
-            h.includes('usuario') && !h.includes('correo') ||
-            h.includes('documento') ||
-            h.includes('identificacion') ||
-            h.includes('cedula')
+
+        // Detectar columna de documento/usuario (LMS SENA usa "Nombre de usuario" = número de doc o correo)
+        const docIdx = headers.findIndex(h =>
+          h === 'nombre de usuario' ||
+          h === 'usuario' ||
+          h === 'username' ||
+          h === 'documento' ||
+          h === 'identificacion' ||
+          h === 'cedula' ||
+          h === 'numero de documento' ||
+          h === 'num documento' ||
+          h.includes('nombre de usuario') ||
+          (h.includes('usuario') && !h.includes('correo') && !h.includes('nombre completo')) ||
+          h.includes('documento') ||
+          h.includes('identificacion') ||
+          h.includes('cedula')
         );
-        const dateIdx = headers.findIndex(
-          h =>
-            h.includes('ultimo acceso') ||
-            h.includes('ultimo ingreso') ||
-            h.includes('last access') ||
-            (h.includes('fecha') && !h.includes('nombre')) ||
-            h.includes('acceso')
+
+        // Detectar columna de último acceso
+        const dateIdx = headers.findIndex(h =>
+          h === 'ultimo acceso' ||
+          h === 'ultimo ingreso' ||
+          h === 'last access' ||
+          h === 'fecha ultimo acceso' ||
+          h === 'fecha de acceso' ||
+          h === 'acceso' ||
+          h.includes('ultimo acceso') ||
+          h.includes('ultimo ingreso') ||
+          h.includes('last access') ||
+          h.includes('fecha ultimo') ||
+          (h.includes('fecha') && h.includes('acceso')) ||
+          (h.includes('fecha') && !h.includes('nombre') && !h.includes('nacimiento'))
         );
-        const emailIdx = headers.findIndex(
-          h =>
-            h.includes('correo electronico') ||
-            (h.includes('correo') && !h.includes('nombre')) ||
-            h.includes('email')
+
+        // Detectar columna de correo
+        const emailIdx = headers.findIndex(h =>
+          h === 'correo electronico' ||
+          h === 'correo' ||
+          h === 'email' ||
+          h === 'direccion de correo' ||
+          h.includes('correo electronico') ||
+          (h.includes('correo') && !h.includes('nombre')) ||
+          h.includes('email')
         );
+
         const docCol = docIdx >= 0 ? docIdx : 0;
-        const dateCol = dateIdx >= 0 ? dateIdx : 1;
+        const dateCol = dateIdx >= 0 ? dateIdx : (docIdx >= 0 ? -1 : 1);
         const emailCol = emailIdx >= 0 ? emailIdx : -1;
-        const hasHeaderRow = headers.some(
-          h =>
-            h && (
-              h.includes('nombre de usuario') ||
-              h.includes('documento') ||
-              h.includes('ultimo acceso') ||
-              h.includes('apellido') ||
-              h.includes('nombre(s)') ||
-              h.includes('fecha')
-            )
+
+        const hasHeaderRow = headers.some(h =>
+          h && (
+            h.includes('nombre de usuario') ||
+            h.includes('usuario') ||
+            h.includes('documento') ||
+            h.includes('ultimo acceso') ||
+            h.includes('apellido') ||
+            h.includes('nombre') ||
+            h.includes('fecha') ||
+            h.includes('acceso')
+          )
         );
         const startRow = hasHeaderRow ? 1 : 0;
-        const { current, updated, skipped } = processRows(rows, docCol, dateCol, startRow, emailCol);
+
+        if (dateCol < 0) {
+          setUploadSuccess('No se encontró la columna de fecha de acceso en el archivo. Verifica que tenga una columna "Último acceso".');
+          return;
+        }
+        const { current, updated, skipped, noDate } = processRows(rows, docCol, dateCol, startRow, emailCol);
         saveLmsLastAccess(current);
         setLmsLastAccess(current);
-        setUploadSuccess(`Actualizados: ${updated}. Sin match o sin fecha: ${skipped}.`);
+        const parts = [`Actualizados: ${updated}`];
+        if (noDate > 0) parts.push(`sin fecha: ${noDate}`);
+        if (skipped > 0) parts.push(`sin match: ${skipped}`);
+        setUploadSuccess(parts.join(' · ') + '.');
       } catch (err) {
         console.error(err);
         setUploadSuccess('Error al leer el Excel. Revisa que el archivo sea válido.');
@@ -397,44 +493,61 @@ export const AsistenciaLmsView: React.FC = () => {
       );
       const first = rows[0] || [];
       const headers = first.map(h => normalizeHeader(String(h)));
-      const hasHeader = headers.some(
-        h =>
+      const hasHeader = headers.some(h =>
+        h && (
           h.includes('nombre de usuario') ||
+          h.includes('usuario') ||
           h.includes('documento') ||
-          h.includes('doc') ||
           h.includes('ultimo') ||
           h.includes('fecha') ||
-          h.includes('apellido')
-      );
-      const docIdxCsv = headers.findIndex(
-        h =>
-          h.includes('nombre de usuario') ||
-          (h.includes('usuario') && !h.includes('correo')) ||
-          h.includes('documento') ||
-          h.includes('doc') ||
-          h.includes('identificacion')
-      );
-      const dateIdxCsv = headers.findIndex(
-        h =>
-          h.includes('ultimo acceso') ||
-          h.includes('ultimo ingreso') ||
-          h.includes('fecha') ||
+          h.includes('apellido') ||
+          h.includes('nombre') ||
           h.includes('acceso')
+        )
       );
-      const emailIdxCsv = headers.findIndex(
-        h =>
-          h.includes('correo electronico') ||
-          (h.includes('correo') && !h.includes('nombre')) ||
-          h.includes('email')
+      const docIdxCsv = headers.findIndex(h =>
+        h === 'nombre de usuario' ||
+        h === 'usuario' ||
+        h === 'username' ||
+        h === 'documento' ||
+        h === 'identificacion' ||
+        h === 'cedula' ||
+        h.includes('nombre de usuario') ||
+        (h.includes('usuario') && !h.includes('correo') && !h.includes('nombre completo')) ||
+        h.includes('documento') ||
+        h.includes('identificacion') ||
+        h.includes('cedula')
+      );
+      const dateIdxCsv = headers.findIndex(h =>
+        h === 'ultimo acceso' ||
+        h === 'ultimo ingreso' ||
+        h === 'last access' ||
+        h === 'acceso' ||
+        h.includes('ultimo acceso') ||
+        h.includes('ultimo ingreso') ||
+        h.includes('last access') ||
+        (h.includes('fecha') && h.includes('acceso')) ||
+        (h.includes('fecha') && !h.includes('nombre') && !h.includes('nacimiento'))
+      );
+      const emailIdxCsv = headers.findIndex(h =>
+        h === 'correo electronico' ||
+        h === 'correo' ||
+        h === 'email' ||
+        h.includes('correo electronico') ||
+        (h.includes('correo') && !h.includes('nombre')) ||
+        h.includes('email')
       );
       const docCol = hasHeader && docIdxCsv >= 0 ? docIdxCsv : 0;
       const dateCol = hasHeader && dateIdxCsv >= 0 ? dateIdxCsv : 1;
       const emailCol = emailIdxCsv >= 0 ? emailIdxCsv : -1;
       const startRow = hasHeader ? 1 : 0;
-      const { current, updated, skipped } = processRows(rows, docCol, dateCol, startRow, emailCol);
+      const { current, updated, skipped, noDate } = processRows(rows, docCol, dateCol, startRow, emailCol);
       saveLmsLastAccess(current);
       setLmsLastAccess(current);
-      setUploadSuccess(`Actualizados: ${updated}. Sin match o sin fecha: ${skipped}.`);
+      const parts2 = [`Actualizados: ${updated}`];
+      if (noDate > 0) parts2.push(`sin fecha: ${noDate}`);
+      if (skipped > 0) parts2.push(`sin match: ${skipped}`);
+      setUploadSuccess(parts2.join(' · ') + '.');
     };
     reader.readAsText(file, 'UTF-8');
   };
