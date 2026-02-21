@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { Student, Ficha } from '../types';
-import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess } from '../services/db';
+import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
+import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades } from '../services/db';
 
 /** Normaliza valor de celda a string para documento (Excel puede devolver número o notación científica). */
 function normalizeDoc(value: unknown): string {
@@ -103,15 +103,19 @@ function daysSince(dateStr: string): number {
   return Math.floor(diff / (24 * 60 * 60 * 1000));
 }
 
+const PASSING_SCORE = 70;
+
 export const AsistenciaLmsView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [lmsLastAccess, setLmsLastAccess] = useState<Record<string, string>>({});
+  const [gradeActivities, setGradeActivities] = useState<GradeActivity[]>([]);
+  const [grades, setGrades] = useState<GradeEntry[]>([]);
 
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterStatus, setFilterStatus] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname' | 'document' | 'group' | 'status' | 'lastAccess' | 'daysInactive'>('lastname');
+  const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname' | 'document' | 'group' | 'status' | 'lastAccess' | 'daysInactive' | 'final'>('lastname');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [showAllStudents, setShowAllStudents] = useState(false);
@@ -128,6 +132,8 @@ export const AsistenciaLmsView: React.FC = () => {
     setStudents(getStudents());
     setFichas(getFichas());
     setLmsLastAccess(getLmsLastAccess());
+    setGradeActivities(getGradeActivities());
+    setGrades(getGrades());
   };
 
   useEffect(() => {
@@ -135,6 +141,43 @@ export const AsistenciaLmsView: React.FC = () => {
     window.addEventListener('asistenciapro-storage-update', loadData);
     return () => window.removeEventListener('asistenciapro-storage-update', loadData);
   }, []);
+
+  /** Mapa rápido studentId+activityId → GradeEntry */
+  const gradeMap = useMemo(() => {
+    const map = new Map<string, GradeEntry>();
+    grades.forEach(g => map.set(`${g.studentId}-${g.activityId}`, g));
+    return map;
+  }, [grades]);
+
+  /**
+   * Calcula el "Final" de un estudiante considerando TODAS las actividades de su ficha
+   * (sin filtrar por fase, para mostrar el estado global en la vista LMS).
+   */
+  const getFinalForStudent = (student: Student): { score: number | null; letter: 'A' | 'D' | null } => {
+    const fichaActivities = gradeActivities.filter(a => a.group === (student.group || ''));
+    const totalActivities = fichaActivities.length;
+    if (totalActivities === 0) return { score: null, letter: null };
+
+    let missing = 0;
+    let sum = 0;
+    fichaActivities.forEach(activity => {
+      const grade = gradeMap.get(`${student.id}-${activity.id}`);
+      if (!grade) {
+        missing += 1;
+        sum += 0;
+      } else {
+        sum += grade.score;
+      }
+    });
+
+    const avg = missing === totalActivities ? null : sum / totalActivities;
+    const delivered = totalActivities - missing;
+    const allApproved =
+      delivered === totalActivities &&
+      fichaActivities.every(a => gradeMap.get(`${student.id}-${a.id}`)?.letter === 'A');
+    const letter: 'A' | 'D' = allApproved ? 'A' : 'D';
+    return { score: avg, letter };
+  };
 
   const handleSort = (column: typeof sortOrder) => {
     if (sortOrder === column) {
@@ -186,6 +229,11 @@ export const AsistenciaLmsView: React.FC = () => {
         if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
       } else if (sortOrder === 'daysInactive') {
         cmp = daysA - daysB;
+        if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
+      } else if (sortOrder === 'final') {
+        const scoreA = getFinalForStudent(a).score ?? -1;
+        const scoreB = getFinalForStudent(b).score ?? -1;
+        cmp = scoreA - scoreB;
         if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName);
       }
       return direction * cmp;
@@ -239,10 +287,13 @@ export const AsistenciaLmsView: React.FC = () => {
       'Estado',
       'Último acceso',
       'Días sin ingresar',
+      'Final (promedio)',
+      'Final (letra)',
     ];
     const rows = filteredStudents.map((student, idx) => {
       const lastAccess = lmsLastAccess[student.id];
       const days = lastAccess != null ? daysSince(lastAccess) : null;
+      const final = getFinalForStudent(student);
       return [
         idx + 1,
         `"${student.documentNumber || ''}"`,
@@ -253,6 +304,8 @@ export const AsistenciaLmsView: React.FC = () => {
         `"${student.status || 'Formación'}"`,
         lastAccess || '-',
         days != null && days >= 0 ? String(days) : '-',
+        final.score != null ? final.score.toFixed(1) : '-',
+        final.letter ?? '-',
       ];
     });
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -764,12 +817,24 @@ export const AsistenciaLmsView: React.FC = () => {
                   )}
                 </button>
               </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                <button
+                  type="button"
+                  onClick={() => handleSort('final')}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'final' ? 'text-indigo-700' : ''}`}
+                >
+                  Final
+                  {sortOrder === 'final' && (
+                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {paginatedStudents.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
                   {students.length === 0
                     ? 'No hay aprendices registrados.'
                     : searchTerm
@@ -827,6 +892,30 @@ export const AsistenciaLmsView: React.FC = () => {
                     <td className="px-6 py-4 text-gray-600 text-sm tabular-nums">
                       {days != null && days >= 0 ? String(days) : '-'}
                     </td>
+                    {(() => {
+                      const final = getFinalForStudent(student);
+                      if (final.letter === null) {
+                        return (
+                          <td className="px-6 py-4 text-gray-400 text-sm tabular-nums">-</td>
+                        );
+                      }
+                      const isApproved = final.letter === 'A';
+                      const scoreOk = final.score != null && final.score >= PASSING_SCORE;
+                      return (
+                        <td className="px-6 py-4 text-sm tabular-nums">
+                          <div className="flex flex-col gap-0.5">
+                            <span className={`font-semibold ${scoreOk ? 'text-green-700' : 'text-red-600'}`}>
+                              {final.score != null ? final.score.toFixed(1) : '-'}
+                            </span>
+                            <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold w-fit ${
+                              isApproved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {final.letter}
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    })()}
                   </tr>
                 );
               })
