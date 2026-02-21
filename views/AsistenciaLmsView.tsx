@@ -70,14 +70,14 @@ function parseDateFromCell(value: unknown): string | null {
     }
   }
 
-  // String: YYYY-MM-DD HH:mm:ss o YYYY-MM-DD
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{1,2}):(\d{2}):(\d{2}))?/.exec(v);
+  // String: YYYY-MM-DD HH:mm:ss o YYYY-MM-DD (mes y día pueden ser 1 o 2 dígitos)
+  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2}):(\d{2}))?/.exec(v);
   if (isoMatch) {
     const [, y, m, d, H, M, S] = isoMatch;
     const h = (H ?? '0').padStart(2, '0');
     const min = (M ?? '0').padStart(2, '0');
     const sec = (S ?? '0').padStart(2, '0');
-    return `${y}-${m}-${d} ${h}:${min}:${sec}`;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')} ${h}:${min}:${sec}`;
   }
 
   // DD/MM/YYYY HH:mm:ss o DD/MM/YYYY
