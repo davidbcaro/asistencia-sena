@@ -103,8 +103,6 @@ function daysSince(dateStr: string): number {
   return Math.floor(diff / (24 * 60 * 60 * 1000));
 }
 
-const PASSING_SCORE = 70;
-
 export const AsistenciaLmsView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [fichas, setFichas] = useState<Ficha[]>([]);
@@ -287,8 +285,7 @@ export const AsistenciaLmsView: React.FC = () => {
       'Estado',
       'Último acceso',
       'Días sin ingresar',
-      'Final (promedio)',
-      'Final (letra)',
+      'Final',
     ];
     const rows = filteredStudents.map((student, idx) => {
       const lastAccess = lmsLastAccess[student.id];
@@ -304,8 +301,7 @@ export const AsistenciaLmsView: React.FC = () => {
         `"${student.status || 'Formación'}"`,
         lastAccess || '-',
         days != null && days >= 0 ? String(days) : '-',
-        final.score != null ? final.score.toFixed(1) : '-',
-        final.letter ?? '-',
+        final.letter === 'A' ? 'A' : '-',
       ];
     });
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -894,25 +890,12 @@ export const AsistenciaLmsView: React.FC = () => {
                     </td>
                     {(() => {
                       const final = getFinalForStudent(student);
-                      if (final.letter === null) {
-                        return (
-                          <td className="px-6 py-4 text-gray-400 text-sm tabular-nums">-</td>
-                        );
-                      }
-                      const isApproved = final.letter === 'A';
-                      const scoreOk = final.score != null && final.score >= PASSING_SCORE;
                       return (
-                        <td className="px-6 py-4 text-sm tabular-nums">
-                          <div className="flex flex-col gap-0.5">
-                            <span className={`font-semibold ${scoreOk ? 'text-green-700' : 'text-red-600'}`}>
-                              {final.score != null ? final.score.toFixed(1) : '-'}
-                            </span>
-                            <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold w-fit ${
-                              isApproved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
-                            }`}>
-                              {final.letter}
-                            </span>
-                          </div>
+                        <td className="px-6 py-4 text-sm text-center">
+                          {final.letter === 'A'
+                            ? <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">A</span>
+                            : <span className="text-gray-400">-</span>
+                          }
                         </td>
                       );
                     })()}
