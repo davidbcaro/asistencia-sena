@@ -177,6 +177,21 @@ export const AsistenciaLmsView: React.FC = () => {
     return { score: avg, letter };
   };
 
+  /**
+   * Calcula el valor de "Novedad" según:
+   * - Estado "Formación" y días sin ingresar >= 20 → "Deserción"
+   * - Estado "Formación" y Final no es "A" y días sin ingresar < 20 → "Plan de mejoramiento"
+   * - Resto → "-"
+   */
+  const getNovedad = (student: Student, daysInactive: number | null, finalLetter: 'A' | 'D' | null): string => {
+    const status = student.status || 'Formación';
+    if (status !== 'Formación') return '-';
+    const days = daysInactive != null && daysInactive >= 0 ? daysInactive : -1;
+    if (days >= 20) return 'Deserción';
+    if (finalLetter !== 'A' && days >= 0 && days < 20) return 'Plan de mejoramiento';
+    return '-';
+  };
+
   const handleSort = (column: typeof sortOrder) => {
     if (sortOrder === column) {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
@@ -286,11 +301,13 @@ export const AsistenciaLmsView: React.FC = () => {
       'Último acceso',
       'Días sin ingresar',
       'Final',
+      'Novedad',
     ];
     const rows = filteredStudents.map((student, idx) => {
       const lastAccess = lmsLastAccess[student.id];
       const days = lastAccess != null ? daysSince(lastAccess) : null;
       const final = getFinalForStudent(student);
+      const novedad = getNovedad(student, days, final.letter);
       return [
         idx + 1,
         `"${student.documentNumber || ''}"`,
@@ -302,6 +319,7 @@ export const AsistenciaLmsView: React.FC = () => {
         lastAccess || '-',
         days != null && days >= 0 ? String(days) : '-',
         final.letter === 'A' ? 'A' : '-',
+        novedad,
       ];
     });
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -825,12 +843,13 @@ export const AsistenciaLmsView: React.FC = () => {
                   )}
                 </button>
               </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Novedad</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {paginatedStudents.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
                   {students.length === 0
                     ? 'No hay aprendices registrados.'
                     : searchTerm
@@ -896,6 +915,25 @@ export const AsistenciaLmsView: React.FC = () => {
                             ? <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">A</span>
                             : <span className="text-gray-400">-</span>
                           }
+                        </td>
+                      );
+                    })()}
+                    {(() => {
+                      const final = getFinalForStudent(student);
+                      const novedad = getNovedad(student, days, final.letter);
+                      return (
+                        <td className="px-6 py-4 text-sm">
+                          {novedad === 'Deserción' ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              Deserción
+                            </span>
+                          ) : novedad === 'Plan de mejoramiento' ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                              Plan de mejoramiento
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </td>
                       );
                     })()}
