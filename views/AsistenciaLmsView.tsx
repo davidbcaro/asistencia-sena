@@ -896,7 +896,7 @@ export const AsistenciaLmsView: React.FC = () => {
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowNovedadFilter(false)} />
                       <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                        {['Todas las Novedades', 'Deserción', 'Plan de mejoramiento', 'Sin novedad'].map(opt => {
+                        {['Todas las Novedades', 'Riesgo de deserción', 'Plan de mejoramiento', 'Sin novedad'].map(opt => {
                           const val = opt === 'Todas las Novedades' ? 'Todos' : opt;
                           return (
                             <button
