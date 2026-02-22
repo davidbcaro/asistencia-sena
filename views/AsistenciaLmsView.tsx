@@ -182,7 +182,7 @@ export const AsistenciaLmsView: React.FC = () => {
 
   /**
    * Calcula el valor de "Novedad" según:
-   * - Estado "Formación" y días sin ingresar >= 20 → "Deserción"
+   * - Estado "Formación" y días sin ingresar >= 20 → "Riesgo de deserción"
    * - Estado "Formación" y Final no es "A" y días sin ingresar < 20 → "Plan de mejoramiento"
    * - Resto → "-"
    */
@@ -190,7 +190,7 @@ export const AsistenciaLmsView: React.FC = () => {
     const status = student.status || 'Formación';
     if (status !== 'Formación') return '-';
     const days = daysInactive != null && daysInactive >= 0 ? daysInactive : -1;
-    if (days >= 20) return 'Deserción';
+    if (days >= 20) return 'Riesgo de deserción';
     if (finalLetter !== 'A' && days >= 0 && days < 20) return 'Plan de mejoramiento';
     return '-';
   };
@@ -714,7 +714,7 @@ export const AsistenciaLmsView: React.FC = () => {
                     className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                   >
                     <option value="Todos">Todas las Novedades</option>
-                    <option value="Deserción">Deserción</option>
+                    <option value="Riesgo de deserción">Riesgo de deserción</option>
                     <option value="Plan de mejoramiento">Plan de mejoramiento</option>
                     <option value="Sin novedad">Sin novedad</option>
                   </select>
@@ -996,7 +996,7 @@ export const AsistenciaLmsView: React.FC = () => {
                       const novedad = getNovedad(student, days, final.letter);
                       return (
                         <td className="px-6 py-4 text-sm">
-                          {novedad === 'Deserción' ? (
+                          {novedad === 'Riesgo de deserción' ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                               Riesgo de deserción
                             </span>
