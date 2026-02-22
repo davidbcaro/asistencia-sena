@@ -112,6 +112,7 @@ export const AsistenciaLmsView: React.FC = () => {
 
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterStatus, setFilterStatus] = useState<string>('Todos');
+  const [filterNovedad, setFilterNovedad] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname' | 'document' | 'group' | 'status' | 'lastAccess' | 'daysInactive' | 'final'>('lastname');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -119,8 +120,10 @@ export const AsistenciaLmsView: React.FC = () => {
   const [showAllStudents, setShowAllStudents] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [showNovedadFilter, setShowNovedadFilter] = useState(false);
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
+  const novedadFilterRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ITEMS_PER_PAGE = 15;
 
@@ -205,6 +208,12 @@ export const AsistenciaLmsView: React.FC = () => {
     .filter(student => {
       const matchesFicha = filterFicha === 'Todas' || (student.group || 'General') === filterFicha;
       const matchesStatus = filterStatus === 'Todos' || (student.status || 'Formación') === filterStatus;
+      const lastAccess = lmsLastAccess[student.id];
+      const days = lastAccess != null ? daysSince(lastAccess) : null;
+      const final = getFinalForStudent(student);
+      const novedad = getNovedad(student, days, final.letter);
+      const novedadFilterValue = filterNovedad === 'Sin novedad' ? '-' : filterNovedad;
+      const matchesNovedad = filterNovedad === 'Todos' || novedad === novedadFilterValue;
       const term = searchTerm.toLowerCase();
       const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
       const matchesSearch =
@@ -212,7 +221,7 @@ export const AsistenciaLmsView: React.FC = () => {
         (student.documentNumber || '').includes(term) ||
         (student.email || '').toLowerCase().includes(term);
 
-      return matchesFicha && matchesStatus && matchesSearch;
+      return matchesFicha && matchesStatus && matchesNovedad && matchesSearch;
     })
     .sort((a, b) => {
       const direction = sortDirection === 'asc' ? 1 : -1;
@@ -262,7 +271,7 @@ export const AsistenciaLmsView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterFicha, filterStatus, searchTerm, sortOrder, sortDirection]);
+  }, [filterFicha, filterStatus, filterNovedad, searchTerm, sortOrder, sortDirection]);
   useEffect(() => {
     setCurrentPage(1);
   }, [showAllStudents]);
@@ -288,6 +297,17 @@ export const AsistenciaLmsView: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showStatusFilter]);
+
+  useEffect(() => {
+    if (!showNovedadFilter) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (novedadFilterRef.current && !novedadFilterRef.current.contains(event.target as Node)) {
+        setShowNovedadFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showNovedadFilter]);
 
   const generateReport = () => {
     const headers = [
@@ -683,6 +703,22 @@ export const AsistenciaLmsView: React.FC = () => {
                     <option value="Deserción">Deserción</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Novedad</label>
+                  <select
+                    value={filterNovedad}
+                    onChange={e => {
+                      setFilterNovedad(e.target.value);
+                      setShowFilters(false);
+                    }}
+                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="Todos">Todas las Novedades</option>
+                    <option value="Deserción">Deserción</option>
+                    <option value="Plan de mejoramiento">Plan de mejoramiento</option>
+                    <option value="Sin novedad">Sin novedad</option>
+                  </select>
+                </div>
               </div>
             )}
           </div>
@@ -843,7 +879,44 @@ export const AsistenciaLmsView: React.FC = () => {
                   )}
                 </button>
               </th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Novedad</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
+                <div className="relative inline-flex items-center gap-2" ref={novedadFilterRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowNovedadFilter(prev => !prev)}
+                    className="inline-flex items-center gap-1 hover:text-gray-900"
+                  >
+                    Novedad
+                    <Filter className="w-3.5 h-3.5 text-gray-400" />
+                    {filterNovedad !== 'Todos' && (
+                      <span className="text-indigo-600 text-xs">({filterNovedad})</span>
+                    )}
+                  </button>
+                  {showNovedadFilter && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowNovedadFilter(false)} />
+                      <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                        {['Todas las Novedades', 'Deserción', 'Plan de mejoramiento', 'Sin novedad'].map(opt => {
+                          const val = opt === 'Todas las Novedades' ? 'Todos' : opt;
+                          return (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => {
+                                setFilterNovedad(val);
+                                setShowNovedadFilter(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm ${filterNovedad === val ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -925,7 +998,7 @@ export const AsistenciaLmsView: React.FC = () => {
                         <td className="px-6 py-4 text-sm">
                           {novedad === 'Deserción' ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              Deserción
+                              Riesgo de deserción
                             </span>
                           ) : novedad === 'Plan de mejoramiento' ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
