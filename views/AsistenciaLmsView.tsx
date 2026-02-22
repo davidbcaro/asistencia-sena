@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users } from 'lucide-react';
+import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
 import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades } from '../services/db';
@@ -121,6 +121,7 @@ export const AsistenciaLmsView: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [showNovedadFilter, setShowNovedadFilter] = useState(false);
+  const [pendientesModalStudent, setPendientesModalStudent] = useState<Student | null>(null);
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
   const novedadFilterRef = useRef<HTMLDivElement | null>(null);
@@ -178,6 +179,26 @@ export const AsistenciaLmsView: React.FC = () => {
       fichaActivities.every(a => gradeMap.get(`${student.id}-${a.id}`)?.letter === 'A');
     const letter: 'A' | 'D' = allApproved ? 'A' : 'D';
     return { score: avg, letter };
+  };
+
+  /** Etiqueta corta de actividad (EV01, EV02, … o nombre). */
+  const getActivityShortLabel = (name: string) => {
+    const match = name.match(/EV\d+/i);
+    return match ? match[0].toUpperCase() : name;
+  };
+
+  /**
+   * Pendientes del aprendiz: actividades de su ficha sin entregar o con letra D (igual que CalificacionesView).
+   * Devuelve cantidad y lista de actividades pendientes.
+   */
+  const getPendientesForStudent = (student: Student): { count: number; activities: GradeActivity[] } => {
+    const fichaActivities = gradeActivities.filter(a => a.group === (student.group || ''));
+    const activities: GradeActivity[] = [];
+    fichaActivities.forEach(activity => {
+      const grade = gradeMap.get(`${student.id}-${activity.id}`);
+      if (!grade || grade.letter !== 'A') activities.push(activity);
+    });
+    return { count: activities.length, activities };
   };
 
   /**
@@ -843,6 +864,7 @@ export const AsistenciaLmsView: React.FC = () => {
                   )}
                 </div>
               </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center">Pendientes</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
                 <button
                   type="button"
@@ -922,7 +944,7 @@ export const AsistenciaLmsView: React.FC = () => {
           <tbody className="divide-y divide-gray-100">
             {paginatedStudents.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={12} className="px-6 py-8 text-center text-gray-500">
                   {students.length === 0
                     ? 'No hay aprendices registrados.'
                     : searchTerm
@@ -974,6 +996,21 @@ export const AsistenciaLmsView: React.FC = () => {
                         {student.status || 'Formación'}
                       </span>
                     </td>
+                    {(() => {
+                      const { count, activities } = getPendientesForStudent(student);
+                      return (
+                        <td className="px-6 py-4 text-sm text-center">
+                          <button
+                            type="button"
+                            onClick={() => setPendientesModalStudent(student)}
+                            className={`font-semibold tabular-nums ${count > 0 ? 'text-amber-600 hover:text-amber-700 hover:underline' : 'text-gray-500'}`}
+                            title={count > 0 ? 'Ver detalle de pendientes' : undefined}
+                          >
+                            {count}
+                          </button>
+                        </td>
+                      );
+                    })()}
                     <td className="px-6 py-4 text-gray-600 text-sm tabular-nums">
                       {lastAccess || '-'}
                     </td>
@@ -1067,6 +1104,49 @@ export const AsistenciaLmsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {pendientesModalStudent && (() => {
+        const { count, activities } = getPendientesForStudent(pendientesModalStudent);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setPendientesModalStudent(null)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] flex flex-col p-6" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                <h3 className="text-lg font-bold text-gray-900">Pendientes</h3>
+                <button type="button" onClick={() => setPendientesModalStudent(null)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="text-sm text-gray-600 mb-3 flex-shrink-0">
+                <span className="font-medium text-gray-700">{pendientesModalStudent.lastName} {pendientesModalStudent.firstName}</span>
+                <span className="text-gray-500"> — {count} pendiente{count !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="border border-gray-200 rounded-lg overflow-hidden overflow-y-auto max-h-64 flex-1 min-h-0">
+                {activities.length === 0 ? (
+                  <p className="px-4 py-6 text-center text-gray-500 text-sm">Sin pendientes.</p>
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {activities.map(activity => (
+                      <li key={activity.id} className="px-4 py-2.5 text-sm text-gray-800">
+                        {getActivityShortLabel(activity.name)}
+                        {activity.detail ? <span className="text-gray-500 ml-1">— {activity.detail}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="mt-4 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setPendientesModalStudent(null)}
+                  className="w-full bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
