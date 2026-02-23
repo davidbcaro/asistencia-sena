@@ -68,6 +68,8 @@ const scoreToLetter = (score: number): 'A' | 'D' => (score >= PASSING_SCORE ? 'A
 const EXCLUDED_ACTIVITY_HEADERS = new Set([
   'nombre s',
   'nombres',
+  'apellido s',
+  'apellidos',
   'nombre de usuario',
   'usuario',
   'username',
@@ -111,9 +113,18 @@ const splitActivityHeader = (header: string): { baseName: string; kind: 'real' |
   return { baseName: raw, kind: 'score' };
 };
 
-/** Clave canónica por número de evidencia para que "EV01", "Evidencia 01", "EV01 (real)" y "EV01 (letra)" cuenten como una sola evidencia. */
+/** Clave canónica por evidencia. Si el nombre contiene un código GA completo (ej: GA1-220501014-AA1-EV01),
+ *  usa ese código normalizado como clave para evitar colisiones entre evidencias de distintos GAs
+ *  que comparten el mismo número de EV. Para nombres simples como "EV01" o "Evidencia 01" usa solo el número. */
 const getCanonicalEvidenceKey = (baseName: string): string => {
   const trimmed = baseName.trim();
+  // Código GA completo: GA#-######-AA#-EV##
+  const gaFullMatch = trimmed.match(/GA\d+-\d+-AA\d+-EV(\d+)/i);
+  if (gaFullMatch) return normalizeText(gaFullMatch[0]);
+  // Código parcial con AA: AA#-EV##
+  const aaEvMatch = trimmed.match(/AA\d+-EV(\d+)/i);
+  if (aaEvMatch) return normalizeText(aaEvMatch[0]);
+  // Nombre simple: EV## o Evidencia ##
   const evMatch = trimmed.match(/ev(idencia)?\s*(\d+)/i);
   if (evMatch) return 'ev' + String(parseInt(evMatch[2], 10));
   const numMatch = trimmed.match(/(\d+)/);
