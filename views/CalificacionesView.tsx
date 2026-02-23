@@ -805,37 +805,15 @@ export const CalificacionesView: React.FC = () => {
           return [key, activity];
         })
       );
-      const existingEvNumbers = activitiesInPhaseGlobal
-        .map(activity => {
-          const match = activity.name.match(/EV(\d+)/i);
-          return match ? Number(match[1]) : null;
-        })
-        .filter((value): value is number => value !== null);
-      let nextEvNumber = existingEvNumbers.length > 0 ? Math.max(...existingEvNumbers) + 1 : 1;
 
-      const newActivities: GradeActivity[] = [];
       const activityColumns = new Map<
         string,
         { activity: GradeActivity; realIndex?: number; letterIndex?: number; fallbackIndex?: number; detail: string }
       >();
 
       evidenceMap.forEach((entry, canonicalKey) => {
-        let activity = existingByDetail.get(canonicalKey);
-        if (!activity) {
-          activity = {
-            id: generateId(),
-            name: `EV${String(nextEvNumber).padStart(2, '0')}`,
-            group: '',
-            phase: selectedPhase,
-            maxScore: 100,
-            detail: entry.baseName,
-            createdAt: new Date().toISOString(),
-          };
-          nextEvNumber += 1;
-          newActivities.push(activity);
-        } else if (!activity.detail) {
-          updateGradeActivity({ ...activity, detail: entry.baseName });
-        }
+        const activity = existingByDetail.get(canonicalKey);
+        if (!activity) return;
         activityColumns.set(canonicalKey, {
           activity,
           realIndex: entry.realIndex,
@@ -845,7 +823,12 @@ export const CalificacionesView: React.FC = () => {
         });
       });
 
-      newActivities.forEach(addGradeActivity);
+      if (activityColumns.size === 0) {
+        setUploadError(
+          'No hay evidencias existentes para esta fase que coincidan con el Excel. Crea primero las evidencias (carga un Excel inicial o añádelas manualmente) y vuelve a cargar para actualizar calificaciones.'
+        );
+        return;
+      }
 
       const studentsByDoc = new Map<string, Student>();
       const studentsByName = new Map<string, Student>();
@@ -965,10 +948,7 @@ export const CalificacionesView: React.FC = () => {
 
       upsertGrades(entries);
       const infoParts = [];
-      infoParts.push(`Se cargaron ${entries.length} calificaciones.`);
-      if (newActivities.length > 0) {
-        infoParts.push(`Se crearon ${newActivities.length} actividades nuevas.`);
-      }
+      infoParts.push(`Se actualizaron ${entries.length} calificaciones.`);
       if (unmatched.length > 0) {
         infoParts.push(`Sin coincidencia: ${unmatched.length} filas.`);
       }
