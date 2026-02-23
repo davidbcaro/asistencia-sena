@@ -430,7 +430,7 @@ export const CalificacionesView: React.FC = () => {
     selectedFicha === 'Todas' && studentGroup ? `${studentGroup}::${selectedPhase}` : rapKey || `${studentGroup || ''}::${selectedPhase}`;
 
   const rapColumnsForFicha = useMemo(() => {
-    if (activitiesForFicha.length === 0) return [];
+    if (fichas.length === 0 && activitiesForFicha.length === 0) return [];
     if (selectedFicha === 'Todas') {
       const allKeys = new Set<string>();
       fichas.forEach(f => {
@@ -716,10 +716,14 @@ export const CalificacionesView: React.FC = () => {
       const docIndex = normalizedHeaders.findIndex(h =>
         h.includes('document') || h.includes('doc') || h.includes('identificacion') || h.includes('identidad')
       );
+      // "Nombre(s)" normaliza a "nombre s" → también capturar esa variante
       const firstNameIndex = normalizedHeaders.findIndex(h =>
-        (h === 'nombres' || h === 'nombre' || h.startsWith('nombre ')) && !h.includes('usuario')
+        (h === 'nombres' || h === 'nombre s' || h === 'nombre' || h.startsWith('nombre ')) && !h.includes('usuario')
       );
-      const lastNameIndex = normalizedHeaders.findIndex(h => h.includes('apellido'));
+      // "Apellido(s)" normaliza a "apellido s" → también capturar esa variante
+      const lastNameIndex = normalizedHeaders.findIndex(h =>
+        h.includes('apellido')
+      );
       const fullNameIndex = normalizedHeaders.findIndex(h => h.includes('nombre completo') || h.includes('aprendiz'));
       const usernameIndex = normalizedHeaders.findIndex(h =>
         h.includes('nombre de usuario') || h === 'usuario' || h === 'username'
@@ -923,9 +927,15 @@ export const CalificacionesView: React.FC = () => {
         const usernameValue = usernameIndex >= 0 ? String(row[usernameIndex] || '').trim() : '';
         const emailValue = emailIndex >= 0 ? String(row[emailIndex] || '').trim() : '';
 
+        // Si no hay columna de documento pero el username contiene dígitos (ej: "1144163904cc"), extraer como doc
+        const docFromUsername = !docValue && usernameValue
+          ? normalizeDoc(usernameValue.replace(/[^0-9]/g, '') || usernameValue)
+          : '';
+        const effectiveDoc = docValue || docFromUsername;
+
         let student: Student | undefined;
-        if (docValue) {
-          student = studentsByDoc.get(docValue);
+        if (effectiveDoc) {
+          student = studentsByDoc.get(effectiveDoc);
         }
         if (!student) {
           const nameToMatch = fullNameValue || `${firstNameValue} ${lastNameValue}`;
@@ -946,8 +956,8 @@ export const CalificacionesView: React.FC = () => {
         }
 
         if (!student) {
-          if (docValue || fullNameValue || firstNameValue || lastNameValue) {
-            unmatched.push(docValue || fullNameValue || `${firstNameValue} ${lastNameValue}`.trim());
+          if (effectiveDoc || fullNameValue || firstNameValue || lastNameValue) {
+            unmatched.push(effectiveDoc || fullNameValue || `${firstNameValue} ${lastNameValue}`.trim());
           }
           return;
         }
