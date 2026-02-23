@@ -417,7 +417,7 @@ export const CalificacionesView: React.FC = () => {
     return activities.filter(a => {
       if ((a.phase || phases[1]) !== selectedPhase) return false;
       if (selectedFicha === 'Todas') return true;
-      return a.group === '' || a.group === selectedFicha;
+      return a.group === selectedFicha;
     });
   }, [activities, selectedFicha, selectedPhase]);
 
