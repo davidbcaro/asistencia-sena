@@ -414,11 +414,18 @@ export const CalificacionesView: React.FC = () => {
   const showAllFichasColumns = selectedFicha === 'Todas' || hasSearchTerm;
 
   const activitiesForFicha = useMemo(() => {
-    return activities.filter(a => {
-      if ((a.phase || phases[1]) !== selectedPhase) return false;
-      if (selectedFicha === 'Todas') return true;
-      return a.group === selectedFicha;
+    const phaseMatch = activities.filter(a => (a.phase || phases[1]) === selectedPhase);
+    if (selectedFicha === 'Todas') return phaseMatch;
+    const forFichaOrGlobal = phaseMatch.filter(a => a.group === selectedFicha || a.group === '');
+    const byCanonical = new Map<string, GradeActivity>();
+    forFichaOrGlobal.forEach(a => {
+      const key = getCanonicalEvidenceKey(a.detail || a.name);
+      const existing = byCanonical.get(key);
+      if (!existing || (a.group === selectedFicha && existing.group !== selectedFicha)) {
+        byCanonical.set(key, a);
+      }
     });
+    return Array.from(byCanonical.values());
   }, [activities, selectedFicha, selectedPhase]);
 
   const visibleActivities = useMemo(
