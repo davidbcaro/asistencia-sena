@@ -83,12 +83,32 @@ const BASE_COMPUTED_HEADERS = new Set(['pendientes', 'final', 'rap1', 'rap2', 'r
 
 const normalizeHeaderKey = (value: string) => normalizeHeader(value).replace(/\s+/g, '');
 
-const splitActivityHeader = (header: string) => {
-  const match = header.match(/\((real|letra)\)\s*$/i);
-  if (!match) return { baseName: header.trim(), kind: 'score' as const };
-  const baseName = header.replace(/\((real|letra)\)\s*$/i, '').trim();
-  const kind = match[1].toLowerCase() === 'letra' ? 'letter' : 'real';
-  return { baseName, kind };
+/** Detecta si la columna es de nota/promedio (real) o de letra (A/D). Cada evidencia viene en dos columnas = una sola evidencia. */
+const splitActivityHeader = (header: string): { baseName: string; kind: 'real' | 'letter' | 'score' } => {
+  const raw = header.trim();
+  if (!raw) return { baseName: raw, kind: 'score' };
+
+  const lower = raw.toLowerCase();
+  const endsWithLetra = /(\s|[\-\()])?letra\s*\)?\s*$/i.test(raw);
+  const endsWithReal = /(\s|[\-\()])?(real|promedio|nota|numero|score)\s*\)?\s*$/i.test(raw);
+
+  if (endsWithLetra && !endsWithReal) {
+    const baseName = raw.replace(/\s*[\(\-\s]?letra\s*\)?\s*$/i, '').trim();
+    return baseName ? { baseName, kind: 'letter' } : { baseName: raw, kind: 'score' };
+  }
+  if (endsWithReal) {
+    const baseName = raw.replace(/\s*[\(\-\s]?(real|promedio|nota|numero|score)\s*\)?\s*$/i, '').trim();
+    return baseName ? { baseName, kind: 'real' } : { baseName: raw, kind: 'score' };
+  }
+
+  const parenMatch = raw.match(/^(.+?)\s*\((real|letra)\)\s*$/i);
+  if (parenMatch) {
+    const baseName = parenMatch[1].trim();
+    const kind = parenMatch[2].toLowerCase() === 'letra' ? 'letter' : 'real';
+    return { baseName, kind };
+  }
+
+  return { baseName: raw, kind: 'score' };
 };
 
 /** Clave canónica por número de evidencia para que "EV01", "Evidencia 01", "EV01 (real)" y "EV01 (letra)" cuenten como una sola evidencia. */
@@ -700,6 +720,8 @@ export const CalificacionesView: React.FC = () => {
       const reservedIndexes = new Set(
         [docIndex, firstNameIndex, lastNameIndex, fullNameIndex, usernameIndex, emailIndex].filter(i => i >= 0)
       );
+      const looksLikeEvidence = (h: string) => /ev\s*\d|evidencia\s*\d|ev\d+/i.test(h) || (/\d+/.test(h) && h.length < 80);
+
       const activityIndexes = headers
         .map((header, index) => ({ header: header.trim(), index }))
         .filter(item => {
@@ -707,6 +729,7 @@ export const CalificacionesView: React.FC = () => {
           const headerKey = normalizeHeaderKey(item.header);
           if (!item.header || reservedIndexes.has(item.index)) return false;
           if (EXCLUDED_ACTIVITY_HEADERS.has(header)) return false;
+          if (looksLikeEvidence(header)) return true;
           if (BASE_COMPUTED_HEADERS.has(headerKey)) return false;
           const dynamicRap = (rapColumns[rapKey] || rapColumns[selectedFicha] || []).map(col =>
             normalizeHeaderKey(col)
