@@ -414,8 +414,13 @@ export const CalificacionesView: React.FC = () => {
   const showAllFichasColumns = selectedFicha === 'Todas' || hasSearchTerm;
 
   const activitiesForFicha = useMemo(() => {
-    return activities.filter(a => (a.phase || phases[1]) === selectedPhase && (showAllFichasColumns || a.group === selectedFicha));
-  }, [activities, selectedFicha, selectedPhase, showAllFichasColumns]);
+    return activities.filter(a => {
+      if ((a.phase || phases[1]) !== selectedPhase) return false;
+      if (a.group === '') return true;
+      if (selectedFicha === 'Todas') return false;
+      return a.group === selectedFicha;
+    });
+  }, [activities, selectedFicha, selectedPhase]);
 
   const visibleActivities = useMemo(
     () =>
@@ -460,9 +465,10 @@ export const CalificacionesView: React.FC = () => {
   }, [grades]);
 
   const getFinalForStudent = (studentId: string, studentGroup?: string) => {
-    const activitiesForStudent = showAllFichasColumns && studentGroup
-      ? visibleActivities.filter(a => a.group === studentGroup)
-      : visibleActivities;
+    const activitiesForStudent =
+      showAllFichasColumns && studentGroup
+        ? visibleActivities.filter(a => a.group === '' || a.group === studentGroup)
+        : visibleActivities;
     const totalActivities = activitiesForStudent.length;
     if (totalActivities === 0) {
       return { pending: 0, score: null as number | null, letter: null as 'A' | 'D' | null };
@@ -789,117 +795,55 @@ export const CalificacionesView: React.FC = () => {
       });
 
       const isAllFichas = selectedFicha === 'Todas';
-      const activitiesInPhase = activities.filter(a => (a.phase || phases[1]) === selectedPhase);
+      const activitiesInPhaseGlobal = activities.filter(
+        a => (a.phase || phases[1]) === selectedPhase && a.group === ''
+      );
 
-      const existingByDetailByGroup = new Map<string, Map<string, GradeActivity>>();
-      const nextEvNumberByGroup = new Map<string, number>();
-      activitiesInPhase.forEach(activity => {
-        const group = activity.group || '';
-        const canonKey = getCanonicalEvidenceKey(activity.detail || activity.name);
-        if (!existingByDetailByGroup.has(group)) {
-          existingByDetailByGroup.set(group, new Map());
-        }
-        existingByDetailByGroup.get(group)!.set(canonKey, activity);
-        const match = activity.name.match(/EV(\d+)/i);
-        const num = match ? parseInt(match[1], 10) : 0;
-        const current = nextEvNumberByGroup.get(group) ?? 0;
-        nextEvNumberByGroup.set(group, Math.max(current, num));
-      });
+      const existingByDetail = new Map<string, GradeActivity>(
+        activitiesInPhaseGlobal.map(activity => {
+          const key = getCanonicalEvidenceKey(activity.detail || activity.name);
+          return [key, activity];
+        })
+      );
+      const existingEvNumbers = activitiesInPhaseGlobal
+        .map(activity => {
+          const match = activity.name.match(/EV(\d+)/i);
+          return match ? Number(match[1]) : null;
+        })
+        .filter((value): value is number => value !== null);
+      let nextEvNumber = existingEvNumbers.length > 0 ? Math.max(...existingEvNumbers) + 1 : 1;
 
       const newActivities: GradeActivity[] = [];
-      const activityColumnsCache = new Map<
-        string,
-        Map<string, { activity: GradeActivity; realIndex?: number; letterIndex?: number; fallbackIndex?: number; detail: string }>
-      >();
-
-      const getActivityColumnsForGroup = (group: string) => {
-        let cols = activityColumnsCache.get(group);
-        if (cols) return cols;
-        cols = new Map();
-        let nextEv = (nextEvNumberByGroup.get(group) ?? 0) + 1;
-        evidenceMap.forEach((entry, canonicalKey) => {
-          const byGroup = existingByDetailByGroup.get(group);
-          let activity = byGroup?.get(canonicalKey);
-          if (!activity) {
-            activity = {
-              id: generateId(),
-              name: `EV${String(nextEv).padStart(2, '0')}`,
-              group,
-              phase: selectedPhase,
-              maxScore: 100,
-              detail: entry.baseName,
-              createdAt: new Date().toISOString(),
-            };
-            nextEv += 1;
-            newActivities.push(activity);
-            if (!existingByDetailByGroup.has(group)) {
-              existingByDetailByGroup.set(group, new Map());
-            }
-            existingByDetailByGroup.get(group)!.set(canonicalKey, activity);
-          } else if (!activity.detail) {
-            updateGradeActivity({ ...activity, detail: entry.baseName });
-          }
-          cols.set(canonicalKey, {
-            activity,
-            realIndex: entry.realIndex,
-            letterIndex: entry.letterIndex,
-            fallbackIndex: entry.fallbackIndex,
-            detail: entry.baseName,
-          });
-        });
-        nextEvNumberByGroup.set(group, nextEv - 1);
-        activityColumnsCache.set(group, cols);
-        return cols;
-      };
-
       const activityColumns = new Map<
         string,
         { activity: GradeActivity; realIndex?: number; letterIndex?: number; fallbackIndex?: number; detail: string }
       >();
 
-      if (!isAllFichas) {
-        const existingByDetail = new Map<string, GradeActivity>(
-          activitiesForFicha.map(activity => {
-            const nameOrDetail = activity.detail || activity.name;
-            const key = getCanonicalEvidenceKey(nameOrDetail);
-            return [key, activity];
-          })
-        );
-        const existingEvNumbers = activitiesForFicha
-          .map(activity => {
-            const match = activity.name.match(/EV(\d+)/i);
-            return match ? Number(match[1]) : null;
-          })
-          .filter((value): value is number => value !== null);
-        let nextEvNumber = existingEvNumbers.length > 0 ? Math.max(...existingEvNumbers) + 1 : 1;
-
-        evidenceMap.forEach((entry, canonicalKey) => {
-          const existing = existingByDetail.get(canonicalKey);
-          let activity = existing;
-          if (!activity) {
-            activity = {
-              id: generateId(),
-              name: `EV${String(nextEvNumber).padStart(2, '0')}`,
-              group: selectedFicha,
-              phase: selectedPhase,
-              maxScore: 100,
-              detail: entry.baseName,
-              createdAt: new Date().toISOString(),
-            };
-            nextEvNumber += 1;
-            newActivities.push(activity);
-          } else if (!activity.detail) {
-            updateGradeActivity({ ...activity, detail: entry.baseName });
-          }
-          activityColumns.set(canonicalKey, {
-            activity,
-            realIndex: entry.realIndex,
-            letterIndex: entry.letterIndex,
-            fallbackIndex: entry.fallbackIndex,
+      evidenceMap.forEach((entry, canonicalKey) => {
+        let activity = existingByDetail.get(canonicalKey);
+        if (!activity) {
+          activity = {
+            id: generateId(),
+            name: `EV${String(nextEvNumber).padStart(2, '0')}`,
+            group: '',
+            phase: selectedPhase,
+            maxScore: 100,
             detail: entry.baseName,
-          });
+            createdAt: new Date().toISOString(),
+          };
+          nextEvNumber += 1;
+          newActivities.push(activity);
+        } else if (!activity.detail) {
+          updateGradeActivity({ ...activity, detail: entry.baseName });
+        }
+        activityColumns.set(canonicalKey, {
+          activity,
+          realIndex: entry.realIndex,
+          letterIndex: entry.letterIndex,
+          fallbackIndex: entry.fallbackIndex,
+          detail: entry.baseName,
         });
-      }
+      });
 
       newActivities.forEach(addGradeActivity);
 
@@ -976,8 +920,7 @@ export const CalificacionesView: React.FC = () => {
           }
         }
 
-        const columnsToUse = isAllFichas ? getActivityColumnsForGroup(student.group || '') : activityColumns;
-        columnsToUse.forEach(({ activity, realIndex, letterIndex, fallbackIndex }) => {
+        activityColumns.forEach(({ activity, realIndex, letterIndex, fallbackIndex }) => {
           const rawScoreValue =
             realIndex !== undefined ? row[realIndex] : fallbackIndex !== undefined ? row[fallbackIndex] : undefined;
           const rawLetterValue = letterIndex !== undefined ? row[letterIndex] : undefined;
@@ -1394,7 +1337,7 @@ export const CalificacionesView: React.FC = () => {
                     )}
                   </td>
                   {visibleActivities.map(activity => {
-                    const isOtherFicha = showAllFichasColumns && activity.group !== (student.group || '');
+                    const isOtherFicha = activity.group !== '' && activity.group !== (student.group || '');
                     if (isOtherFicha) {
                       return <td key={activity.id} className="px-4 py-4 text-sm text-gray-400 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>-</td>;
                     }
