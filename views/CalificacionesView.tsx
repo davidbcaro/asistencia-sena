@@ -416,16 +416,11 @@ export const CalificacionesView: React.FC = () => {
   const activitiesForFicha = useMemo(() => {
     const phaseMatch = activities.filter(a => (a.phase || phases[1]) === selectedPhase);
     if (selectedFicha === 'Todas') return phaseMatch;
-    const forFichaOrGlobal = phaseMatch.filter(a => a.group === selectedFicha || a.group === '');
-    const byCanonical = new Map<string, GradeActivity>();
-    forFichaOrGlobal.forEach(a => {
-      const key = getCanonicalEvidenceKey(a.detail || a.name);
-      const existing = byCanonical.get(key);
-      if (!existing || (a.group === selectedFicha && existing.group !== selectedFicha)) {
-        byCanonical.set(key, a);
-      }
-    });
-    return Array.from(byCanonical.values());
+    // Primero intentar con actividades específicas de esta ficha
+    const fichaSpecific = phaseMatch.filter(a => a.group === selectedFicha);
+    if (fichaSpecific.length > 0) return fichaSpecific;
+    // Si no hay ninguna específica, usar las globales (group='')
+    return phaseMatch.filter(a => a.group === '');
   }, [activities, selectedFicha, selectedPhase]);
 
   const visibleActivities = useMemo(
@@ -801,16 +796,36 @@ export const CalificacionesView: React.FC = () => {
       });
 
       const isAllFichas = selectedFicha === 'Todas';
-      const activitiesInPhaseGlobal = activities.filter(
-        a => (a.phase || phases[1]) === selectedPhase && a.group === ''
-      );
 
-      const existingByDetail = new Map<string, GradeActivity>(
-        activitiesInPhaseGlobal.map(activity => {
-          const key = getCanonicalEvidenceKey(activity.detail || activity.name);
-          return [key, activity];
-        })
+      // Buscar actividades existentes: primero por ficha específica, luego globales (group='')
+      const activitiesInPhase = activities.filter(
+        a => (a.phase || phases[1]) === selectedPhase
       );
+      // Prioridad: ficha seleccionada > global
+      const existingByDetail = new Map<string, GradeActivity>();
+      // Cargar primero las globales (menor prioridad)
+      activitiesInPhase
+        .filter(a => a.group === '')
+        .forEach(activity => {
+          const key = getCanonicalEvidenceKey(activity.detail || activity.name);
+          existingByDetail.set(key, activity);
+        });
+      // Luego las de la ficha seleccionada (mayor prioridad, sobreescribe globales)
+      if (!isAllFichas) {
+        activitiesInPhase
+          .filter(a => a.group === selectedFicha)
+          .forEach(activity => {
+            const key = getCanonicalEvidenceKey(activity.detail || activity.name);
+            existingByDetail.set(key, activity);
+          });
+      }
+
+      // Calcular siguiente número de EV disponible para esta ficha/fase
+      const existingEvNumbers = activitiesInPhase
+        .filter(a => !isAllFichas ? (a.group === selectedFicha || a.group === '') : true)
+        .map(a => { const m = a.name.match(/EV(\d+)/i); return m ? parseInt(m[1], 10) : 0; });
+      let nextEvNumber = existingEvNumbers.length > 0 ? Math.max(...existingEvNumbers) + 1 : 1;
+      const newActivities: GradeActivity[] = [];
 
       const activityColumns = new Map<
         string,
@@ -818,8 +833,24 @@ export const CalificacionesView: React.FC = () => {
       >();
 
       evidenceMap.forEach((entry, canonicalKey) => {
-        const activity = existingByDetail.get(canonicalKey);
-        if (!activity) return;
+        let activity = existingByDetail.get(canonicalKey);
+        if (!activity) {
+          // Crear actividad nueva para esta ficha
+          activity = {
+            id: generateId(),
+            name: `EV${String(nextEvNumber).padStart(2, '0')}`,
+            group: isAllFichas ? '' : selectedFicha,
+            phase: selectedPhase,
+            maxScore: 100,
+            detail: entry.baseName,
+            createdAt: new Date().toISOString(),
+          };
+          nextEvNumber += 1;
+          newActivities.push(activity);
+          existingByDetail.set(canonicalKey, activity);
+        } else if (!activity.detail) {
+          updateGradeActivity({ ...activity, detail: entry.baseName });
+        }
         activityColumns.set(canonicalKey, {
           activity,
           realIndex: entry.realIndex,
@@ -829,12 +860,7 @@ export const CalificacionesView: React.FC = () => {
         });
       });
 
-      if (activityColumns.size === 0) {
-        setUploadError(
-          'No hay evidencias existentes para esta fase que coincidan con el Excel. Crea primero las evidencias (carga un Excel inicial o añádelas manualmente) y vuelve a cargar para actualizar calificaciones.'
-        );
-        return;
-      }
+      newActivities.forEach(addGradeActivity);
 
       const studentsByDoc = new Map<string, Student>();
       const studentsByName = new Map<string, Student>();
