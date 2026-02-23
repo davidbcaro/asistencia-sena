@@ -114,7 +114,7 @@ export const CalificacionesView: React.FC = () => {
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [activities, setActivities] = useState<GradeActivity[]>([]);
   const [grades, setGrades] = useState<GradeEntry[]>([]);
-  const [selectedFicha, setSelectedFicha] = useState<string>('');
+  const [selectedFicha, setSelectedFicha] = useState<string>('Todas');
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [activityName, setActivityName] = useState('');
   const [editingActivity, setEditingActivity] = useState<GradeActivity | null>(null);
@@ -134,7 +134,10 @@ export const CalificacionesView: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname'>('lastname');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFichaFilter, setShowFichaFilter] = useState(false);
+  const [showPhaseFilter, setShowPhaseFilter] = useState(false);
+  const fichaFilterRef = useRef<HTMLDivElement | null>(null);
+  const phaseFilterRef = useRef<HTMLDivElement | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [finalFilter, setFinalFilter] = useState<'all' | 'A' | '-'>('all');
   const [showFinalFilter, setShowFinalFilter] = useState(false);
@@ -195,8 +198,8 @@ export const CalificacionesView: React.FC = () => {
     setRapNotes(loadedRapNotes);
     setRapColumns(loadedRapColumns);
     setJuiciosEvaluativos(loadedJuicios);
-    if (!selectedFichaRef.current && loadedFichas.length > 0) {
-      setSelectedFicha(loadedFichas[0].code);
+    if (loadedFichas.length > 0 && selectedFichaRef.current === '') {
+      setSelectedFicha('Todas');
     }
   };
 
@@ -313,6 +316,28 @@ export const CalificacionesView: React.FC = () => {
   }, [selectedFicha, selectedPhase, searchTerm, filterStatus]);
 
   useEffect(() => {
+    if (!showFichaFilter) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (fichaFilterRef.current && !fichaFilterRef.current.contains(event.target as Node)) {
+        setShowFichaFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFichaFilter]);
+
+  useEffect(() => {
+    if (!showPhaseFilter) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (phaseFilterRef.current && !phaseFilterRef.current.contains(event.target as Node)) {
+        setShowPhaseFilter(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPhaseFilter]);
+
+  useEffect(() => {
     if (studentDetailModal) {
       setStudentDetailObservation(getStudentGradeObservations()[studentDetailModal.id] ?? '');
     }
@@ -345,8 +370,7 @@ export const CalificacionesView: React.FC = () => {
   }, [showStatusFilter]);
 
   const activitiesForFicha = useMemo(() => {
-    if (selectedFicha === 'Todas') return [];
-    return activities.filter(a => a.group === selectedFicha && (a.phase || phases[1]) === selectedPhase);
+    return activities.filter(a => (a.phase || phases[1]) === selectedPhase && (selectedFicha === 'Todas' || a.group === selectedFicha));
   }, [activities, selectedFicha, selectedPhase]);
 
   const visibleActivities = useMemo(
@@ -359,14 +383,29 @@ export const CalificacionesView: React.FC = () => {
     [activitiesForFicha]
   );
 
-  const rapKey = `${selectedFicha}::${selectedPhase}`;
+  const rapKey = selectedFicha === 'Todas' ? '' : `${selectedFicha}::${selectedPhase}`;
+
+  const getRapKeyForStudent = (studentGroup: string | undefined) =>
+    selectedFicha === 'Todas' && studentGroup ? `${studentGroup}::${selectedPhase}` : rapKey || `${studentGroup || ''}::${selectedPhase}`;
 
   const rapColumnsForFicha = useMemo(() => {
     if (activitiesForFicha.length === 0) return [];
+    if (selectedFicha === 'Todas') {
+      const allKeys = new Set<string>();
+      fichas.forEach(f => {
+        const key = `${f.code}::${selectedPhase}`;
+        const cols = rapColumns[key] || rapColumns[f.code] || ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5'];
+        cols.forEach((c: string) => allKeys.add(c));
+      });
+      if (allKeys.size === 0) return ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5'];
+      return ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5'].filter(c => allKeys.has(c)).length >= 5
+        ? ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5']
+        : Array.from(allKeys).sort();
+    }
     const existing = rapColumns[rapKey] || rapColumns[selectedFicha];
     if (existing && existing.length > 0) return existing;
     return ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5'];
-  }, [rapColumns, rapKey, selectedFicha, activitiesForFicha.length]);
+  }, [rapColumns, rapKey, selectedFicha, activitiesForFicha.length, fichas, selectedPhase]);
 
   const gradeMap = useMemo(() => {
     const map = new Map<string, GradeEntry>();
@@ -376,33 +415,34 @@ export const CalificacionesView: React.FC = () => {
     return map;
   }, [grades]);
 
-  const getFinalForStudent = (studentId: string) => {
-    const totalActivities = visibleActivities.length;
+  const getFinalForStudent = (studentId: string, studentGroup?: string) => {
+    const activitiesForStudent = selectedFicha === 'Todas' && studentGroup
+      ? visibleActivities.filter(a => a.group === studentGroup)
+      : visibleActivities;
+    const totalActivities = activitiesForStudent.length;
     if (totalActivities === 0) {
       return { pending: 0, score: null as number | null, letter: null as 'A' | 'D' | null };
     }
-    let missing = 0; // no entregadas
+    let missing = 0;
     let sum = 0;
-    let pending = 0; // pendientes = no entregadas O entregadas pero con D (no aprobadas)
-    visibleActivities.forEach(activity => {
+    let pending = 0;
+    activitiesForStudent.forEach(activity => {
       const grade = gradeMap.get(`${studentId}-${activity.id}`);
       if (!grade) {
         missing += 1;
-        pending += 1; // no entregada = pendiente
+        pending += 1;
         sum += 0;
         return;
       }
       sum += grade.score;
-      if (grade.letter !== 'A') pending += 1; // entregada pero D = pendiente
+      if (grade.letter !== 'A') pending += 1;
     });
 
-    // Promedio = suma de notas / total de actividades (las no entregadas cuentan como 0)
     const avg = missing === totalActivities ? null : sum / totalActivities;
     const delivered = totalActivities - missing;
-    const allApproved = delivered === totalActivities && visibleActivities.every(
+    const allApproved = delivered === totalActivities && activitiesForStudent.every(
       activity => gradeMap.get(`${studentId}-${activity.id}`)?.letter === 'A'
     );
-    // Aprobado (A) solo cuando entrega y aprueba todas las actividades. 0 pendientes solo cuando entregó y aprobó todas.
     const letter: 'A' | 'D' = allApproved ? 'A' : 'D';
     return { pending, score: avg, letter };
   };
@@ -410,10 +450,10 @@ export const CalificacionesView: React.FC = () => {
   const studentsFilteredByFinal = useMemo(() => {
     if (finalFilter === 'all') return studentsForFicha;
     return studentsForFicha.filter(s => {
-      const letter = getFinalForStudent(s.id).letter;
+      const letter = getFinalForStudent(s.id, s.group).letter;
       return finalFilter === 'A' ? letter === 'A' : letter !== 'A';
     });
-  }, [studentsForFicha, finalFilter, gradeMap, visibleActivities]);
+  }, [studentsForFicha, finalFilter, gradeMap, visibleActivities, selectedFicha]);
 
   const totalPagesFiltered = Math.ceil(studentsFilteredByFinal.length / ITEMS_PER_PAGE);
   const paginatedStudentsFiltered = useMemo(() => {
@@ -440,19 +480,23 @@ export const CalificacionesView: React.FC = () => {
     setSelectedStudents(updated);
   };
 
-  const toggleJuicioEvaluativo = (studentId: string) => {
-    const byKey = juiciosEvaluativos[rapKey] || {};
+  const toggleJuicioEvaluativo = (studentId: string, studentGroup?: string) => {
+    const key = getRapKeyForStudent(studentGroup);
+    if (!key) return;
+    const byKey = juiciosEvaluativos[key] || {};
     const current = byKey[studentId];
     const nextEstado: 'orange' | 'green' | undefined =
       current === undefined ? 'orange' : current === 'orange' ? 'green' : undefined;
     const next = nextEstado === undefined ? (() => { const { [studentId]: _, ...rest } = byKey; return rest; })() : { ...byKey, [studentId]: nextEstado };
-    const updated = { ...juiciosEvaluativos, [rapKey]: next };
+    const updated = { ...juiciosEvaluativos, [key]: next };
     setJuiciosEvaluativos(updated);
     saveJuiciosEvaluativos(updated);
   };
 
-  const getJuicioEstado = (studentId: string): '-' | 'orange' | 'green' => {
-    const v = (juiciosEvaluativos[rapKey] || {})[studentId];
+  const getJuicioEstado = (studentId: string, studentGroup?: string): '-' | 'orange' | 'green' => {
+    const key = getRapKeyForStudent(studentGroup);
+    if (!key) return '-';
+    const v = (juiciosEvaluativos[key] || {})[studentId];
     return v === 'orange' ? 'orange' : v === 'green' ? 'green' : '-';
   };
 
@@ -479,22 +523,22 @@ export const CalificacionesView: React.FC = () => {
         const grade = gradeMap.get(`${student.id}-${activity.id}`);
         return grade ? grade.score : '';
       });
-      const final = getFinalForStudent(student.id);
-      const rapLetter = visibleActivities.length > 0 &&
-        visibleActivities.every(activity => gradeMap.get(`${student.id}-${activity.id}`)?.letter === 'A')
-        ? 'A'
-        : '';
+      const final = getFinalForStudent(student.id, student.group);
+      const rapLetter = final.letter === 'A' ? 'A' : '';
       const rapValues = rapColumnsForFicha.map(() => rapLetter);
       const finalValues = hasActivities
         ? [final.pending, final.score != null ? Number(final.score).toFixed(2) : '', final.letter === 'A' ? 'A' : '-']
         : [];
+      const juicioKey = getRapKeyForStudent(student.group);
+      const juicioVal = (juiciosEvaluativos[juicioKey] || {})[student.id];
+      const juicioLabel = juicioVal === 'green' ? 'Sí' : juicioVal === 'orange' ? 'En proceso' : '-';
       return [
         student.documentNumber || '',
         student.lastName || '',
         student.firstName || '',
         student.status || 'Formación',
         student.group || '',
-        (() => { const e = (juiciosEvaluativos[rapKey] || {})[student.id]; return e === 'green' ? 'Sí' : e === 'orange' ? 'En proceso' : '-'; })(),
+        juicioLabel,
         ...activityScores,
         ...rapValues,
         ...finalValues,
@@ -889,53 +933,70 @@ export const CalificacionesView: React.FC = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowFilters(prev => !prev)}
-                  className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  <FileSpreadsheet className="w-4 h-4 text-gray-500" />
-                  <span>Filtros</span>
-                </button>
-                {showFilters && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowFilters(false)} />
-                    <div className="absolute right-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 p-4 space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 mb-1">Ficha</label>
-                      <select
-                        value={selectedFicha}
-                        onChange={(e) => {
-                          setSelectedFicha(e.target.value);
-                          setShowFilters(false);
-                        }}
-                        className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                      >
-                        <option value="Todas">Todas las fichas</option>
-                        {fichas.map(f => (
-                          <option key={f.id} value={f.code}>{f.code} - {f.program}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 mb-1">Fase</label>
-                      <select
-                        value={selectedPhase}
-                        onChange={(e) => {
-                          setSelectedPhase(e.target.value);
-                          setShowFilters(false);
-                        }}
-                        className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                      >
-                        {phases.map(phase => (
-                          <option key={phase} value={phase}>{phase}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  </>
-                )}
+              <div className="relative flex items-center gap-2">
+                <div className="relative" ref={fichaFilterRef}>
+                  <button
+                    type="button"
+                    onClick={() => { setShowFichaFilter(prev => !prev); setShowPhaseFilter(false); }}
+                    className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <Filter className="w-4 h-4 text-gray-500" />
+                    <span>Ficha</span>
+                    {selectedFicha !== 'Todas' && <span className="text-indigo-600 text-xs">({selectedFicha})</span>}
+                  </button>
+                  {showFichaFilter && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowFichaFilter(false)} />
+                      <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 p-4">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Ficha</label>
+                        <select
+                          value={selectedFicha}
+                          onChange={(e) => {
+                            setSelectedFicha(e.target.value);
+                            setShowFichaFilter(false);
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                          <option value="Todas">Todas las fichas</option>
+                          {fichas.map(f => (
+                            <option key={f.id} value={f.code}>{f.code} - {f.program}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="relative" ref={phaseFilterRef}>
+                  <button
+                    type="button"
+                    onClick={() => { setShowPhaseFilter(prev => !prev); setShowFichaFilter(false); }}
+                    className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <Filter className="w-4 h-4 text-gray-500" />
+                    <span>Fase</span>
+                    <span className="text-indigo-600 text-xs max-w-[120px] truncate" title={selectedPhase}>{selectedPhase.replace(/^Fase \d+:?\s*/, '')}</span>
+                  </button>
+                  {showPhaseFilter && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowPhaseFilter(false)} />
+                      <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 p-4">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Fase</label>
+                        <select
+                          value={selectedPhase}
+                          onChange={(e) => {
+                            setSelectedPhase(e.target.value);
+                            setShowPhaseFilter(false);
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                          {phases.map(phase => (
+                            <option key={phase} value={phase}>{phase}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1149,7 +1210,7 @@ export const CalificacionesView: React.FC = () => {
             {studentsForFicha.length === 0 ? (
               <tr>
                 <td colSpan={8 + visibleActivities.length + rapColumnsForFicha.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
-                  {filterStatus !== 'Todos' ? 'Ningún aprendiz coincide con el filtro de estado seleccionado.' : 'No hay aprendices en esta ficha.'}
+                  {filterStatus !== 'Todos' ? 'Ningún aprendiz coincide con el filtro de estado seleccionado.' : selectedFicha === 'Todas' ? 'No hay aprendices.' : 'No hay aprendices en esta ficha.'}
                 </td>
               </tr>
             ) : studentsFilteredByFinal.length === 0 ? (
@@ -1183,21 +1244,21 @@ export const CalificacionesView: React.FC = () => {
                   <td
                     className="px-4 py-4 w-24 min-w-24 max-w-24 sticky left-[864px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] align-middle transition-colors cursor-pointer text-center overflow-hidden"
                     style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX }}
-                    onClick={() => toggleJuicioEvaluativo(student.id)}
+                    onClick={() => toggleJuicioEvaluativo(student.id, student.group)}
                     title={
-                      getJuicioEstado(student.id) === '-'
+                      getJuicioEstado(student.id, student.group) === '-'
                         ? 'Clic: en proceso (naranja)'
-                        : getJuicioEstado(student.id) === 'orange'
+                        : getJuicioEstado(student.id, student.group) === 'orange'
                           ? 'Clic: evaluado (verde)'
                           : 'Clic: quitar (guión)'
                     }
                   >
-                    {getJuicioEstado(student.id) === '-' ? (
+                    {getJuicioEstado(student.id, student.group) === '-' ? (
                       <span className="text-gray-400">-</span>
                     ) : (
                       <span
                         className={`inline-flex items-center justify-center w-5 h-5 rounded-full flex-shrink-0 ${
-                          getJuicioEstado(student.id) === 'orange'
+                          getJuicioEstado(student.id, student.group) === 'orange'
                             ? 'bg-orange-100 text-orange-700'
                             : 'bg-green-100 text-green-700'
                         }`}
@@ -1207,6 +1268,10 @@ export const CalificacionesView: React.FC = () => {
                     )}
                   </td>
                   {visibleActivities.map(activity => {
+                    const isOtherFicha = selectedFicha === 'Todas' && activity.group !== (student.group || '');
+                    if (isOtherFicha) {
+                      return <td key={activity.id} className="px-4 py-4 text-sm text-gray-400 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>-</td>;
+                    }
                     const grade = gradeMap.get(`${student.id}-${activity.id}`);
                     const isEditing = editingCell?.studentId === student.id && editingCell?.activityId === activity.id;
                     return (
@@ -1224,8 +1289,8 @@ export const CalificacionesView: React.FC = () => {
                     );
                   })}
                   {(() => {
-                    const final = getFinalForStudent(student.id);
-                    const allApproved = visibleActivities.length > 0 && visibleActivities.every(activity => gradeMap.get(`${student.id}-${activity.id}`)?.letter === 'A');
+                    const final = getFinalForStudent(student.id, student.group);
+                    const allApproved = final.letter === 'A';
                     const rapLetter = allApproved ? 'A' : '-';
                     return (
                       <>
@@ -1427,9 +1492,8 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
 
       {studentDetailModal && (() => {
         const sid = studentDetailModal.id;
-        const final = getFinalForStudent(sid);
-        const allApproved = visibleActivities.length > 0 && visibleActivities.every(a => gradeMap.get(`${sid}-${a.id}`)?.letter === 'A');
-        const rapLetter = allApproved ? 'A' : '-';
+        const final = getFinalForStudent(sid, studentDetailModal.group);
+        const rapLetter = final.letter === 'A' ? 'A' : '-';
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setStudentDetailModal(null)}>
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col p-6" onClick={(e) => e.stopPropagation()}>
