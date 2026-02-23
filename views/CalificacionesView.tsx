@@ -413,14 +413,42 @@ export const CalificacionesView: React.FC = () => {
   const hasSearchTerm = searchTerm.trim() !== '';
   const showAllFichasColumns = selectedFicha === 'Todas' || hasSearchTerm;
 
-  const activitiesForFicha = useMemo(() => {
+  /**
+   * En vista "Todas": construye una lista de actividades representativas
+   * (una por evidencia canónica) y un mapa canonicalKey → fichaCode → activity
+   * para que el render pueda encontrar la actividad correcta de cada estudiante.
+   * En vista de ficha específica: devuelve directamente las actividades de esa ficha.
+   */
+  const { activitiesForFicha, activitiesByCanonicalAndFicha } = useMemo(() => {
     const phaseMatch = activities.filter(a => (a.phase || phases[1]) === selectedPhase);
-    if (selectedFicha === 'Todas') return phaseMatch;
-    // Primero intentar con actividades específicas de esta ficha
-    const fichaSpecific = phaseMatch.filter(a => a.group === selectedFicha);
-    if (fichaSpecific.length > 0) return fichaSpecific;
-    // Si no hay ninguna específica, usar las globales (group='')
-    return phaseMatch.filter(a => a.group === '');
+
+    if (selectedFicha !== 'Todas') {
+      // Ficha específica: actividades de esa ficha, o globales si no hay
+      const fichaSpecific = phaseMatch.filter(a => a.group === selectedFicha);
+      const result = fichaSpecific.length > 0 ? fichaSpecific : phaseMatch.filter(a => a.group === '');
+      return { activitiesForFicha: result, activitiesByCanonicalAndFicha: null };
+    }
+
+    // Vista "Todas": agrupar por clave canónica
+    // canonicalKey → Map<fichaCode, activity>
+    const byCanonical = new Map<string, Map<string, GradeActivity>>();
+    // canonicalKey → actividad representativa (para header y orden)
+    const representative = new Map<string, GradeActivity>();
+
+    phaseMatch.forEach(a => {
+      const key = getCanonicalEvidenceKey(a.detail || a.name);
+      if (!byCanonical.has(key)) byCanonical.set(key, new Map());
+      byCanonical.get(key)!.set(a.group, a);
+      // Como representativa usar la primera encontrada (solo para nombre/orden)
+      if (!representative.has(key)) representative.set(key, a);
+    });
+
+    // Ordenar representativas por nombre (EV01, EV02…)
+    const unified = Array.from(representative.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true })
+    );
+
+    return { activitiesForFicha: unified, activitiesByCanonicalAndFicha: byCanonical };
   }, [activities, selectedFicha, selectedPhase]);
 
   const visibleActivities = useMemo(
@@ -466,19 +494,24 @@ export const CalificacionesView: React.FC = () => {
   }, [grades]);
 
   const getFinalForStudent = (studentId: string, studentGroup?: string) => {
-    const activitiesForStudent =
-      showAllFichasColumns && studentGroup
-        ? visibleActivities.filter(a => a.group === '' || a.group === studentGroup)
-        : visibleActivities;
-    const totalActivities = activitiesForStudent.length;
+    const totalActivities = visibleActivities.length;
     if (totalActivities === 0) {
       return { pending: 0, score: null as number | null, letter: null as 'A' | 'D' | null };
     }
     let missing = 0;
     let sum = 0;
     let pending = 0;
-    activitiesForStudent.forEach(activity => {
-      const grade = gradeMap.get(`${studentId}-${activity.id}`);
+    visibleActivities.forEach(activity => {
+      // En vista "Todas": resolver la actividad real de la ficha del estudiante
+      const resolvedActivity = activitiesByCanonicalAndFicha
+        ? (activitiesByCanonicalAndFicha
+            .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+            ?.get(studentGroup || '') ??
+          activitiesByCanonicalAndFicha
+            .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+            ?.get('') ?? activity)
+        : activity;
+      const grade = gradeMap.get(`${studentId}-${resolvedActivity.id}`);
       if (!grade) {
         missing += 1;
         pending += 1;
@@ -491,9 +524,17 @@ export const CalificacionesView: React.FC = () => {
 
     const avg = missing === totalActivities ? null : sum / totalActivities;
     const delivered = totalActivities - missing;
-    const allApproved = delivered === totalActivities && activitiesForStudent.every(
-      activity => gradeMap.get(`${studentId}-${activity.id}`)?.letter === 'A'
-    );
+    const allApproved = delivered === totalActivities && visibleActivities.every(activity => {
+      const resolvedActivity = activitiesByCanonicalAndFicha
+        ? (activitiesByCanonicalAndFicha
+            .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+            ?.get(studentGroup || '') ??
+          activitiesByCanonicalAndFicha
+            .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+            ?.get('') ?? activity)
+        : activity;
+      return gradeMap.get(`${studentId}-${resolvedActivity.id}`)?.letter === 'A';
+    });
     const letter: 'A' | 'D' = allApproved ? 'A' : 'D';
     return { pending, score: avg, letter };
   };
@@ -1349,17 +1390,22 @@ export const CalificacionesView: React.FC = () => {
                     )}
                   </td>
                   {visibleActivities.map(activity => {
-                    const isOtherFicha = activity.group !== '' && activity.group !== (student.group || '');
-                    if (isOtherFicha) {
-                      return <td key={activity.id} className="px-4 py-4 text-sm text-gray-400 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>-</td>;
-                    }
-                    const grade = gradeMap.get(`${student.id}-${activity.id}`);
-                    const isEditing = editingCell?.studentId === student.id && editingCell?.activityId === activity.id;
+                    // En vista "Todas": resolver la actividad real de la ficha del estudiante
+                    const resolvedActivity = activitiesByCanonicalAndFicha
+                      ? (activitiesByCanonicalAndFicha
+                          .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+                          ?.get(student.group || '') ??
+                        activitiesByCanonicalAndFicha
+                          .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+                          ?.get('') ?? activity)
+                      : activity;
+                    const grade = gradeMap.get(`${student.id}-${resolvedActivity.id}`);
+                    const isEditing = editingCell?.studentId === student.id && editingCell?.activityId === resolvedActivity.id;
                     return (
-                      <td key={activity.id} className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} onClick={() => { setEditingCell({ studentId: student.id, activityId: activity.id }); setEditingScore(grade ? String(grade.score) : ''); }}>
+                      <td key={activity.id} className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} onClick={() => { setEditingCell({ studentId: student.id, activityId: resolvedActivity.id }); setEditingScore(grade ? String(grade.score) : ''); }}>
                         {isEditing ? (
                           <input type="number" min={0} max={100} className="w-20 bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={editingScore} onChange={(e) => setEditingScore(e.target.value)}
-                            onBlur={() => { const trimmed = editingScore.trim(); if (!trimmed) { deleteGradeEntry(student.id, activity.id); setEditingCell(null); setEditingScore(''); return; } const numeric = Number(trimmed); if (!Number.isNaN(numeric)) { const finalScore = Math.max(0, Math.min(100, Math.round(numeric))); upsertGrades([{ studentId: student.id, activityId: activity.id, score: finalScore, letter: scoreToLetter(finalScore), updatedAt: new Date().toISOString() }]); } setEditingCell(null); setEditingScore(''); }}
+                            onBlur={() => { const trimmed = editingScore.trim(); if (!trimmed) { deleteGradeEntry(student.id, resolvedActivity.id); setEditingCell(null); setEditingScore(''); return; } const numeric = Number(trimmed); if (!Number.isNaN(numeric)) { const finalScore = Math.max(0, Math.min(100, Math.round(numeric))); upsertGrades([{ studentId: student.id, activityId: resolvedActivity.id, score: finalScore, letter: scoreToLetter(finalScore), updatedAt: new Date().toISOString() }]); } setEditingCell(null); setEditingScore(''); }}
                             onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); if (e.key === 'Escape') { setEditingCell(null); setEditingScore(''); } }} autoFocus />
                         ) : grade ? (
                           <span className="inline-flex items-center gap-2"><span className="font-semibold">{grade.score}</span><span className={`text-xs font-bold px-2 py-0.5 rounded-full ${grade.letter === 'A' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{grade.letter}</span></span>
