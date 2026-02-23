@@ -410,9 +410,12 @@ export const CalificacionesView: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showStatusFilter]);
 
+  const hasSearchTerm = searchTerm.trim() !== '';
+  const showAllFichasColumns = selectedFicha === 'Todas' || hasSearchTerm;
+
   const activitiesForFicha = useMemo(() => {
-    return activities.filter(a => (a.phase || phases[1]) === selectedPhase && (selectedFicha === 'Todas' || a.group === selectedFicha));
-  }, [activities, selectedFicha, selectedPhase]);
+    return activities.filter(a => (a.phase || phases[1]) === selectedPhase && (showAllFichasColumns || a.group === selectedFicha));
+  }, [activities, selectedFicha, selectedPhase, showAllFichasColumns]);
 
   const visibleActivities = useMemo(
     () =>
@@ -424,14 +427,14 @@ export const CalificacionesView: React.FC = () => {
     [activitiesForFicha]
   );
 
-  const rapKey = selectedFicha === 'Todas' ? '' : `${selectedFicha}::${selectedPhase}`;
+  const rapKey = showAllFichasColumns ? '' : `${selectedFicha}::${selectedPhase}`;
 
   const getRapKeyForStudent = (studentGroup: string | undefined) =>
-    selectedFicha === 'Todas' && studentGroup ? `${studentGroup}::${selectedPhase}` : rapKey || `${studentGroup || ''}::${selectedPhase}`;
+    showAllFichasColumns && studentGroup ? `${studentGroup}::${selectedPhase}` : rapKey || `${studentGroup || ''}::${selectedPhase}`;
 
   const rapColumnsForFicha = useMemo(() => {
     if (fichas.length === 0 && activitiesForFicha.length === 0) return [];
-    if (selectedFicha === 'Todas') {
+    if (showAllFichasColumns) {
       const allKeys = new Set<string>();
       fichas.forEach(f => {
         const key = `${f.code}::${selectedPhase}`;
@@ -446,7 +449,7 @@ export const CalificacionesView: React.FC = () => {
     const existing = rapColumns[rapKey] || rapColumns[selectedFicha];
     if (existing && existing.length > 0) return existing;
     return ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5'];
-  }, [rapColumns, rapKey, selectedFicha, activitiesForFicha.length, fichas, selectedPhase]);
+  }, [rapColumns, rapKey, selectedFicha, activitiesForFicha.length, fichas, selectedPhase, showAllFichasColumns]);
 
   const gradeMap = useMemo(() => {
     const map = new Map<string, GradeEntry>();
@@ -457,7 +460,7 @@ export const CalificacionesView: React.FC = () => {
   }, [grades]);
 
   const getFinalForStudent = (studentId: string, studentGroup?: string) => {
-    const activitiesForStudent = selectedFicha === 'Todas' && studentGroup
+    const activitiesForStudent = showAllFichasColumns && studentGroup
       ? visibleActivities.filter(a => a.group === studentGroup)
       : visibleActivities;
     const totalActivities = activitiesForStudent.length;
@@ -494,7 +497,7 @@ export const CalificacionesView: React.FC = () => {
       const letter = getFinalForStudent(s.id, s.group).letter;
       return finalFilter === 'A' ? letter === 'A' : letter !== 'A';
     });
-  }, [studentsForFicha, finalFilter, gradeMap, visibleActivities, selectedFicha]);
+  }, [studentsForFicha, finalFilter, gradeMap, visibleActivities, showAllFichasColumns]);
 
   const totalPagesFiltered = Math.ceil(studentsFilteredByFinal.length / ITEMS_PER_PAGE);
   const paginatedStudentsFiltered = useMemo(() => {
@@ -1333,7 +1336,7 @@ export const CalificacionesView: React.FC = () => {
             {studentsForFicha.length === 0 ? (
               <tr>
                 <td colSpan={8 + visibleActivities.length + rapColumnsForFicha.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
-                  {filterStatus !== 'Todos' ? 'Ningún aprendiz coincide con el filtro de estado seleccionado.' : selectedFicha === 'Todas' ? 'No hay aprendices.' : 'No hay aprendices en esta ficha.'}
+                  {filterStatus !== 'Todos' ? 'Ningún aprendiz coincide con el filtro de estado seleccionado.' : hasSearchTerm ? 'No se encontraron aprendices con la búsqueda.' : selectedFicha === 'Todas' ? 'No hay aprendices.' : 'No hay aprendices en esta ficha.'}
                 </td>
               </tr>
             ) : studentsFilteredByFinal.length === 0 ? (
@@ -1391,7 +1394,7 @@ export const CalificacionesView: React.FC = () => {
                     )}
                   </td>
                   {visibleActivities.map(activity => {
-                    const isOtherFicha = selectedFicha === 'Todas' && activity.group !== (student.group || '');
+                    const isOtherFicha = showAllFichasColumns && activity.group !== (student.group || '');
                     if (isOtherFicha) {
                       return <td key={activity.id} className="px-4 py-4 text-sm text-gray-400 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>-</td>;
                     }
