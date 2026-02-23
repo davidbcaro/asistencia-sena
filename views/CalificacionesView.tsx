@@ -1027,6 +1027,7 @@ export const CalificacionesView: React.FC = () => {
         infoParts.push(`Sin coincidencia: ${unmatched.length} filas.`);
       }
       setUploadInfo(infoParts.join(' '));
+      loadData();
     } catch (error) {
       setUploadError('No se pudo procesar el archivo. Verifica el formato del Excel.');
     }
