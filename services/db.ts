@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
   STUDENT_GRADE_OBSERVATIONS: 'asistenciapro_student_grade_observations',
   JUICIOS_EVALUATIVOS: 'asistenciapro_juicios_evaluativos',
   LMS_LAST_ACCESS: 'asistenciapro_lms_last_access',
+  DEBIDO_PROCESO: 'asistenciapro_debido_proceso',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -494,6 +495,37 @@ export const getLmsLastAccess = (): Record<string, string> => {
 export const saveLmsLastAccess = (data: Record<string, string>) => {
   localStorage.setItem(STORAGE_KEYS.LMS_LAST_ACCESS, JSON.stringify(data));
   notifyChange();
+};
+
+// --- Debido proceso (estado por aprendiz: 0-5, 0 = Sin novedad) ---
+export type DebidoProcesoState = Record<string, number>; // studentId -> step 0..5
+
+export const getDebidoProcesoState = (): DebidoProcesoState => {
+  const data = localStorage.getItem(STORAGE_KEYS.DEBIDO_PROCESO);
+  if (!data) return {};
+  try {
+    const raw = JSON.parse(data);
+    const out: DebidoProcesoState = {};
+    Object.keys(raw).forEach((id) => {
+      const n = Number(raw[id]);
+      if (n >= 0 && n <= 5) out[id] = Math.floor(n);
+    });
+    return out;
+  } catch {
+    return {};
+  }
+};
+
+export const saveDebidoProcesoState = (state: DebidoProcesoState) => {
+  localStorage.setItem(STORAGE_KEYS.DEBIDO_PROCESO, JSON.stringify(state));
+  notifyChange();
+};
+
+export const saveDebidoProcesoStep = (studentId: string, step: number) => {
+  const state = getDebidoProcesoState();
+  const s = Math.min(5, Math.max(0, Math.floor(step)));
+  state[studentId] = s;
+  saveDebidoProcesoState(state);
 };
 
 // Fichas
@@ -1189,6 +1221,7 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.STUDENT_GRADE_OBSERVATIONS);
     localStorage.removeItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS);
     localStorage.removeItem(STORAGE_KEYS.LMS_LAST_ACCESS);
+    localStorage.removeItem(STORAGE_KEYS.DEBIDO_PROCESO);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };

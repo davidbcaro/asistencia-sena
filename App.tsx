@@ -13,6 +13,7 @@ import { StudentAttendanceView } from './views/StudentAttendanceView';
 import { CalificacionesView } from './views/CalificacionesView';
 import { CronogramaView } from './views/CronogramaView';
 import { AsistenciaLmsView } from './views/AsistenciaLmsView';
+import { DebidoProcesoView } from './views/DebidoProcesoView';
 import { syncFromCloud, subscribeToRealtime } from './services/db';
 import { UserRole } from './types';
 
@@ -20,6 +21,7 @@ const instructorRouteToTab: Record<string, string> = {
   fichas: 'fichas',
   students: 'students',
   'asistencia-lms': 'asistencia-lms',
+  'debido-proceso': 'debido-proceso',
   attendance: 'attendance',
   reports: 'reports',
   alerts: 'alerts',
@@ -137,6 +139,7 @@ const App: React.FC = () => {
         <Route path="fichas/:fichaId/cronograma" element={<CronogramaView />} />
         <Route path="students" element={<StudentsView />} />
         <Route path="asistencia-lms" element={<AsistenciaLmsView />} />
+        <Route path="debido-proceso" element={<DebidoProcesoView />} />
         <Route path="attendance" element={<AttendanceView />} />
         <Route path="reports" element={<ReportsView />} />
         <Route path="grades" element={<CalificacionesView />} />
