@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Filter, Search } from 'lucide-react';
 import { Student, Ficha } from '../types';
-import { getStudents, getFichas, getDebidoProcesoState, saveDebidoProcesoStep } from '../services/db';
+import { getStudents, getFichas, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep } from '../services/db';
 
 const STEPS: { step: number; tooltip: string }[] = [
   { step: 0, tooltip: 'Sin novedad' },
@@ -12,10 +12,19 @@ const STEPS: { step: number; tooltip: string }[] = [
   { step: 5, tooltip: 'Cancelación en Sofia Plus' },
 ];
 
+const RETIRO_STEPS: { step: number; tooltip: string }[] = [
+  { step: 1, tooltip: 'Sin novedad' },
+  { step: 2, tooltip: 'Intención de retiro' },
+  { step: 3, tooltip: 'Solicitud de retiro' },
+  { step: 4, tooltip: 'Agregar novedad de retiro al acta' },
+  { step: 5, tooltip: 'Retiro efectuado en Sofia Plus' },
+];
+
 export const DebidoProcesoView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [stateMap, setStateMap] = useState<Record<string, number>>({});
+  const [retiroMap, setRetiroMap] = useState<Record<string, number>>({});
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterEstado, setFilterEstado] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,6 +33,7 @@ export const DebidoProcesoView: React.FC = () => {
     setStudents(getStudents());
     setFichas(getFichas());
     setStateMap(getDebidoProcesoState());
+    setRetiroMap(getRetiroVoluntarioState());
   };
 
   useEffect(() => {
@@ -59,6 +69,11 @@ export const DebidoProcesoView: React.FC = () => {
   const saveState = (studentId: string, step: number) => {
     saveDebidoProcesoStep(studentId, step);
     setStateMap(getDebidoProcesoState());
+  };
+
+  const saveRetiroState = (studentId: string, step: number) => {
+    saveRetiroVoluntarioStep(studentId, step);
+    setRetiroMap(getRetiroVoluntarioState());
   };
 
   return (
@@ -129,6 +144,7 @@ export const DebidoProcesoView: React.FC = () => {
                 <th className="px-4 py-3 whitespace-nowrap">Correo</th>
                 <th className="px-4 py-3 whitespace-nowrap">Ficha</th>
                 <th className="px-4 py-3 whitespace-nowrap">Estado</th>
+                <th className="px-4 py-3 whitespace-nowrap">Retiro voluntario</th>
               </tr>
             </thead>
             <tbody>
@@ -147,6 +163,16 @@ export const DebidoProcesoView: React.FC = () => {
                     <DebidoProcesoStepper
                       currentStep={stateMap[student.id] ?? 0}
                       onStepClick={(step) => saveState(student.id, step)}
+                      steps={STEPS}
+                      defaultStep={0}
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <DebidoProcesoStepper
+                      currentStep={retiroMap[student.id] ?? 1}
+                      onStepClick={(step) => saveRetiroState(student.id, step)}
+                      steps={RETIRO_STEPS}
+                      defaultStep={1}
                     />
                   </td>
                 </tr>
@@ -165,20 +191,24 @@ export const DebidoProcesoView: React.FC = () => {
 };
 
 interface DebidoProcesoStepperProps {
+  steps: { step: number; tooltip: string }[];
   currentStep: number;
+  defaultStep: number;
   onStepClick: (step: number) => void;
 }
 
 const DebidoProcesoStepper: React.FC<DebidoProcesoStepperProps> = ({
+  steps,
   currentStep,
+  defaultStep,
   onStepClick,
 }) => {
-  const effective = currentStep < 0 ? 0 : currentStep;
+  const effective = steps.some((s) => s.step === currentStep) ? currentStep : defaultStep;
   const current = effective;
 
   return (
-    <div className="flex items-center gap-0" role="group" aria-label="Estado del debido proceso">
-      {STEPS.map(({ step, tooltip }, i) => {
+    <div className="flex items-center gap-0" role="group" aria-label="Estado">
+      {steps.map(({ step, tooltip }, i) => {
         const isDone = step < current;
         const isCurrent = step === current;
 

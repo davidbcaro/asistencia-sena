@@ -17,6 +17,7 @@ const STORAGE_KEYS = {
   JUICIOS_EVALUATIVOS: 'asistenciapro_juicios_evaluativos',
   LMS_LAST_ACCESS: 'asistenciapro_lms_last_access',
   DEBIDO_PROCESO: 'asistenciapro_debido_proceso',
+  RETIRO_VOLUNTARIO: 'asistenciapro_retiro_voluntario',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -526,6 +527,37 @@ export const saveDebidoProcesoStep = (studentId: string, step: number) => {
   const s = Math.min(5, Math.max(0, Math.floor(step)));
   state[studentId] = s;
   saveDebidoProcesoState(state);
+};
+
+// --- Retiro voluntario (estado por aprendiz: 1-5) ---
+export type RetiroVoluntarioState = Record<string, number>; // studentId -> step 1..5
+
+export const getRetiroVoluntarioState = (): RetiroVoluntarioState => {
+  const data = localStorage.getItem(STORAGE_KEYS.RETIRO_VOLUNTARIO);
+  if (!data) return {};
+  try {
+    const raw = JSON.parse(data);
+    const out: RetiroVoluntarioState = {};
+    Object.keys(raw).forEach((id) => {
+      const n = Number(raw[id]);
+      if (n >= 1 && n <= 5) out[id] = Math.floor(n);
+    });
+    return out;
+  } catch {
+    return {};
+  }
+};
+
+export const saveRetiroVoluntarioState = (state: RetiroVoluntarioState) => {
+  localStorage.setItem(STORAGE_KEYS.RETIRO_VOLUNTARIO, JSON.stringify(state));
+  notifyChange();
+};
+
+export const saveRetiroVoluntarioStep = (studentId: string, step: number) => {
+  const state = getRetiroVoluntarioState();
+  const s = Math.min(5, Math.max(1, Math.floor(step)));
+  state[studentId] = s;
+  saveRetiroVoluntarioState(state);
 };
 
 // Fichas
@@ -1222,6 +1254,7 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS);
     localStorage.removeItem(STORAGE_KEYS.LMS_LAST_ACCESS);
     localStorage.removeItem(STORAGE_KEYS.DEBIDO_PROCESO);
+    localStorage.removeItem(STORAGE_KEYS.RETIRO_VOLUNTARIO);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };
