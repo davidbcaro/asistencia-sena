@@ -107,6 +107,35 @@ function htmlToPlainText(html: string): string {
   return (div.textContent ?? div.innerText ?? '').trim();
 }
 
+/** Indica si un nodo está dentro del editor. */
+function isInsideEditor(editor: HTMLDivElement | null, node: Node | null): boolean {
+  if (!editor || !node) return false;
+  return editor.contains(node);
+}
+
+/** Guarda una copia del rango actual si la selección está en el editor. */
+function saveSelectionInEditor(editor: HTMLDivElement | null): Range | null {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const range = sel.getRangeAt(0);
+  if (!isInsideEditor(editor, range.commonAncestorContainer)) return null;
+  return range.cloneRange();
+}
+
+/** Restaura la selección en el editor. */
+function restoreSelection(editor: HTMLDivElement, savedRange: Range | null): boolean {
+  if (!savedRange) return false;
+  try {
+    const sel = window.getSelection();
+    if (!sel) return false;
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const AlertsView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [fichas, setFichas] = useState<Ficha[]>([]);
@@ -150,6 +179,7 @@ Atentamente,`
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [emailConfig, setEmailConfig] = useState<EmailSettings>({
     teacherName: '',
@@ -180,6 +210,18 @@ Atentamente,`
     if (!el) return;
     const isPlain = !/<\/?[a-z][^>]*>/i.test(templateBody);
     el.innerHTML = isPlain ? templateBody.replace(/\n/g, '<br>') : templateBody;
+  }, []);
+
+  // Guardar selección cuando cambie y esté dentro del editor
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const onSelectionChange = () => {
+      const range = saveSelectionInEditor(editor);
+      if (range) savedSelectionRef.current = range;
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => document.removeEventListener('selectionchange', onSelectionChange);
   }, []);
 
   const gradeMap = useMemo(() => {
@@ -281,10 +323,95 @@ Atentamente,`
     }
   };
 
-  /** Evita que el botón robe el foco al editor para que la selección se mantenga. */
+  const applyListOrIndent = (command: 'insertUnorderedList' | 'insertOrderedList' | 'indent' | 'outdent') => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    const saved = savedSelectionRef.current;
+    const restored = saved && restoreSelection(el, saved);
+    if (restored && (command === 'insertUnorderedList' || command === 'insertOrderedList')) {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      const tag = command === 'insertOrderedList' ? 'ol' : 'ul';
+      const fragment = range.cloneContents();
+      const wrap = document.createElement('div');
+      wrap.appendChild(fragment);
+      let html = wrap.innerHTML;
+      if (!html.trim()) html = '<br>';
+      const lines = html.split(/\s*<br\s*\/?>\s*/i).map((s) => s.trim());
+      const items = lines.length >= 1 && lines.some((s) => s) ? lines.filter(Boolean) : [html.trim() || '&nbsp;'];
+      const listHtml = `<${tag}>${items.map((line) => `<li>${line || '&nbsp;'}</li>`).join('')}</${tag}>`;
+      range.deleteContents();
+      range.collapse(true);
+      document.execCommand('insertHTML', false, listHtml);
+      setTemplateBody(el.innerHTML);
+      return;
+    }
+    if (restored && (command === 'indent' || command === 'outdent')) {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      let block: Element | null = range.startContainer as Element;
+      if (block.nodeType !== Node.ELEMENT_NODE) block = block.parentElement;
+      while (block && block !== el && !['DIV', 'P', 'LI', 'H1', 'H2', 'H3', 'BLOCKQUOTE'].includes(block.tagName)) {
+        block = block.parentElement;
+      }
+      if (!block || block === el) {
+        const div = document.createElement('div');
+        div.innerHTML = '<br>';
+        range.insertNode(div);
+        block = div;
+      }
+      if (command === 'indent') {
+        const wrapper = document.createElement('div');
+        wrapper.style.marginLeft = '2em';
+        wrapper.style.display = 'block';
+        block.parentNode?.insertBefore(wrapper, block);
+        wrapper.appendChild(block);
+      } else {
+        let parent: Element | null = block.parentElement;
+        while (parent && parent !== el) {
+          const ml = parent.getAttribute('style')?.match(/margin-left:\s*([\d.]+)em/);
+          if (ml) {
+            const current = parseFloat(ml[1]) || 0;
+            if (current <= 2) {
+              const grand = parent.parentNode;
+              if (grand) {
+                while (parent.firstChild) grand.insertBefore(parent.firstChild, parent);
+                parent.remove();
+              }
+            } else {
+              parent.style.marginLeft = `${current - 2}em`;
+            }
+            break;
+          }
+          if (parent.tagName === 'DIV' && parent.childNodes.length === 1) {
+            const grand = parent.parentNode;
+            if (grand && grand !== el) {
+              grand.insertBefore(block, parent);
+              parent.remove();
+              break;
+            }
+          }
+          parent = parent.parentElement;
+        }
+      }
+      setTemplateBody(el.innerHTML);
+      return;
+    }
+    applyFormat(command);
+  };
+
+  /** Evita que el botón robe el foco al editor y aplica formato (listas/sangría con lógica propia). */
   const handleFormatMouseDown = (e: React.MouseEvent, command: string, value?: string) => {
     e.preventDefault();
-    applyFormat(command, value);
+    const listOrIndent = ['insertUnorderedList', 'insertOrderedList', 'indent', 'outdent'];
+    if (listOrIndent.includes(command)) {
+      applyListOrIndent(command as 'insertUnorderedList' | 'insertOrderedList' | 'indent' | 'outdent');
+    } else {
+      applyFormat(command, value);
+    }
   };
 
   const formatLastAccess = (dateStr: string | undefined): string => {
