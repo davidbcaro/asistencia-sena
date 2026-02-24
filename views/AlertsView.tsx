@@ -16,6 +16,11 @@ import {
   Bold,
   Italic,
   Underline,
+  List,
+  ListOrdered,
+  IndentIncrease,
+  IndentDecrease,
+  Copy,
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import {
@@ -95,6 +100,13 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/** Convierte HTML a texto plano (para portapapeles text/plain). */
+function htmlToPlainText(html: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent ?? div.innerText ?? '').trim();
+}
+
 export const AlertsView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [fichas, setFichas] = useState<Ficha[]>([]);
@@ -138,6 +150,7 @@ Atentamente,`
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [emailConfig, setEmailConfig] = useState<EmailSettings>({
     teacherName: '',
     teacherEmail: '',
@@ -392,6 +405,44 @@ Atentamente,`
   };
 
   const currentPreviewEmail = preparedEmails[currentPreviewIndex];
+
+  const showCopyFeedback = (msg: string) => {
+    setCopyFeedback(msg);
+    setTimeout(() => setCopyFeedback(null), 2000);
+  };
+
+  const handleCopySubject = async () => {
+    if (!currentPreviewEmail) return;
+    try {
+      await navigator.clipboard.writeText(currentPreviewEmail.subject);
+      showCopyFeedback('Asunto copiado');
+    } catch {
+      showCopyFeedback('No se pudo copiar');
+    }
+  };
+
+  const handleCopyBodyWithFormat = async () => {
+    if (!currentPreviewEmail) return;
+    try {
+      const html = currentPreviewEmail.body;
+      const plain = htmlToPlainText(html);
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([plain], { type: 'text/plain' }),
+        }),
+      ]);
+      showCopyFeedback('Cuerpo copiado (pega en el correo con formato)');
+    } catch {
+      try {
+        await navigator.clipboard.writeText(htmlToPlainText(currentPreviewEmail.body));
+        showCopyFeedback('Cuerpo copiado (solo texto)');
+      } catch {
+        showCopyFeedback('No se pudo copiar');
+      }
+    }
+  };
+
   const handlePrevPreview = () =>
     setCurrentPreviewIndex((prev) => Math.max(0, prev - 1));
   const handleNextPreview = () =>
@@ -556,6 +607,39 @@ Atentamente,`
                     </option>
                   ))}
                 </select>
+                <span className="border-l border-gray-300 h-5 mx-1" aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => applyFormat('insertUnorderedList')}
+                  className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
+                  title="Viñetas"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyFormat('insertOrderedList')}
+                  className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
+                  title="Lista numerada"
+                >
+                  <ListOrdered className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyFormat('indent')}
+                  className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
+                  title="Aumentar sangría"
+                >
+                  <IndentIncrease className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyFormat('outdent')}
+                  className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
+                  title="Disminuir sangría"
+                >
+                  <IndentDecrease className="w-4 h-4" />
+                </button>
               </div>
               <div
                 ref={editorRef}
@@ -655,12 +739,39 @@ Atentamente,`
                         )}
                       </div>
                     </div>
-                    <div className="flex-1 p-4 bg-gray-50 text-sm text-gray-700 overflow-y-auto">
-                      <p className="font-bold mb-2 text-gray-900 border-b pb-2 border-gray-200">
-                        {currentPreviewEmail.subject}
-                      </p>
+                    <div className="flex-1 p-4 bg-gray-50 text-sm text-gray-700 overflow-y-auto flex flex-col">
+                      <div className="flex flex-wrap items-center gap-2 mb-2 border-b pb-2 border-gray-200">
+                        <p className="font-bold text-gray-900 flex-1 min-w-0">
+                          {currentPreviewEmail.subject}
+                        </p>
+                        <div className="flex gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={handleCopySubject}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                            title="Copiar asunto al portapapeles"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            Copiar asunto
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCopyBodyWithFormat}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                            title="Copiar cuerpo con formato para pegar en el correo"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            Copiar cuerpo (con formato)
+                          </button>
+                        </div>
+                      </div>
+                      {copyFeedback && (
+                        <p className="text-xs text-green-700 bg-green-50 px-2 py-1 rounded mb-2">
+                          {copyFeedback}
+                        </p>
+                      )}
                       <div
-                        className="prose prose-sm max-w-none"
+                        className="prose prose-sm max-w-none flex-1"
                         dangerouslySetInnerHTML={{ __html: currentPreviewEmail.body }}
                       />
                     </div>
