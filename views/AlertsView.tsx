@@ -273,9 +273,18 @@ Atentamente,`
   };
 
   const applyFormat = (command: string, value?: string) => {
-    document.execCommand(command, false, value ?? '');
     const el = editorRef.current;
-    if (el) setTemplateBody(el.innerHTML);
+    if (el) {
+      el.focus();
+      document.execCommand(command, false, value ?? '');
+      setTemplateBody(el.innerHTML);
+    }
+  };
+
+  /** Evita que el botón robe el foco al editor para que la selección se mantenga. */
+  const handleFormatMouseDown = (e: React.MouseEvent, command: string, value?: string) => {
+    e.preventDefault();
+    applyFormat(command, value);
   };
 
   const formatLastAccess = (dateStr: string | undefined): string => {
@@ -570,7 +579,7 @@ Atentamente,`
                 <span className="text-xs text-gray-500 mr-1">Formato:</span>
                 <button
                   type="button"
-                  onClick={() => applyFormat('bold')}
+                  onMouseDown={(e) => handleFormatMouseDown(e, 'bold')}
                   className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
                   title="Negrita"
                 >
@@ -578,7 +587,7 @@ Atentamente,`
                 </button>
                 <button
                   type="button"
-                  onClick={() => applyFormat('italic')}
+                  onMouseDown={(e) => handleFormatMouseDown(e, 'italic')}
                   className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
                   title="Cursiva"
                 >
@@ -586,7 +595,7 @@ Atentamente,`
                 </button>
                 <button
                   type="button"
-                  onClick={() => applyFormat('underline')}
+                  onMouseDown={(e) => handleFormatMouseDown(e, 'underline')}
                   className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
                   title="Subrayado"
                 >
@@ -610,7 +619,7 @@ Atentamente,`
                 <span className="border-l border-gray-300 h-5 mx-1" aria-hidden />
                 <button
                   type="button"
-                  onClick={() => applyFormat('insertUnorderedList')}
+                  onMouseDown={(e) => handleFormatMouseDown(e, 'insertUnorderedList')}
                   className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
                   title="Viñetas"
                 >
@@ -618,7 +627,7 @@ Atentamente,`
                 </button>
                 <button
                   type="button"
-                  onClick={() => applyFormat('insertOrderedList')}
+                  onMouseDown={(e) => handleFormatMouseDown(e, 'insertOrderedList')}
                   className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
                   title="Lista numerada"
                 >
@@ -626,7 +635,7 @@ Atentamente,`
                 </button>
                 <button
                   type="button"
-                  onClick={() => applyFormat('indent')}
+                  onMouseDown={(e) => handleFormatMouseDown(e, 'indent')}
                   className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
                   title="Aumentar sangría"
                 >
@@ -634,7 +643,7 @@ Atentamente,`
                 </button>
                 <button
                   type="button"
-                  onClick={() => applyFormat('outdent')}
+                  onMouseDown={(e) => handleFormatMouseDown(e, 'outdent')}
                   className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
                   title="Disminuir sangría"
                 >
