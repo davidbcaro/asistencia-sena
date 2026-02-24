@@ -84,12 +84,31 @@ export const AlertsView: React.FC = () => {
   const [filterNovedad, setFilterNovedad] = useState<string>('Ambos');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Plantilla de correo
+  // Plantilla de correo (deserción - ver email/correo_desercion.txt)
   const [templateSubject, setTemplateSubject] = useState(
-    'Comunicado – Novedad académica: {novedad}'
+    'Notificación de Inicio de Proceso de Deserción'
   );
   const [templateBody, setTemplateBody] = useState(
-    'Estimado(a) {estudiante},\n\nLe informamos que según el seguimiento académico usted presenta la novedad: {novedad}.\n\nGrupo: {grupo}\nDías sin ingresar al LMS: {dias_sin_ingresar}\nFecha del reporte: {fecha}\n\nLe invitamos a acercarse al instructor o al área correspondiente para definir un plan de acción.\n\nAtentamente,\nInstructor.'
+    `Estimado(a) Aprendiz: 
+{estudiante}
+{documento}
+{programa}
+{grupo}
+
+Reciba un cordial saludo.
+Como instructor responsable de su proceso formativo en el programa {programa}, me permito comunicarle que, tras la revisión del sistema de gestión académica Zajuna, se ha evidenciado que usted no registra ingresos a la plataforma ni reporte de actividades desde el día {fecha_ultimo_ingreso}.
+De acuerdo con el Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA), su situación se enmarca en la causal de deserción establecida para la modalidad virtual, la cual cito a continuación:
+•	Artículo 30º. Deserción: Se considera deserción en el proceso de formación, cuando el aprendiz:
+o	Numeral 3: "En la formación titulada en modalidad virtual y a distancia, cuando el aprendiz no reporte actividades de aprendizaje por cinco (5) días calendario consecutivos, o no ingrese a la plataforma por este mismo término, sin que presente justificación alguna dentro de este tiempo".
+En virtud de lo anterior, y garantizando su Derecho al Debido Proceso (Artículo 5º, numeral 10) y su Derecho a ser Notificado de las novedades académicas (Artículo 5º, numeral 11), se le concede un plazo de cinco (5) días hábiles, contados a partir del envío de este correo, para que presente las evidencias o soportes que justifiquen su incumplimiento. 
+A continuación, se describen los siguientes escenarios:
+•	Justificación válida: Deberá responder a este correo electrónico adjuntando los soportes (médicos, laborales o de fuerza mayor) que expliquen su ausencia.
+En caso de que existan situaciones personales, laborales o de fuerza mayor que le impidan continuar, informarle sobre su derecho a solicitar un Retiro Voluntario.
+•	Novedad de Retiro Voluntario: Es la solicitud formal que el aprendiz presenta ante el Centro de Formación para retirarse del programa. A diferencia de la deserción, el retiro voluntario debidamente justificado puede evitar o disminuir los términos de sanción para futuras inscripciones, siempre que se realice antes de que se formalice el proceso de deserción por parte de la entidad.
+
+•	Consecuencia: Si transcurrido este plazo usted no presenta una justificación válida o no se reporta, el Centro de Formación procederá a tramitar la deserción y la cancelación de su matrícula en el programa de formación, con la respectiva sanción de no poder participar en procesos de ingreso al SENA por el término establecido en el reglamento.
+
+Atentamente,`
   );
 
   const [preparedEmails, setPreparedEmails] = useState<PreparedEmail[]>([]);
@@ -202,6 +221,13 @@ export const AlertsView: React.FC = () => {
     setTemplateBody((prev) => prev + ` ${variable}`);
   };
 
+  const formatLastAccess = (dateStr: string | undefined): string => {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr.replace(' ', 'T'));
+    if (isNaN(d.getTime())) return dateStr;
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  };
+
   const generatePreviews = () => {
     if (filteredList.length === 0) return;
     const fecha = getLocalDate();
@@ -210,6 +236,9 @@ export const AlertsView: React.FC = () => {
       const fullName = `${student.firstName} ${student.lastName}`;
       const diasStr =
         daysInactive != null && daysInactive >= 0 ? String(daysInactive) : 'N/A';
+      const ficha = fichas.find((f) => f.code === (student.group || ''));
+      const programName = ficha?.cronogramaProgramName || ficha?.program || student.group || 'N/A';
+      const lastAccessFormatted = formatLastAccess(lmsLastAccess[student.id]);
 
       let subject = templateSubject
         .replace(/{estudiante}/g, fullName)
@@ -217,7 +246,9 @@ export const AlertsView: React.FC = () => {
         .replace(/{grupo}/g, student.group || '')
         .replace(/{dias_sin_ingresar}/g, diasStr)
         .replace(/{fecha}/g, fecha)
-        .replace(/{documento}/g, student.documentNumber || '');
+        .replace(/{documento}/g, student.documentNumber || '')
+        .replace(/{programa}/g, programName)
+        .replace(/{fecha_ultimo_ingreso}/g, lastAccessFormatted);
 
       let body = templateBody
         .replace(/{estudiante}/g, fullName)
@@ -225,7 +256,9 @@ export const AlertsView: React.FC = () => {
         .replace(/{grupo}/g, student.group || '')
         .replace(/{dias_sin_ingresar}/g, diasStr)
         .replace(/{fecha}/g, fecha)
-        .replace(/{documento}/g, student.documentNumber || 'N/A');
+        .replace(/{documento}/g, student.documentNumber || 'N/A')
+        .replace(/{programa}/g, programName)
+        .replace(/{fecha_ultimo_ingreso}/g, lastAccessFormatted);
 
       return {
         studentId: student.id,
@@ -419,11 +452,13 @@ export const AlertsView: React.FC = () => {
               <div className="flex flex-wrap gap-2 mb-2">
                 {[
                   '{estudiante}',
-                  '{novedad}',
+                  '{documento}',
+                  '{programa}',
                   '{grupo}',
+                  '{fecha_ultimo_ingreso}',
+                  '{novedad}',
                   '{dias_sin_ingresar}',
                   '{fecha}',
-                  '{documento}',
                 ].map((v) => (
                   <button
                     key={v}
