@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Filter, Search } from 'lucide-react';
+import { Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Student, Ficha } from '../types';
 import { getStudents, getFichas, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep } from '../services/db';
 
@@ -28,6 +28,9 @@ export const DebidoProcesoView: React.FC = () => {
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterEstado, setFilterEstado] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showAll, setShowAll] = useState(false);
+  const ITEMS_PER_PAGE = 15;
 
   const loadData = () => {
     setStudents(getStudents());
@@ -65,6 +68,22 @@ export const DebidoProcesoView: React.FC = () => {
     }
     return list;
   }, [students, stateMap, filterFicha, filterEstado, searchTerm]);
+
+  const totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE);
+  const paginatedList = showAll
+    ? filteredList
+    : filteredList.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+      );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterFicha, filterEstado, searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [showAll]);
 
   const saveState = (studentId: string, step: number) => {
     saveDebidoProcesoStep(studentId, step);
@@ -149,12 +168,14 @@ export const DebidoProcesoView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredList.map((student, index) => (
+              {paginatedList.map((student, index) => (
                 <tr
                   key={student.id}
                   className="border-b border-gray-100 hover:bg-gray-50/80"
                 >
-                  <td className="px-4 py-3 text-gray-600">{index + 1}</td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {showAll ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+                  </td>
                   <td className="px-4 py-3">{student.documentNumber || '—'}</td>
                   <td className="px-4 py-3">{student.firstName}</td>
                   <td className="px-4 py-3">{student.lastName}</td>
@@ -194,9 +215,61 @@ export const DebidoProcesoView: React.FC = () => {
             </tbody>
           </table>
         </div>
-        {filteredList.length === 0 && (
+        {filteredList.length === 0 ? (
           <div className="p-12 text-center text-gray-500">
             No hay aprendices que coincidan con los filtros.
+          </div>
+        ) : (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 flex-wrap gap-2">
+            <span className="text-sm text-gray-500">
+              {showAll
+                ? `Mostrando todos (${filteredList.length} aprendices)`
+                : `Mostrando ${(currentPage - 1) * ITEMS_PER_PAGE + 1} a ${Math.min(currentPage * ITEMS_PER_PAGE, filteredList.length)} de ${filteredList.length} resultados`}
+            </span>
+            <div className="flex items-center gap-3">
+              {showAll ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAll(false)}
+                  className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+                >
+                  Mostrar 15 por página
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowAll(true)}
+                    className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+                  >
+                    Mostrar todos
+                  </button>
+                  {totalPages > 1 && (
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="p-1 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft className="w-5 h-5 text-gray-600" />
+                      </button>
+                      <span className="text-sm font-medium text-gray-700">
+                        Página {currentPage} de {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="p-1 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight className="w-5 h-5 text-gray-600" />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
