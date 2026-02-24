@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   Mail,
   RefreshCw,
@@ -13,6 +13,9 @@ import {
   Filter,
   Search,
   Users,
+  Bold,
+  Italic,
+  Underline,
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import {
@@ -73,6 +76,25 @@ interface PreparedEmail {
   status?: 'pending' | 'sending' | 'sent' | 'error';
 }
 
+/** Fuentes seguras para correo (compatibles con clientes de email). */
+const EMAIL_FONTS = [
+  { name: 'Fuente', value: '' },
+  { name: 'Arial', value: 'Arial' },
+  { name: 'Georgia', value: 'Georgia' },
+  { name: 'Times New Roman', value: 'Times New Roman' },
+  { name: 'Verdana', value: 'Verdana' },
+  { name: 'Courier New', value: 'Courier New' },
+];
+
+/** Escapa HTML para insertar valores en el cuerpo del correo sin romper etiquetas. */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export const AlertsView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [fichas, setFichas] = useState<Ficha[]>([]);
@@ -115,6 +137,7 @@ Atentamente,`
   const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
   const [emailConfig, setEmailConfig] = useState<EmailSettings>({
     teacherName: '',
     teacherEmail: '',
@@ -136,6 +159,14 @@ Atentamente,`
     setEmailConfig(getEmailSettings());
     window.addEventListener('asistenciapro-storage-update', loadData);
     return () => window.removeEventListener('asistenciapro-storage-update', loadData);
+  }, []);
+
+  // Inicializar editor enriquecido una sola vez: texto plano → HTML con <br>
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    const isPlain = !/<\/?[a-z][^>]*>/i.test(templateBody);
+    el.innerHTML = isPlain ? templateBody.replace(/\n/g, '<br>') : templateBody;
   }, []);
 
   const gradeMap = useMemo(() => {
@@ -218,7 +249,20 @@ Atentamente,`
   };
 
   const insertVariable = (variable: string) => {
-    setTemplateBody((prev) => prev + ` ${variable}`);
+    const el = editorRef.current;
+    if (el) {
+      el.focus();
+      document.execCommand('insertHTML', false, variable);
+      setTemplateBody(el.innerHTML);
+    } else {
+      setTemplateBody((prev) => prev + ' ' + variable);
+    }
+  };
+
+  const applyFormat = (command: string, value?: string) => {
+    document.execCommand(command, false, value ?? '');
+    const el = editorRef.current;
+    if (el) setTemplateBody(el.innerHTML);
   };
 
   const formatLastAccess = (dateStr: string | undefined): string => {
@@ -250,15 +294,16 @@ Atentamente,`
         .replace(/{programa}/g, programName)
         .replace(/{fecha_ultimo_ingreso}/g, lastAccessFormatted);
 
+      const safe = escapeHtml;
       let body = templateBody
-        .replace(/{estudiante}/g, fullName)
-        .replace(/{novedad}/g, novedad)
-        .replace(/{grupo}/g, student.group || '')
-        .replace(/{dias_sin_ingresar}/g, diasStr)
-        .replace(/{fecha}/g, fecha)
-        .replace(/{documento}/g, student.documentNumber || 'N/A')
-        .replace(/{programa}/g, programName)
-        .replace(/{fecha_ultimo_ingreso}/g, lastAccessFormatted);
+        .replace(/{estudiante}/g, safe(fullName))
+        .replace(/{novedad}/g, safe(novedad))
+        .replace(/{grupo}/g, safe(student.group || ''))
+        .replace(/{dias_sin_ingresar}/g, safe(diasStr))
+        .replace(/{fecha}/g, safe(fecha))
+        .replace(/{documento}/g, safe(student.documentNumber || 'N/A'))
+        .replace(/{programa}/g, safe(programName))
+        .replace(/{fecha_ultimo_ingreso}/g, safe(lastAccessFormatted));
 
       return {
         studentId: student.id,
@@ -462,6 +507,7 @@ Atentamente,`
                 ].map((v) => (
                   <button
                     key={v}
+                    type="button"
                     onClick={() => insertVariable(v)}
                     className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-100 hover:bg-indigo-100"
                   >
@@ -469,10 +515,58 @@ Atentamente,`
                   </button>
                 ))}
               </div>
-              <textarea
-                className="w-full bg-white h-48 border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm leading-relaxed"
-                value={templateBody}
-                onChange={(e) => setTemplateBody(e.target.value)}
+              <div className="mb-2 flex flex-wrap items-center gap-1 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <span className="text-xs text-gray-500 mr-1">Formato:</span>
+                <button
+                  type="button"
+                  onClick={() => applyFormat('bold')}
+                  className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
+                  title="Negrita"
+                >
+                  <Bold className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyFormat('italic')}
+                  className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
+                  title="Cursiva"
+                >
+                  <Italic className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyFormat('underline')}
+                  className="p-1.5 rounded border border-gray-200 bg-white hover:bg-gray-100 text-gray-700"
+                  title="Subrayado"
+                >
+                  <Underline className="w-4 h-4" />
+                </button>
+                <select
+                  className="ml-1 text-sm border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:ring-1 focus:ring-indigo-500 outline-none"
+                  title="Fuente"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v) applyFormat('fontName', v);
+                    e.target.value = '';
+                  }}
+                >
+                  {EMAIL_FONTS.map((f) => (
+                    <option key={f.value || 'default'} value={f.value}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                className="w-full min-h-[12rem] bg-white border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm leading-relaxed overflow-y-auto"
+                onInput={() => {
+                  const el = editorRef.current;
+                  if (el) setTemplateBody(el.innerHTML);
+                }}
+                data-placeholder="Escriba el mensaje del correo..."
               />
             </div>
             <button
@@ -561,11 +655,14 @@ Atentamente,`
                         )}
                       </div>
                     </div>
-                    <div className="flex-1 p-4 bg-gray-50 font-mono text-sm text-gray-700 whitespace-pre-wrap overflow-y-auto">
+                    <div className="flex-1 p-4 bg-gray-50 text-sm text-gray-700 overflow-y-auto">
                       <p className="font-bold mb-2 text-gray-900 border-b pb-2 border-gray-200">
                         {currentPreviewEmail.subject}
                       </p>
-                      {currentPreviewEmail.body}
+                      <div
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: currentPreviewEmail.body }}
+                      />
                     </div>
                   </>
                 )}
