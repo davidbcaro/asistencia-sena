@@ -144,6 +144,7 @@ export const DebidoProcesoView: React.FC = () => {
                 <th className="px-4 py-3 whitespace-nowrap">Correo</th>
                 <th className="px-4 py-3 whitespace-nowrap">Ficha</th>
                 <th className="px-4 py-3 whitespace-nowrap">Estado</th>
+                <th className="px-4 py-3 whitespace-nowrap">Novedad</th>
                 <th className="px-4 py-3 whitespace-nowrap">Retiro voluntario</th>
               </tr>
             </thead>
@@ -159,6 +160,19 @@ export const DebidoProcesoView: React.FC = () => {
                   <td className="px-4 py-3">{student.lastName}</td>
                   <td className="px-4 py-3 text-gray-600">{student.email || '—'}</td>
                   <td className="px-4 py-3">{student.group || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                        student.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                        student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                        student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                        student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {student.status || 'Formación'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <DebidoProcesoStepper
                       currentStep={stateMap[student.id] ?? 0}
