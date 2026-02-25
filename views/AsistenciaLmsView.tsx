@@ -152,11 +152,13 @@ export const AsistenciaLmsView: React.FC = () => {
   }, [grades]);
 
   /**
-   * Calcula el "Final" de un estudiante considerando TODAS las actividades de su ficha
-   * (sin filtrar por fase, para mostrar el estado global en la vista LMS).
+   * Calcula el "Final" de un estudiante considerando las actividades de su ficha.
+   * Si no hay actividades para su ficha, usa las de grupo vacío (globales), igual que CalificacionesView.
    */
   const getFinalForStudent = (student: Student): { score: number | null; letter: 'A' | 'D' | null } => {
-    const fichaActivities = gradeActivities.filter(a => a.group === (student.group || ''));
+    const studentGroup = student.group || '';
+    const fichaSpecific = gradeActivities.filter(a => a.group === studentGroup);
+    const fichaActivities = fichaSpecific.length > 0 ? fichaSpecific : gradeActivities.filter(a => a.group === '');
     const totalActivities = fichaActivities.length;
     if (totalActivities === 0) return { score: null, letter: null };
 
@@ -188,11 +190,12 @@ export const AsistenciaLmsView: React.FC = () => {
   };
 
   /**
-   * Pendientes del aprendiz: actividades de su ficha sin entregar o con letra D (igual que CalificacionesView).
-   * Devuelve cantidad y lista de actividades pendientes.
+   * Pendientes del aprendiz: actividades de su ficha (o globales si no hay de su ficha) sin entregar o con letra D.
    */
   const getPendientesForStudent = (student: Student): { count: number; activities: GradeActivity[] } => {
-    const fichaActivities = gradeActivities.filter(a => a.group === (student.group || ''));
+    const studentGroup = student.group || '';
+    const fichaSpecific = gradeActivities.filter(a => a.group === studentGroup);
+    const fichaActivities = fichaSpecific.length > 0 ? fichaSpecific : gradeActivities.filter(a => a.group === '');
     const activities: GradeActivity[] = [];
     fichaActivities.forEach(activity => {
       const grade = gradeMap.get(`${student.id}-${activity.id}`);
