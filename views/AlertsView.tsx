@@ -152,24 +152,21 @@ export const AlertsView: React.FC = () => {
     'Notificación de Inicio de Proceso de Deserción'
   );
   const [templateBody, setTemplateBody] = useState(
-    `Estimado(a) Aprendiz: 
+    `Estimado(a) Aprendiz:
+
 {estudiante}
-{documento}
-{programa}
-{grupo}
+C.C. {documento}
+Programa: Gestión de Redes de Datos
+Ficha: {grupo}
 
 Reciba un cordial saludo.
-Como instructor responsable de su proceso formativo en el programa {programa}, me permito comunicarle que, tras la revisión del sistema de gestión académica Zajuna, se ha evidenciado que usted no registra ingresos a la plataforma ni reporte de actividades desde el día {fecha_ultimo_ingreso}.
+Como instructor responsable de su proceso formativo en el programa, me permito comunicarle que, tras la revisión del sistema de gestión académica Zajuna, se ha evidenciado que usted no registra ingresos a la plataforma desde hace {dias_sin_ingresar} días y no reporta entrega de las evidencias.
 De acuerdo con el Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA), su situación se enmarca en la causal de deserción establecida para la modalidad virtual, la cual cito a continuación:
-•	Artículo 30º. Deserción: Se considera deserción en el proceso de formación, cuando el aprendiz:
-o	Numeral 3: "En la formación titulada en modalidad virtual y a distancia, cuando el aprendiz no reporte actividades de aprendizaje por cinco (5) días calendario consecutivos, o no ingrese a la plataforma por este mismo término, sin que presente justificación alguna dentro de este tiempo".
-En virtud de lo anterior, y garantizando su Derecho al Debido Proceso (Artículo 5º, numeral 10) y su Derecho a ser Notificado de las novedades académicas (Artículo 5º, numeral 11), se le concede un plazo de cinco (5) días hábiles, contados a partir del envío de este correo, para que presente las evidencias o soportes que justifiquen su incumplimiento. 
-A continuación, se describen los siguientes escenarios:
-•	Justificación válida: Deberá responder a este correo electrónico adjuntando los soportes (médicos, laborales o de fuerza mayor) que expliquen su ausencia.
+Artículo 30º. Deserción: Se considera deserción en el proceso de formación, cuando el aprendiz:
+"b) En la formación bajo la modalidad virtual en etapa lectiva, se presenta cuando el aprendiz no asiste a tres (3) citaciones seguidas elevadas por el instructor o por el responsable del grupo o no ingresa a su ambiente virtual de formación (plataforma LMS) durante veinte (20) días consecutivos, sin previa justificación soportada ante el sistema de gestión académico-administrativo."
 En caso de que existan situaciones personales, laborales o de fuerza mayor que le impidan continuar, informarle sobre su derecho a solicitar un Retiro Voluntario.
-•	Novedad de Retiro Voluntario: Es la solicitud formal que el aprendiz presenta ante el Centro de Formación para retirarse del programa. A diferencia de la deserción, el retiro voluntario debidamente justificado puede evitar o disminuir los términos de sanción para futuras inscripciones, siempre que se realice antes de que se formalice el proceso de deserción por parte de la entidad.
-
-•	Consecuencia: Si transcurrido este plazo usted no presenta una justificación válida o no se reporta, el Centro de Formación procederá a tramitar la deserción y la cancelación de su matrícula en el programa de formación, con la respectiva sanción de no poder participar en procesos de ingreso al SENA por el término establecido en el reglamento.
+Novedad de Retiro Voluntario: Es la solicitud formal que el aprendiz presenta ante el Centro de Formación para retirarse del programa. A diferencia de la deserción, el retiro voluntario debidamente justificado puede evitar o disminuir los términos de sanción para futuras inscripciones, siempre que se realice antes de que se formalice el proceso de deserción por parte de la entidad.
+En caso de no recibir respuesta de solicitud de retiro voluntario, el Centro de Formación procederá a tramitar la deserción y la cancelación de su matrícula en el programa de formación, con la respectiva sanción de no poder participar en procesos de ingreso al SENA por el término establecido en el reglamento.
 
 Atentamente,`
   );
