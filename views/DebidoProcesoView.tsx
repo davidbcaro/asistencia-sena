@@ -163,7 +163,7 @@ export const DebidoProcesoView: React.FC = () => {
                 <th className="px-4 py-3 whitespace-nowrap">Correo</th>
                 <th className="px-4 py-3 whitespace-nowrap">Ficha</th>
                 <th className="px-4 py-3 whitespace-nowrap">Estado</th>
-                <th className="px-4 py-3 whitespace-nowrap">Novedad</th>
+                <th className="px-4 py-3 whitespace-nowrap">Cancelación</th>
                 <th className="px-4 py-3 whitespace-nowrap">Retiro voluntario</th>
               </tr>
             </thead>

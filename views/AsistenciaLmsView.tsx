@@ -2,7 +2,77 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
-import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades } from '../services/db';
+import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep } from '../services/db';
+
+/** Pasos del stepper Cancelación (igual que DebidoProcesoView). */
+const CANCELACION_STEPS: { step: number; tooltip: string }[] = [
+  { step: 0, tooltip: 'Sin novedad' },
+  { step: 1, tooltip: 'Correo riesgo de deserción' },
+  { step: 2, tooltip: 'Agregar novedad al acta' },
+  { step: 3, tooltip: 'Correo Coordinación (5 días)' },
+  { step: 4, tooltip: 'Cancelación' },
+  { step: 5, tooltip: 'Cancelación en Sofia Plus' },
+];
+
+/** Pasos del stepper Retiro voluntario (igual que DebidoProcesoView). */
+const RETIRO_STEPS: { step: number; tooltip: string }[] = [
+  { step: 1, tooltip: 'Sin novedad' },
+  { step: 2, tooltip: 'Intención de retiro' },
+  { step: 3, tooltip: 'Solicitud de retiro' },
+  { step: 4, tooltip: 'Agregar novedad de retiro al acta' },
+  { step: 5, tooltip: 'Retiro efectuado en Sofia Plus' },
+];
+
+/** Mini stepper para Cancelación / Retiro voluntario (misma lógica que DebidoProcesoView). */
+function AsistenciaLmsStepper(props: {
+  steps: { step: number; tooltip: string }[];
+  currentStep: number;
+  defaultStep: number;
+  onStepClick: (step: number) => void;
+}) {
+  const { steps, currentStep, defaultStep, onStepClick } = props;
+  const effective = steps.some((s) => s.step === currentStep) ? currentStep : defaultStep;
+  const current = effective;
+  return (
+    <div className="flex items-center gap-0 justify-center" role="group" aria-label="Estado">
+      {steps.map(({ step, tooltip }, i) => {
+        const isDone = step < current;
+        const isCurrent = step === current;
+        return (
+          <React.Fragment key={step}>
+            {i > 0 && (
+              <div
+                className={`h-0.5 w-4 flex-shrink-0 ${isDone ? 'bg-indigo-500' : 'bg-gray-200'}`}
+                aria-hidden
+              />
+            )}
+            <button
+              type="button"
+              title={tooltip}
+              onClick={() => onStepClick(step)}
+              className={`flex-shrink-0 rounded-full p-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 ${
+                isDone
+                  ? 'bg-indigo-500 text-white hover:bg-indigo-600'
+                  : isCurrent
+                    ? 'bg-indigo-500 text-white ring-2 ring-indigo-300 ring-offset-1 hover:bg-indigo-600'
+                    : 'bg-gray-200 text-gray-400 hover:bg-gray-300'
+              }`}
+              style={{ width: 22, height: 22 }}
+            >
+              {isDone ? (
+                <svg className="w-full h-full" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+              ) : (
+                <span className="sr-only">{step}. {tooltip}</span>
+              )}
+            </button>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
 
 /** Normaliza valor de celda a string para documento (Excel puede devolver número o notación científica). */
 function normalizeDoc(value: unknown): string {
@@ -130,12 +200,17 @@ export const AsistenciaLmsView: React.FC = () => {
 
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
+  const [cancelacionMap, setCancelacionMap] = useState<Record<string, number>>({});
+  const [retiroMap, setRetiroMap] = useState<Record<string, number>>({});
+
   const loadData = () => {
     setStudents(getStudents());
     setFichas(getFichas());
     setLmsLastAccess(getLmsLastAccess());
     setGradeActivities(getGradeActivities());
     setGrades(getGrades());
+    setCancelacionMap(getDebidoProcesoState());
+    setRetiroMap(getRetiroVoluntarioState());
   };
 
   useEffect(() => {
@@ -942,12 +1017,14 @@ export const AsistenciaLmsView: React.FC = () => {
                   )}
                 </div>
               </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center">Cancelación</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center">Retiro voluntario</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {paginatedStudents.length === 0 ? (
               <tr>
-                <td colSpan={12} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={14} className="px-6 py-8 text-center text-gray-500">
                   {students.length === 0
                     ? 'No hay aprendices registrados.'
                     : searchTerm
@@ -1050,6 +1127,28 @@ export const AsistenciaLmsView: React.FC = () => {
                         </td>
                       );
                     })()}
+                    <td className="px-6 py-4">
+                      <AsistenciaLmsStepper
+                        steps={CANCELACION_STEPS}
+                        currentStep={cancelacionMap[student.id] ?? 0}
+                        defaultStep={0}
+                        onStepClick={(step) => {
+                          saveDebidoProcesoStep(student.id, step);
+                          setCancelacionMap(getDebidoProcesoState());
+                        }}
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <AsistenciaLmsStepper
+                        steps={RETIRO_STEPS}
+                        currentStep={retiroMap[student.id] ?? 1}
+                        defaultStep={1}
+                        onStepClick={(step) => {
+                          saveRetiroVoluntarioStep(student.id, step);
+                          setRetiroMap(getRetiroVoluntarioState());
+                        }}
+                      />
+                    </td>
                   </tr>
                 );
               })
