@@ -764,12 +764,12 @@ export const StudentsView: React.FC = () => {
                    </td>
                    <td className="px-6 py-4 text-gray-800 text-xs cursor-pointer hover:text-indigo-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
                         <span className="inline-flex flex-wrap items-center gap-1.5">
-                          {student.firstName}
+                          <span>{student.firstName}</span>
                           {student.isVocero && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800" title="Vocero">Vocero</span>
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Vocero">Vocero</span>
                           )}
                           {student.isVoceroSuplente && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700" title="Vocero suplente">Suplente</span>
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800" title="Vocero suplente">Suplente</span>
                           )}
                         </span>
                    </td>
@@ -889,8 +889,8 @@ export const StudentsView: React.FC = () => {
               <div><span className="font-medium text-gray-500">Estado:</span> <span className="text-gray-900">{studentDetailModal.status || 'Formación'}</span></div>
               {(studentDetailModal.isVocero || studentDetailModal.isVoceroSuplente) && (
                 <div><span className="font-medium text-gray-500">Rol:</span>{' '}
-                  {studentDetailModal.isVocero && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 mr-1">Vocero</span>}
-                  {studentDetailModal.isVoceroSuplente && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">Vocero suplente</span>}
+                  {studentDetailModal.isVocero && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 mr-1">Vocero</span>}
+                  {studentDetailModal.isVoceroSuplente && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">Vocero suplente</span>}
                 </div>
               )}
               {studentDetailModal.description && (
