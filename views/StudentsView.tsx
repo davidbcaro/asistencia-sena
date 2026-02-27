@@ -42,7 +42,9 @@ export const StudentsView: React.FC = () => {
     group: '', 
     documentNumber: '',
     status: 'Formación' as 'Formación' | 'Cancelado' | 'Retiro Voluntario' | 'Deserción',
-    description: ''
+    description: '',
+    isVocero: false,
+    isVoceroSuplente: false
   });
 
   // Delete State
@@ -282,6 +284,8 @@ export const StudentsView: React.FC = () => {
       group: newGroup || 'General',
       active: true,
       status: 'Formación',
+      isVocero: false,
+      isVoceroSuplente: false
     };
     addStudent(student);
     setNewFirstName('');
@@ -314,7 +318,9 @@ export const StudentsView: React.FC = () => {
             email: parts[3] ? parts[3].trim() : '',
             group: bulkSelectedFicha, 
             active: true,
-            status: 'Formación'
+            status: 'Formación',
+            isVocero: false,
+            isVoceroSuplente: false
           });
         }
       });
@@ -363,7 +369,9 @@ export const StudentsView: React.FC = () => {
       group: student.group || 'General',
       documentNumber: student.documentNumber || '',
       status: student.status || 'Formación',
-      description: student.description || ''
+      description: student.description || '',
+      isVocero: student.isVocero ?? false,
+      isVoceroSuplente: student.isVoceroSuplente ?? false
     });
   };
 
@@ -377,7 +385,9 @@ export const StudentsView: React.FC = () => {
         group: editForm.group,
         documentNumber: editForm.documentNumber,
         status: editForm.status,
-        description: editForm.description || undefined
+        description: editForm.description || undefined,
+        isVocero: editForm.isVocero,
+        isVoceroSuplente: editForm.isVoceroSuplente
     };
     updateStudent(updated);
     setEditingStudent(null);
@@ -753,7 +763,15 @@ export const StudentsView: React.FC = () => {
                         {student.lastName}
                    </td>
                    <td className="px-6 py-4 text-gray-800 text-xs cursor-pointer hover:text-indigo-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
-                        {student.firstName}
+                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                          {student.firstName}
+                          {student.isVocero && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800" title="Vocero">Vocero</span>
+                          )}
+                          {student.isVoceroSuplente && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700" title="Vocero suplente">Suplente</span>
+                          )}
+                        </span>
                    </td>
                   <td className="px-6 py-4 text-gray-600 text-sm w-80 min-w-[20rem] whitespace-nowrap" title={student.email || undefined}>
                     {student.email || <span className="text-gray-400">-</span>}
@@ -869,6 +887,12 @@ export const StudentsView: React.FC = () => {
               <div><span className="font-medium text-gray-500">Correo:</span> <span className="text-gray-900">{studentDetailModal.email || '-'}</span></div>
               <div><span className="font-medium text-gray-500">Ficha:</span> <span className="text-gray-900">{studentDetailModal.group || 'General'}</span></div>
               <div><span className="font-medium text-gray-500">Estado:</span> <span className="text-gray-900">{studentDetailModal.status || 'Formación'}</span></div>
+              {(studentDetailModal.isVocero || studentDetailModal.isVoceroSuplente) && (
+                <div><span className="font-medium text-gray-500">Rol:</span>{' '}
+                  {studentDetailModal.isVocero && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 mr-1">Vocero</span>}
+                  {studentDetailModal.isVoceroSuplente && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">Vocero suplente</span>}
+                </div>
+              )}
               {studentDetailModal.description && (
                 <div><span className="font-medium text-gray-500">Descripción:</span> <span className="text-gray-900">{studentDetailModal.description}</span></div>
               )}
@@ -982,6 +1006,26 @@ export const StudentsView: React.FC = () => {
                             <option value="Retiro Voluntario">Retiro Voluntario</option>
                             <option value="Deserción">Deserción</option>
                         </select>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                        <label className="inline-flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={editForm.isVocero}
+                                onChange={(e) => setEditForm({ ...editForm, isVocero: e.target.checked })}
+                                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Vocero</span>
+                        </label>
+                        <label className="inline-flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={editForm.isVoceroSuplente}
+                                onChange={(e) => setEditForm({ ...editForm, isVoceroSuplente: e.target.checked })}
+                                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Vocero suplente</span>
+                        </label>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Descripción / Comentarios</label>

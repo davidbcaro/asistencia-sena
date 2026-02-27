@@ -12,6 +12,8 @@ export interface Student {
   group?: string; // Ficha o Grupo
   status?: 'Formación' | 'Cancelado' | 'Retiro Voluntario' | 'Deserción'; // Estado del aprendiz
   description?: string; // Comentarios y novedades
+  isVocero?: boolean; // Vocero del grupo
+  isVoceroSuplente?: boolean; // Vocero suplente
 }
 
 export interface Ficha {
