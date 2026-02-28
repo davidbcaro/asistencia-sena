@@ -462,7 +462,7 @@ export const AttendanceView: React.FC = () => {
         <table className="w-full text-left border-collapse">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Aprendiz (Apellidos, Nombres)</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Aprendiz (Nombres, Apellidos)</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Grupo</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Correo</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center w-32">Asistencia</th>
@@ -490,7 +490,7 @@ export const AttendanceView: React.FC = () => {
                         >
                             <td className="px-6 py-4 text-sm">
                                 <span className={`font-medium ${isPresent ? 'text-gray-900' : 'text-red-900'}`}>
-                                    {student.lastName}, {student.firstName}
+                                    {student.firstName}, {student.lastName}
                                 </span>
                                 {student.documentNumber && (
                                     <span className="block text-xs text-gray-400 mt-0.5">

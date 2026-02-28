@@ -128,11 +128,11 @@ export const ReportsView: React.FC = () => {
 
   const downloadExcel = () => {
     // Added Email to headers and rows
-    const headers = ['Documento', 'Apellidos', 'Nombres', 'Ficha/Grupo', 'Email', 'Total Clases', 'Asistencias', 'Fallas', '% Asistencia'];
+    const headers = ['Documento', 'Nombres', 'Apellidos', 'Ficha/Grupo', 'Email', 'Total Clases', 'Asistencias', 'Fallas', '% Asistencia'];
     const rows = statsForTable.map(s => [
         `"${s.document}"`, 
-        `"${s.lastName}"`,
         `"${s.firstName}"`,
+        `"${s.lastName}"`,
         `"${s.group}"`,
         `"${s.email}"`,
         s.total,
@@ -350,13 +350,13 @@ export const ReportsView: React.FC = () => {
                     ) : paginatedStats.map(stat => (
                         <tr key={stat.fullName} className="hover:bg-gray-50">
                             <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                {stat.firstName}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900">
                               <div>
                                   {stat.lastName}
                                   <span className="block text-gray-400 font-normal">{stat.document}</span>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                                {stat.firstName}
                             </td>
                             <td className="px-6 py-4 text-gray-500 text-sm">{stat.group}</td>
                             <td className="px-6 py-4 text-gray-500 text-sm">{stat.email}</td>

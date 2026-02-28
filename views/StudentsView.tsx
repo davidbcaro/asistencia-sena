@@ -246,11 +246,11 @@ export const StudentsView: React.FC = () => {
     });
     
     // Generate CSV
-    const headers = ['Documento', 'Apellidos', 'Nombres', 'Email', 'Ficha/Grupo', 'Estado', 'Descripción', 'Total Clases', 'Asistencias', 'Fallas', '% Asistencia'];
+    const headers = ['Documento', 'Nombres', 'Apellidos', 'Email', 'Ficha/Grupo', 'Estado', 'Descripción', 'Total Clases', 'Asistencias', 'Fallas', '% Asistencia'];
     const rows = stats.map(s => [
       `"${s.document}"`,
-      `"${s.lastName}"`,
       `"${s.firstName}"`,
+      `"${s.lastName}"`,
       `"${s.email}"`,
       `"${s.group}"`,
       `"${s.status}"`,
@@ -631,20 +631,6 @@ export const StudentsView: React.FC = () => {
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm min-w-[11rem] w-52">
                   <button
                       type="button"
-                      onClick={() => handleSort('lastname')}
-                      className={`inline-flex items-center gap-1 hover:text-gray-900 ${
-                          sortOrder === 'lastname' ? 'text-indigo-700' : ''
-                      }`}
-                  >
-                      Apellidos
-                      {sortOrder === 'lastname' && (
-                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                      )}
-                  </button>
-              </th>
-               <th className="px-6 py-4 font-semibold text-gray-600 text-sm min-w-[11rem] w-52">
-                  <button
-                      type="button"
                       onClick={() => handleSort('firstname')}
                       className={`inline-flex items-center gap-1 hover:text-gray-900 ${
                           sortOrder === 'firstname' ? 'text-indigo-700' : ''
@@ -652,6 +638,20 @@ export const StudentsView: React.FC = () => {
                   >
                       Nombres
                       {sortOrder === 'firstname' && (
+                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                  </button>
+              </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm min-w-[11rem] w-52">
+                  <button
+                      type="button"
+                      onClick={() => handleSort('lastname')}
+                      className={`inline-flex items-center gap-1 hover:text-gray-900 ${
+                          sortOrder === 'lastname' ? 'text-indigo-700' : ''
+                      }`}
+                  >
+                      Apellidos
+                      {sortOrder === 'lastname' && (
                         <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                       )}
                   </button>
@@ -759,9 +759,6 @@ export const StudentsView: React.FC = () => {
                    <td className="px-6 py-4 text-gray-600 font-mono text-xs">
                         {student.documentNumber || '-'}
                    </td>
-                   <td className="px-6 py-4 font-medium text-gray-900 text-xs cursor-pointer hover:text-indigo-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
-                        {student.lastName}
-                   </td>
                    <td className="px-6 py-4 text-gray-800 text-xs cursor-pointer hover:text-indigo-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
                         <span className="inline-flex flex-wrap items-center gap-1.5">
                           <span>{student.firstName}</span>
@@ -772,6 +769,9 @@ export const StudentsView: React.FC = () => {
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800" title="Vocero suplente">Suplente</span>
                           )}
                         </span>
+                   </td>
+                   <td className="px-6 py-4 font-medium text-gray-900 text-xs cursor-pointer hover:text-indigo-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
+                        {student.lastName}
                    </td>
                   <td className="px-6 py-4 text-gray-600 text-sm w-80 min-w-[20rem] whitespace-nowrap" title={student.email || undefined}>
                     {student.email || <span className="text-gray-400">-</span>}

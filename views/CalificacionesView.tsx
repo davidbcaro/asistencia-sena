@@ -596,8 +596,8 @@ export const CalificacionesView: React.FC = () => {
     if (!selectedFicha) return null;
     const headers = [
       'Documento',
-      'Apellidos',
       'Nombres',
+      'Apellidos',
       'Estado',
       'Ficha',
       'Juicios Evaluativos',
@@ -626,8 +626,8 @@ export const CalificacionesView: React.FC = () => {
       const juicioLabel = juicioVal === 'green' ? 'Sí' : juicioVal === 'orange' ? 'En proceso' : '-';
       return [
         student.documentNumber || '',
-        student.lastName || '',
         student.firstName || '',
+        student.lastName || '',
         student.status || 'Formación',
         student.group || '',
         juicioLabel,
@@ -1227,20 +1227,6 @@ export const CalificacionesView: React.FC = () => {
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[208px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                 <button
                   type="button"
-                  onClick={() => handleSort('lastname')}
-                  className={`inline-flex items-center gap-1 hover:text-indigo-700 ${
-                    sortOrder === 'lastname' ? 'text-indigo-700' : ''
-                  }`}
-                >
-                  Apellidos
-                  {sortOrder === 'lastname' && (
-                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </button>
-              </th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                <button
-                  type="button"
                   onClick={() => handleSort('firstname')}
                   className={`inline-flex items-center gap-1 hover:text-indigo-700 ${
                     sortOrder === 'firstname' ? 'text-indigo-700' : ''
@@ -1248,6 +1234,20 @@ export const CalificacionesView: React.FC = () => {
                 >
                   Nombres
                   {sortOrder === 'firstname' && (
+                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                <button
+                  type="button"
+                  onClick={() => handleSort('lastname')}
+                  className={`inline-flex items-center gap-1 hover:text-indigo-700 ${
+                    sortOrder === 'lastname' ? 'text-indigo-700' : ''
+                  }`}
+                >
+                  Apellidos
+                  {sortOrder === 'lastname' && (
                     <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </button>
@@ -1349,8 +1349,8 @@ export const CalificacionesView: React.FC = () => {
                   </td>
                   <td className="px-4 py-4 w-10 min-w-10 max-w-10 text-gray-500 font-mono text-xs sticky left-10 z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{showAllStudents ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
                   <td className="px-6 py-4 w-32 min-w-32 max-w-32 text-gray-600 font-mono text-xs sticky left-20 z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.documentNumber || '-'}</td>
-                  <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[208px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-indigo-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.lastName}</td>
-                  <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[400px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-indigo-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.firstName}</td>
+                  <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[208px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-indigo-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.firstName}</td>
+                  <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[400px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-indigo-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.lastName}</td>
                   <td className="px-4 py-4 w-40 min-w-40 max-w-40 text-sm sticky left-[592px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <span className={`inline-block text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${
                       student.status === 'Formación' ? 'bg-green-100 text-green-800' :

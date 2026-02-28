@@ -412,8 +412,8 @@ export const AsistenciaLmsView: React.FC = () => {
     const headers = [
       'No.',
       'Documento',
-      'Apellidos',
       'Nombres',
+      'Apellidos',
       'Correo electrónico',
       'Ficha',
       'Estado',
@@ -430,8 +430,8 @@ export const AsistenciaLmsView: React.FC = () => {
       return [
         idx + 1,
         `"${student.documentNumber || ''}"`,
-        `"${student.lastName}"`,
         `"${student.firstName}"`,
+        `"${student.lastName}"`,
         `"${student.email || ''}"`,
         `"${student.group || 'General'}"`,
         `"${student.status || 'Formación'}"`,
@@ -870,11 +870,11 @@ export const AsistenciaLmsView: React.FC = () => {
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm min-w-[11rem]">
                 <button
                   type="button"
-                  onClick={() => handleSort('lastname')}
-                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'lastname' ? 'text-indigo-700' : ''}`}
+                  onClick={() => handleSort('firstname')}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'firstname' ? 'text-indigo-700' : ''}`}
                 >
-                  Apellidos
-                  {sortOrder === 'lastname' && (
+                  Nombres
+                  {sortOrder === 'firstname' && (
                     <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </button>
@@ -882,11 +882,11 @@ export const AsistenciaLmsView: React.FC = () => {
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm min-w-[11rem]">
                 <button
                   type="button"
-                  onClick={() => handleSort('firstname')}
-                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'firstname' ? 'text-indigo-700' : ''}`}
+                  onClick={() => handleSort('lastname')}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'lastname' ? 'text-indigo-700' : ''}`}
                 >
-                  Nombres
-                  {sortOrder === 'firstname' && (
+                  Apellidos
+                  {sortOrder === 'lastname' && (
                     <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </button>
@@ -1045,10 +1045,10 @@ export const AsistenciaLmsView: React.FC = () => {
                       {student.documentNumber || '-'}
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900 text-xs min-w-[11rem]">
-                      {student.lastName}
+                      {student.firstName}
                     </td>
                     <td className="px-6 py-4 text-gray-800 text-xs min-w-[11rem]">
-                      {student.firstName}
+                      {student.lastName}
                     </td>
                     <td className="px-6 py-4 text-gray-600 text-sm w-80 min-w-[20rem] whitespace-nowrap" title={student.email || undefined}>
                       {student.email || <span className="text-gray-400">-</span>}

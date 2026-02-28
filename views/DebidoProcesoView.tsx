@@ -37,7 +37,18 @@ export const DebidoProcesoView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname'>('lastname');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const ITEMS_PER_PAGE = 15;
+
+  const handleSort = (column: 'lastname' | 'firstname') => {
+    if (sortOrder === column) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortOrder(column);
+    setSortDirection('asc');
+  };
 
   const loadData = () => {
     setStudents(getStudents());
@@ -74,9 +85,18 @@ export const DebidoProcesoView: React.FC = () => {
         return full.includes(term) || doc.includes(term) || email.includes(term) || group.includes(term);
       });
     }
-    list.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '', 'es'));
+    const direction = sortDirection === 'asc' ? 1 : -1;
+    list.sort((a, b) => {
+      const cmp =
+        sortOrder === 'lastname'
+          ? (a.lastName || '').localeCompare(b.lastName || '', 'es') ||
+            (a.firstName || '').localeCompare(b.firstName || '', 'es')
+          : (a.firstName || '').localeCompare(b.firstName || '', 'es') ||
+            (a.lastName || '').localeCompare(b.lastName || '', 'es');
+      return direction * cmp;
+    });
     return list;
-  }, [students, stateMap, filterFicha, filterEstado, searchTerm]);
+  }, [students, stateMap, filterFicha, filterEstado, searchTerm, sortOrder, sortDirection]);
 
   const totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE);
   const paginatedList = showAll
@@ -88,7 +108,7 @@ export const DebidoProcesoView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterFicha, filterEstado, searchTerm]);
+  }, [filterFicha, filterEstado, searchTerm, sortOrder, sortDirection]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -172,13 +192,36 @@ export const DebidoProcesoView: React.FC = () => {
               <tr className="border-b border-gray-200 bg-gray-50 text-gray-700 font-medium">
                 <th className="px-4 py-3 whitespace-nowrap">No</th>
                 <th className="px-4 py-3 whitespace-nowrap">Documento</th>
-                <th className="px-4 py-3 whitespace-nowrap">Nombres</th>
-                <th className="px-4 py-3 whitespace-nowrap">Apellidos</th>
+                <th
+                  className="px-4 py-3 whitespace-nowrap cursor-pointer select-none hover:text-indigo-700"
+                  onClick={() => handleSort('firstname')}
+                  title="Ordenar por nombres"
+                >
+                  <span className={sortOrder === 'firstname' ? 'text-indigo-700' : ''}>
+                    Nombres
+                    {sortOrder === 'firstname' && (
+                      <span className="text-indigo-600 ml-0.5">{sortDirection === 'asc' ? ' ↑' : ' ↓'}</span>
+                    )}
+                  </span>
+                </th>
+                <th
+                  className="px-4 py-3 whitespace-nowrap cursor-pointer select-none hover:text-indigo-700"
+                  onClick={() => handleSort('lastname')}
+                  title="Ordenar por apellidos"
+                >
+                  <span className={sortOrder === 'lastname' ? 'text-indigo-700' : ''}>
+                    Apellidos
+                    {sortOrder === 'lastname' && (
+                      <span className="text-indigo-600 ml-0.5">{sortDirection === 'asc' ? ' ↑' : ' ↓'}</span>
+                    )}
+                  </span>
+                </th>
                 <th className="px-4 py-3 whitespace-nowrap">Correo</th>
                 <th className="px-4 py-3 whitespace-nowrap">Ficha</th>
                 <th className="px-4 py-3 whitespace-nowrap">Estado</th>
                 <th className="px-4 py-3 whitespace-nowrap">Cancelación</th>
                 <th className="px-4 py-3 whitespace-nowrap">Retiro voluntario</th>
+                <th className="px-4 py-3 min-w-[140px]">Plan de mejoramiento</th>
               </tr>
             </thead>
             <tbody>
