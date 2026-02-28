@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Student, Ficha } from '../types';
-import { getStudents, getFichas, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep } from '../services/db';
+import { getStudents, getFichas, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep } from '../services/db';
 
 const STEPS: { step: number; tooltip: string }[] = [
   { step: 0, tooltip: 'Sin novedad' },
@@ -20,11 +20,18 @@ const RETIRO_STEPS: { step: number; tooltip: string }[] = [
   { step: 5, tooltip: 'Retiro efectuado en Sofia Plus' },
 ];
 
+const PMA_STEPS: { step: number; tooltip: string }[] = [
+  { step: 0, tooltip: 'Sin PMA' },
+  { step: 1, tooltip: 'Se asigna PMA' },
+  { step: 2, tooltip: 'Aprobación de PMA' },
+];
+
 export const DebidoProcesoView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [stateMap, setStateMap] = useState<Record<string, number>>({});
   const [retiroMap, setRetiroMap] = useState<Record<string, number>>({});
+  const [pmaMap, setPmaMap] = useState<Record<string, number>>({});
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterEstado, setFilterEstado] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,6 +44,7 @@ export const DebidoProcesoView: React.FC = () => {
     setFichas(getFichas());
     setStateMap(getDebidoProcesoState());
     setRetiroMap(getRetiroVoluntarioState());
+    setPmaMap(getPlanMejoramientoState());
   };
 
   useEffect(() => {
@@ -66,6 +74,7 @@ export const DebidoProcesoView: React.FC = () => {
         return full.includes(term) || doc.includes(term) || email.includes(term) || group.includes(term);
       });
     }
+    list.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '', 'es'));
     return list;
   }, [students, stateMap, filterFicha, filterEstado, searchTerm]);
 
@@ -93,6 +102,11 @@ export const DebidoProcesoView: React.FC = () => {
   const saveRetiroState = (studentId: string, step: number) => {
     saveRetiroVoluntarioStep(studentId, step);
     setRetiroMap(getRetiroVoluntarioState());
+  };
+
+  const savePmaState = (studentId: string, step: number) => {
+    savePlanMejoramientoStep(studentId, step);
+    setPmaMap(getPlanMejoramientoState());
   };
 
   return (
@@ -208,6 +222,14 @@ export const DebidoProcesoView: React.FC = () => {
                       onStepClick={(step) => saveRetiroState(student.id, step)}
                       steps={RETIRO_STEPS}
                       defaultStep={1}
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <DebidoProcesoStepper
+                      currentStep={pmaMap[student.id] ?? 0}
+                      onStepClick={(step) => savePmaState(student.id, step)}
+                      steps={PMA_STEPS}
+                      defaultStep={0}
                     />
                   </td>
                 </tr>

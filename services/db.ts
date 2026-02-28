@@ -18,6 +18,7 @@ const STORAGE_KEYS = {
   LMS_LAST_ACCESS: 'asistenciapro_lms_last_access',
   DEBIDO_PROCESO: 'asistenciapro_debido_proceso',
   RETIRO_VOLUNTARIO: 'asistenciapro_retiro_voluntario',
+  PLAN_MEJORAMIENTO: 'asistenciapro_plan_mejoramiento',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -558,6 +559,37 @@ export const saveRetiroVoluntarioStep = (studentId: string, step: number) => {
   const s = Math.min(5, Math.max(1, Math.floor(step)));
   state[studentId] = s;
   saveRetiroVoluntarioState(state);
+};
+
+// --- Plan de mejoramiento (estado por aprendiz: 0-2) ---
+export type PlanMejoramientoState = Record<string, number>; // studentId -> step 0..2
+
+export const getPlanMejoramientoState = (): PlanMejoramientoState => {
+  const data = localStorage.getItem(STORAGE_KEYS.PLAN_MEJORAMIENTO);
+  if (!data) return {};
+  try {
+    const raw = JSON.parse(data);
+    const out: PlanMejoramientoState = {};
+    Object.keys(raw).forEach((id) => {
+      const n = Number(raw[id]);
+      if (n >= 0 && n <= 2) out[id] = Math.floor(n);
+    });
+    return out;
+  } catch {
+    return {};
+  }
+};
+
+export const savePlanMejoramientoState = (state: PlanMejoramientoState) => {
+  localStorage.setItem(STORAGE_KEYS.PLAN_MEJORAMIENTO, JSON.stringify(state));
+  notifyChange();
+};
+
+export const savePlanMejoramientoStep = (studentId: string, step: number) => {
+  const state = getPlanMejoramientoState();
+  const s = Math.min(2, Math.max(0, Math.floor(step)));
+  state[studentId] = s;
+  savePlanMejoramientoState(state);
 };
 
 // Fichas
@@ -1255,6 +1287,7 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.LMS_LAST_ACCESS);
     localStorage.removeItem(STORAGE_KEYS.DEBIDO_PROCESO);
     localStorage.removeItem(STORAGE_KEYS.RETIRO_VOLUNTARIO);
+    localStorage.removeItem(STORAGE_KEYS.PLAN_MEJORAMIENTO);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };
