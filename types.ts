@@ -94,3 +94,25 @@ export interface AttendanceStats {
   absentCount: number;
   attendanceRate: number;
 }
+
+// Sofia Plus - Juicios Evaluativos por RAP
+export interface RapDefinition {
+  rapId: string;           // e.g., "531334"
+  rapName: string;         // Full RAP name from Juicios report
+  competenciaId: string;   // e.g., "35848"
+  competenciaName: string; // Full competencia name from Juicios report
+}
+
+export interface JuicioRapEntry {
+  studentId: string;
+  rapId: string;
+  juicio: 'APROBADO' | 'NO APROBADO' | 'POR EVALUAR';
+  fecha: string;       // ISO datetime string, empty if not set
+  funcionario: string; // Name of instructor who registered
+  fichaCode: string;   // Ficha code from the report
+  updatedAt: string;
+}
+
+export interface JuicioRapHistoryEntry extends JuicioRapEntry {
+  historyId: string;
+}

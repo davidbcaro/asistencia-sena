@@ -1,5 +1,5 @@
 import { createClient, RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { Student, Ficha, AttendanceRecord, EmailDraft, EmailSettings, ClassSession, GradeActivity, GradeEntry } from '../types';
+import { Student, Ficha, AttendanceRecord, EmailDraft, EmailSettings, ClassSession, GradeActivity, GradeEntry, RapDefinition, JuicioRapEntry, JuicioRapHistoryEntry } from '../types';
 
 const STORAGE_KEYS = {
   STUDENTS: 'asistenciapro_students',
@@ -19,6 +19,9 @@ const STORAGE_KEYS = {
   DEBIDO_PROCESO: 'asistenciapro_debido_proceso',
   RETIRO_VOLUNTARIO: 'asistenciapro_retiro_voluntario',
   PLAN_MEJORAMIENTO: 'asistenciapro_plan_mejoramiento',
+  SOFIA_RAP_DEFS: 'asistenciapro_sofia_rap_defs',
+  SOFIA_JUICIO_ENTRIES: 'asistenciapro_sofia_juicio_entries',
+  SOFIA_JUICIO_HISTORY: 'asistenciapro_sofia_juicio_history',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -1272,6 +1275,45 @@ export const importFullBackup = (jsonString: string): boolean => {
     }
 };
 
+// --- SOFIA PLUS - JUICIOS EVALUATIVOS POR RAP ---
+
+export const getSofiaRapDefs = (): Record<string, RapDefinition> => {
+  const data = localStorage.getItem(STORAGE_KEYS.SOFIA_RAP_DEFS);
+  return data ? JSON.parse(data) : {};
+};
+
+export const saveSofiaRapDefs = (defs: Record<string, RapDefinition>) => {
+  localStorage.setItem(STORAGE_KEYS.SOFIA_RAP_DEFS, JSON.stringify(defs));
+};
+
+export const getSofiaJuicioEntries = (): Record<string, JuicioRapEntry> => {
+  const data = localStorage.getItem(STORAGE_KEYS.SOFIA_JUICIO_ENTRIES);
+  return data ? JSON.parse(data) : {};
+};
+
+export const upsertSofiaJuicioEntries = (entries: JuicioRapEntry[]) => {
+  const existing = getSofiaJuicioEntries();
+  entries.forEach(e => {
+    existing[`${e.studentId}-${e.rapId}`] = e;
+  });
+  localStorage.setItem(STORAGE_KEYS.SOFIA_JUICIO_ENTRIES, JSON.stringify(existing));
+  notifyChange();
+};
+
+export const getSofiaJuicioHistory = (): JuicioRapHistoryEntry[] => {
+  const data = localStorage.getItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY);
+  return data ? JSON.parse(data) : [];
+};
+
+export const appendSofiaJuicioHistory = (entries: JuicioRapHistoryEntry[]) => {
+  if (entries.length === 0) return;
+  const existing = getSofiaJuicioHistory();
+  const existingKeys = new Set(existing.map(e => `${e.studentId}-${e.rapId}-${e.fecha}-${e.funcionario}`));
+  const newEntries = entries.filter(e => !existingKeys.has(`${e.studentId}-${e.rapId}-${e.fecha}-${e.funcionario}`));
+  if (newEntries.length === 0) return;
+  localStorage.setItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY, JSON.stringify([...existing, ...newEntries]));
+};
+
 export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.STUDENTS);
     localStorage.removeItem(STORAGE_KEYS.ATTENDANCE);
@@ -1288,6 +1330,9 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.DEBIDO_PROCESO);
     localStorage.removeItem(STORAGE_KEYS.RETIRO_VOLUNTARIO);
     localStorage.removeItem(STORAGE_KEYS.PLAN_MEJORAMIENTO);
+    localStorage.removeItem(STORAGE_KEYS.SOFIA_RAP_DEFS);
+    localStorage.removeItem(STORAGE_KEYS.SOFIA_JUICIO_ENTRIES);
+    localStorage.removeItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };
