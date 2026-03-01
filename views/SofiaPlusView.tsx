@@ -122,7 +122,7 @@ const generateId = () =>
 const JUICIO_BADGE: Record<string, { label: string; cls: string }> = {
   'APROBADO':    { label: 'A',  cls: 'bg-green-100 text-green-700 border border-green-200' },
   'NO APROBADO': { label: 'NA', cls: 'bg-red-100 text-red-700 border border-red-200' },
-  'POR EVALUAR': { label: 'PE', cls: 'bg-yellow-100 text-yellow-700 border border-yellow-200' },
+  'POR EVALUAR': { label: 'PE', cls: 'bg-gray-100 text-gray-500 border border-gray-200' },
 };
 
 const TABLE_ROW_HEIGHT_PX = 52;
@@ -604,18 +604,18 @@ export const SofiaPlusView: React.FC = () => {
               </th>
               <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-xs w-10 min-w-10 sticky left-10 z-30 bg-gray-50 border-r border-gray-200 align-middle">No</th>
               <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-32 min-w-32 sticky left-20 z-30 bg-gray-50 border-r border-gray-200 align-middle whitespace-nowrap">Documento</th>
-              <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[128px] z-30 bg-gray-50 border-r border-gray-200 align-middle">
+              <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[208px] z-30 bg-gray-50 border-r border-gray-200 align-middle">
                 <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 whitespace-nowrap ${sortOrder === 'firstname' ? 'text-indigo-700' : ''}`}>
                   Nombres {sortOrder === 'firstname' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </button>
               </th>
-              <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[308px] z-30 bg-gray-50 border-r border-gray-200 align-middle">
+              <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[368px] z-30 bg-gray-50 border-r border-gray-200 align-middle">
                 <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 whitespace-nowrap ${sortOrder === 'lastname' ? 'text-indigo-700' : ''}`}>
                   Apellidos {sortOrder === 'lastname' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </button>
               </th>
-              <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-32 min-w-32 sticky left-[488px] z-30 bg-gray-50 border-r border-gray-200 align-middle whitespace-nowrap">Estado</th>
-              <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[620px] z-30 bg-gray-50 border-r border-gray-200 align-middle">Ficha</th>
+              <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-32 min-w-32 sticky left-[528px] z-30 bg-gray-50 border-r border-gray-200 align-middle whitespace-nowrap">Estado</th>
+              <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[656px] z-30 bg-gray-50 border-r border-gray-200 align-middle shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]">Ficha</th>
               {!hasData && <th rowSpan={2} className="px-4 font-semibold text-gray-400 text-sm align-middle">Carga un reporte para ver los RAPs</th>}
               {competenciaGroups.map(g => (
                 <th
@@ -677,15 +677,15 @@ export const SofiaPlusView: React.FC = () => {
                       {student.documentNumber || '-'}
                     </td>
                     {/* Nombres */}
-                    <td className="px-4 w-40 min-w-40 text-xs font-medium text-gray-900 sticky left-[128px] z-20 bg-white group-hover:bg-gray-50 border-r border-gray-100 align-middle overflow-hidden whitespace-nowrap" style={{ height: TABLE_ROW_HEIGHT_PX }}>
+                    <td className="px-4 w-40 min-w-40 text-xs font-medium text-gray-900 sticky left-[208px] z-20 bg-white group-hover:bg-gray-50 border-r border-gray-100 align-middle overflow-hidden whitespace-nowrap" style={{ height: TABLE_ROW_HEIGHT_PX }}>
                       {student.firstName}
                     </td>
                     {/* Apellidos */}
-                    <td className="px-4 w-40 min-w-40 text-xs font-medium text-gray-900 sticky left-[308px] z-20 bg-white group-hover:bg-gray-50 border-r border-gray-100 align-middle overflow-hidden whitespace-nowrap" style={{ height: TABLE_ROW_HEIGHT_PX }}>
+                    <td className="px-4 w-40 min-w-40 text-xs font-medium text-gray-900 sticky left-[368px] z-20 bg-white group-hover:bg-gray-50 border-r border-gray-100 align-middle overflow-hidden whitespace-nowrap" style={{ height: TABLE_ROW_HEIGHT_PX }}>
                       {student.lastName}
                     </td>
                     {/* Estado */}
-                    <td className="px-4 w-32 min-w-32 sticky left-[488px] z-20 bg-white group-hover:bg-gray-50 border-r border-gray-100 align-middle" style={{ height: TABLE_ROW_HEIGHT_PX }}>
+                    <td className="px-4 w-32 min-w-32 sticky left-[528px] z-20 bg-white group-hover:bg-gray-50 border-r border-gray-100 align-middle" style={{ height: TABLE_ROW_HEIGHT_PX }}>
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${
                         student.status === 'Formación' ? 'bg-green-100 text-green-800' :
                         student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
@@ -697,7 +697,7 @@ export const SofiaPlusView: React.FC = () => {
                       </span>
                     </td>
                     {/* Ficha */}
-                    <td className="px-4 w-24 min-w-24 text-xs text-gray-600 sticky left-[620px] z-20 bg-white group-hover:bg-gray-50 border-r border-gray-100 align-middle whitespace-nowrap" style={{ height: TABLE_ROW_HEIGHT_PX }}>
+                    <td className="px-4 w-24 min-w-24 text-xs text-gray-600 sticky left-[656px] z-20 bg-white group-hover:bg-gray-50 border-r border-gray-200 align-middle whitespace-nowrap shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]" style={{ height: TABLE_ROW_HEIGHT_PX }}>
                       {student.group || '-'}
                     </td>
                     {/* RAP juicio cells */}
