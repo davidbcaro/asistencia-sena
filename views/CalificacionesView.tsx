@@ -611,22 +611,25 @@ export const CalificacionesView: React.FC = () => {
     showAllFichasColumns && studentGroup ? `${studentGroup}::${selectedPhase}` : rapKey || `${studentGroup || ''}::${selectedPhase}`;
 
   const rapColumnsForFicha = useMemo(() => {
+    const staticFaseRaps = FASE_RAPS[selectedPhase]?.map(r => r.rapCode) ?? [];
     if (fichas.length === 0 && activitiesForFicha.length === 0) return [];
     if (showAllFichasColumns) {
       const allKeys = new Set<string>();
       fichas.forEach(f => {
         const key = `${f.code}::${selectedPhase}`;
-        const cols = rapColumns[key] || rapColumns[f.code] || ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5'];
+        const cols = rapColumns[key] || rapColumns[f.code] || staticFaseRaps;
         cols.forEach((c: string) => allKeys.add(c));
       });
-      if (allKeys.size === 0) return ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5'];
-      return ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5'].filter(c => allKeys.has(c)).length >= 5
-        ? ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5']
-        : Array.from(allKeys).sort();
+      if (allKeys.size === 0) return staticFaseRaps;
+      // Preserve FASE_RAPS order for known RAPs, then append extras
+      const inOrder: string[] = [];
+      staticFaseRaps.forEach(r => { if (allKeys.has(r)) inOrder.push(r); });
+      allKeys.forEach(k => { if (!inOrder.includes(k)) inOrder.push(k); });
+      return inOrder;
     }
     const existing = rapColumns[rapKey] || rapColumns[selectedFicha];
     if (existing && existing.length > 0) return existing;
-    return ['RAP1', 'RAP2', 'RAP3', 'RAP4', 'RAP5'];
+    return staticFaseRaps;
   }, [rapColumns, rapKey, selectedFicha, activitiesForFicha.length, fichas, selectedPhase, showAllFichasColumns]);
 
   const gradeMap = useMemo(() => {
@@ -709,6 +712,27 @@ export const CalificacionesView: React.FC = () => {
 
     return groups.length > 0 ? groups : null;
   }, [evidenceCompMap, evidenceMapKey, visibleActivities, fichas, selectedPhase, showAllFichasColumns]);
+
+  /** Competencia groups derived from rapColumnsForFicha + static RAP lookup.
+   *  Returns null when all RAP cols are generic (no static info available). */
+  const rapCompGroups = useMemo<Array<{ compCode: string; compName: string; raps: string[] }> | null>(() => {
+    if (rapColumnsForFicha.length === 0) return null;
+    const hasAnyInfo = rapColumnsForFicha.some(k => !!getRapStaticInfo(k));
+    if (!hasAnyInfo) return null;
+    const groups: Array<{ compCode: string; compName: string; raps: string[] }> = [];
+    let currentCode: string | null = null;
+    rapColumnsForFicha.forEach(key => {
+      const rapInfo = getRapStaticInfo(key);
+      const compCode = rapInfo?.compCode ?? '__ungrouped__';
+      const compName = rapInfo ? (COMPETENCIA_NAMES[compCode] || compCode) : key;
+      if (compCode !== currentCode) {
+        currentCode = compCode;
+        groups.push({ compCode, compName, raps: [] });
+      }
+      groups[groups.length - 1].raps.push(key);
+    });
+    return groups.length > 0 ? groups : null;
+  }, [rapColumnsForFicha]);
 
   const getFinalForStudent = (studentId: string, studentGroup?: string) => {
     const totalActivities = visibleActivities.length;
@@ -1472,8 +1496,8 @@ export const CalificacionesView: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
         <table className="w-full text-left min-w-[900px] border-collapse">
           <thead className="bg-gray-50 border-b border-gray-200">
-            {/* ── Row 1 (competencia groups) – only rendered when mapping exists ── */}
-            {compGroups && (
+            {/* ── Row 1 (competencia groups) – rendered when evidence OR RAP mapping exists ── */}
+            {(compGroups || rapCompGroups) && (
               <tr style={{ height: 36 }}>
                 {/* Sticky identity cols – span both rows */}
                 <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-10 min-w-10 max-w-10 sticky left-0 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden">
@@ -1518,35 +1542,59 @@ export const CalificacionesView: React.FC = () => {
                 <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-28 min-w-28 max-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Ficha</th>
                 <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 max-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para marcar como evaluado">Juicios Evaluativos</th>
 
-                {/* Competencia group headers */}
-                {compGroups.map((g, gi) => (
-                  <th
-                    key={`comp-${gi}`}
-                    colSpan={g.activities.length}
-                    className="px-2 py-1 text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
-                    title={g.compName}
-                  >
-                    <span className="block text-xs font-bold text-indigo-700 truncate" style={{ maxWidth: Math.max(72, g.activities.length * 60) }}>
-                      {g.compCode}
-                    </span>
-                    {g.aaKeys && (
-                      <span className="block text-[10px] text-indigo-400 font-normal truncate">{g.aaKeys}</span>
-                    )}
-                  </th>
-                ))}
-
-                {/* RAP and computed cols – span both rows */}
-                {rapColumnsForFicha.map(key => {
-                  const rapInfo = getRapStaticInfo(key);
-                  return (
-                    <th key={key} rowSpan={2} className="px-3 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[80px]" title={rapInfo ? `${COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}\n${rapInfo.rapName}` : key}>
-                      <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
-                        <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
-                        {rapInfo && <span className="text-[10px] text-gray-400 font-normal leading-tight block truncate max-w-[72px]">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</span>}
-                      </button>
+                {/* Evidence section in Row 1:
+                    - if compGroups: show competencia group headers (colSpan per group)
+                    - else (only rapCompGroups): blank spacer that occupies the evidence columns area */}
+                {compGroups
+                  ? compGroups.map((g, gi) => (
+                    <th
+                      key={`comp-${gi}`}
+                      colSpan={g.activities.length}
+                      className="px-2 py-1 text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
+                      title={g.compName}
+                    >
+                      <span className="block text-xs font-bold text-indigo-700 truncate" style={{ maxWidth: Math.max(72, g.activities.length * 60) }}>
+                        {g.compCode}
+                      </span>
+                      {g.aaKeys && (
+                        <span className="block text-[10px] text-indigo-400 font-normal truncate">{g.aaKeys}</span>
+                      )}
                     </th>
-                  );
-                })}
+                  ))
+                  : visibleActivities.length > 0 && (
+                    <th colSpan={visibleActivities.length} className="bg-gray-50 border-l border-gray-200" />
+                  )
+                }
+
+                {/* RAP section in Row 1:
+                    - if rapCompGroups: show competencia group headers (colSpan per group); RAP cols go in Row 2
+                    - else: RAP cols inline with rowSpan=2 */}
+                {rapCompGroups
+                  ? rapCompGroups.map((g, gi) => (
+                    <th
+                      key={`rap-comp-${gi}`}
+                      colSpan={g.raps.length}
+                      className="px-2 py-1 text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
+                      title={g.compName}
+                    >
+                      <span className="block text-xs font-bold text-indigo-700 truncate" style={{ maxWidth: Math.max(72, g.raps.length * 80) }}>
+                        {g.compCode}
+                      </span>
+                      <span className="block text-[10px] text-indigo-400 font-normal truncate">{g.compName}</span>
+                    </th>
+                  ))
+                  : rapColumnsForFicha.map(key => {
+                    const rapInfo = getRapStaticInfo(key);
+                    return (
+                      <th key={key} rowSpan={2} className="px-3 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[80px]" title={rapInfo ? `${COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}\n${rapInfo.rapName}` : key}>
+                        <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
+                          <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
+                          {rapInfo && <span className="text-[10px] text-gray-400 font-normal leading-tight block truncate max-w-[72px]">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</span>}
+                        </button>
+                      </th>
+                    );
+                  })
+                }
                 {hasActivities && (
                   <>
                     <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center">Pendientes</th>
@@ -1573,10 +1621,10 @@ export const CalificacionesView: React.FC = () => {
               </tr>
             )}
 
-            {/* ── Row 2 (or only row when no compGroups): evidence columns + full sticky when no compGroups ── */}
+            {/* ── Row 2 (or only row when no double header): evidence columns + sticky when single row ── */}
             <tr style={{ height: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-              {/* Sticky cols only rendered here when there is NO competencia group header */}
-              {!compGroups && (
+              {/* Sticky cols only rendered here when there is NO double header row */}
+              {!(compGroups || rapCompGroups) && (
                 <>
                   <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-10 min-w-10 max-w-10 sticky left-0 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <input
@@ -1639,43 +1687,44 @@ export const CalificacionesView: React.FC = () => {
                 );
               })}
 
-              {/* RAP + computed cols only in single-row mode; in dual-row they have rowspan=2 */}
-              {!compGroups && (
+              {/* RAP cols:
+                  - single-row (!compGroups && !rapCompGroups): render here
+                  - rapCompGroups present: render here (Row 1 has comp group headers)
+                  - compGroups only (!rapCompGroups): NOT here (rowSpan=2 from Row 1) */}
+              {(rapCompGroups || !compGroups) && rapColumnsForFicha.map(key => {
+                const rapInfo = getRapStaticInfo(key);
+                return (
+                  <th key={key} className="px-3 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[80px]" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={rapInfo ? `${COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}\n${rapInfo.rapName}` : key}>
+                    <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
+                      <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
+                      {rapInfo && <span className="text-[10px] text-gray-400 font-normal leading-tight block truncate max-w-[72px]">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</span>}
+                    </button>
+                  </th>
+                );
+              })}
+
+              {/* Computed cols: only in single-row mode (otherwise rowSpan=2 from Row 1) */}
+              {!(compGroups || rapCompGroups) && hasActivities && (
                 <>
-                  {rapColumnsForFicha.map(key => {
-                    const rapInfo = getRapStaticInfo(key);
-                    return (
-                      <th key={key} className="px-3 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[80px]" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={rapInfo ? `${COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}\n${rapInfo.rapName}` : key}>
-                        <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
-                          <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
-                          {rapInfo && <span className="text-[10px] text-gray-400 font-normal leading-tight block truncate max-w-[72px]">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</span>}
-                        </button>
-                      </th>
-                    );
-                  })}
-                  {hasActivities && (
-                    <>
-                      <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Pendientes</th>
-                      <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Promedio</th>
-                      <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                        <div className="relative inline-block" ref={finalFilterRef}>
-                          <button type="button" onClick={() => setShowFinalFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none" title="Aprobado (A) solo cuando el aprendiz entrega y aprueba todas las actividades. Clic para filtrar.">
-                            Final<Filter className="w-3.5 h-3.5 text-gray-400" />{finalFilter !== 'all' && <span className="text-indigo-600 text-xs">({finalFilter === 'A' ? 'A' : '-'})</span>}
-                          </button>
-                          {showFinalFilter && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setShowFinalFilter(false)} />
-                              <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                                <button type="button" onClick={() => { setFinalFilter('all'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'all' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
-                                <button type="button" onClick={() => { setFinalFilter('A'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'A' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo A (aprobados)</button>
-                                <button type="button" onClick={() => { setFinalFilter('-'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === '-' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo - (resto)</button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </th>
-                    </>
-                  )}
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Pendientes</th>
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Promedio</th>
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                    <div className="relative inline-block" ref={finalFilterRef}>
+                      <button type="button" onClick={() => setShowFinalFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none" title="Aprobado (A) solo cuando el aprendiz entrega y aprueba todas las actividades. Clic para filtrar.">
+                        Final<Filter className="w-3.5 h-3.5 text-gray-400" />{finalFilter !== 'all' && <span className="text-indigo-600 text-xs">({finalFilter === 'A' ? 'A' : '-'})</span>}
+                      </button>
+                      {showFinalFilter && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowFinalFilter(false)} />
+                          <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                            <button type="button" onClick={() => { setFinalFilter('all'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'all' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                            <button type="button" onClick={() => { setFinalFilter('A'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'A' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo A (aprobados)</button>
+                            <button type="button" onClick={() => { setFinalFilter('-'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === '-' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo - (resto)</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </th>
                 </>
               )}
             </tr>
@@ -2079,49 +2128,80 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
         );
       })()}
 
-      {rapModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setRapModal(null)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Detalle {rapModal.key}</h3>
-              <button onClick={() => setRapModal(null)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <textarea
-                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
-                rows={4}
-                placeholder="Escribe el texto para este RAP..."
-                value={rapModal.text}
-                onChange={(e) => setRapModal({ ...rapModal, text: e.target.value })}
-              />
-              <div className="pt-2 flex space-x-3">
-                <button
-                  onClick={() => setRapModal(null)}
-                  className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200"
-                >
-                  Cancelar
+      {rapModal && (() => {
+        const rapInfo = getRapStaticInfo(rapModal.key);
+        const compName = rapInfo ? (COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode) : null;
+        const rapShort = rapModal.key.replace(/^(\d+)-(\d+)$/, 'RA-$2');
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setRapModal(null)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900">
+                  {rapInfo ? rapShort : rapModal.key}
+                </h3>
+                <button onClick={() => setRapModal(null)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={() => {
-                    const updated = { ...rapNotes };
-                    const fichaNotes = { ...(updated[rapKey] || updated[selectedFicha] || {}) };
-                    fichaNotes[rapModal.key] = rapModal.text.trim();
-                    updated[rapKey] = fichaNotes;
-                    setRapNotes(updated);
-                    saveRapNotes(updated);
-                    setRapModal(null);
-                  }}
-                  className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
-                >
-                  Guardar
-                </button>
+              </div>
+
+              {/* Detail card */}
+              {rapInfo && (
+                <div className="mb-5 rounded-lg bg-indigo-50 border border-indigo-100 divide-y divide-indigo-100">
+                  <div className="flex items-start gap-3 px-4 py-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400 w-24 flex-shrink-0 pt-0.5">Competencia</span>
+                    <div>
+                      <span className="text-xs font-mono font-semibold text-indigo-700">{rapInfo.compCode}</span>
+                      {compName && <p className="text-sm text-gray-700 font-medium mt-0.5">{compName}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 px-4 py-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400 w-24 flex-shrink-0 pt-0.5">RAP ({rapInfo.aaKey})</span>
+                    <div>
+                      <span className="text-xs font-mono font-semibold text-indigo-700">{rapInfo.rapCode}</span>
+                      <p className="text-sm text-gray-700 mt-0.5">{rapInfo.rapName}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes section */}
+              <div className="space-y-3">
+                <label className="block text-xs font-semibold text-gray-600">Notas / Observaciones</label>
+                <textarea
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none text-sm"
+                  rows={4}
+                  placeholder="Escribe notas para este RAP..."
+                  value={rapModal.text}
+                  onChange={(e) => setRapModal({ ...rapModal, text: e.target.value })}
+                />
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setRapModal(null)}
+                    className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      const updated = { ...rapNotes };
+                      const fichaNotes = { ...(updated[rapKey] || updated[selectedFicha] || {}) };
+                      fichaNotes[rapModal.key] = rapModal.text.trim();
+                      updated[rapKey] = fichaNotes;
+                      setRapNotes(updated);
+                      saveRapNotes(updated);
+                      setRapModal(null);
+                    }}
+                    className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium"
+                  >
+                    Guardar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {rapManagerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setRapManagerOpen(false)}>
