@@ -35,6 +35,128 @@ const PASSING_SCORE = 70;
 /** Altura fija de cada fila de la tabla (px) para que coincidan las dos mitades (datos + calificaciones). */
 const TABLE_ROW_HEIGHT_PX = 56;
 
+// ---------------------------------------------------------------------------
+// DATOS ESTÁTICOS DEL CRONOGRAMA PEDAGÓGICO
+// Fuente: docs/cronogramas/Cronograma_*.docx
+// ---------------------------------------------------------------------------
+
+/** Nombres cortos de competencias por código SENA */
+const COMPETENCIA_NAMES: Record<string, string> = {
+  '210201501': 'Ética del trabajo',
+  '220201501': 'Física aplicada',
+  '220501014': 'Seguridad en redes',
+  '220501046': 'Herramientas TIC',
+  '220501091': 'VoIP',
+  '220501104': 'Redes cableadas',
+  '220501105': 'Monitoreo de red',
+  '220501106': 'Servicios de red',
+  '220501107': 'Redes inalámbricas',
+  '220601501': 'SST / Ambiente',
+  '230101507': 'Ed. Física',
+  '240201064': 'Investigación',
+  '240201524': 'Comunicación',
+  '240201526': 'Ética / Proyecto de vida',
+  '240201528': 'Matemáticas',
+  '240201529': 'Emprendimiento',
+  '240202501': 'Inglés',
+};
+
+interface CronogramaRap {
+  rapCode: string;    // "220501014-01"
+  rapName: string;    // Nombre corto del RAP
+  compCode: string;   // "220501014"
+  aaKey: string;      // "AA1"
+}
+
+/** RAPs por fase, en orden del cronograma pedagógico */
+const FASE_RAPS: Record<string, CronogramaRap[]> = {
+  'Fase 1: Análisis': [
+    { rapCode: '220501014-01', rapName: 'Interpretar plan de seguridad de red', compCode: '220501014', aaKey: 'AA1' },
+    { rapCode: '220501046-01', rapName: 'Alistar herramientas TIC', compCode: '220501046', aaKey: 'AA1' },
+    { rapCode: '220501046-02', rapName: 'Aplicar funcionalidades TIC', compCode: '220501046', aaKey: 'AA2' },
+    { rapCode: '220501046-03', rapName: 'Evaluar resultados TIC', compCode: '220501046', aaKey: 'AA3' },
+    { rapCode: '220501046-04', rapName: 'Optimizar resultados TIC', compCode: '220501046', aaKey: 'AA4' },
+    { rapCode: '240202501-01', rapName: 'Comprender información cotidiana/laboral', compCode: '240202501', aaKey: 'AA1' },
+  ],
+  'Fase 2: Planeación': [
+    { rapCode: '220501104-01', rapName: 'Planificar arquitectura red cableada', compCode: '220501104', aaKey: 'AA1' },
+    { rapCode: '220501107-01', rapName: 'Planificar componentes inalámbricos', compCode: '220501107', aaKey: 'AA1' },
+    { rapCode: '240201528-01', rapName: 'Identificar modelos matemáticos', compCode: '240201528', aaKey: 'AA1' },
+    { rapCode: '240201528-02', rapName: 'Plantear problemas matemáticos', compCode: '240201528', aaKey: 'AA2' },
+    { rapCode: '240201528-03', rapName: 'Resolver problemas matemáticos', compCode: '240201528', aaKey: 'AA3' },
+    { rapCode: '240201528-04', rapName: 'Proponer mejoras matemáticas', compCode: '240201528', aaKey: 'AA4' },
+    { rapCode: '240202501-02', rapName: 'Intercambiar opiniones (inglés)', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501091-01', rapName: 'Planificar implementación VoIP', compCode: '220501091', aaKey: 'AA1' },
+    { rapCode: '220501105-01', rapName: 'Planificar plataforma de monitoreo', compCode: '220501105', aaKey: 'AA1' },
+    { rapCode: '220201501-01', rapName: 'Identificar principios de física', compCode: '220201501', aaKey: 'AA1' },
+    { rapCode: '220201501-02', rapName: 'Solucionar problemas de física', compCode: '220201501', aaKey: 'AA2' },
+    { rapCode: '220201501-03', rapName: 'Verificar transformaciones físicas', compCode: '220201501', aaKey: 'AA3' },
+    { rapCode: '220201501-04', rapName: 'Proponer mejoras (física)', compCode: '220201501', aaKey: 'AA4' },
+  ],
+  'Fase 3: Ejecución': [
+    { rapCode: '220501104-02', rapName: 'Configurar equipos activos de interconexión', compCode: '220501104', aaKey: 'AA1' },
+    { rapCode: '220501107-02', rapName: 'Configurar componentes inalámbricos', compCode: '220501107', aaKey: 'AA1' },
+    { rapCode: '220501107-03', rapName: 'Verificar transmisión inalámbrica', compCode: '220501107', aaKey: 'AA1' },
+    { rapCode: '240201524-01', rapName: 'Analizar componentes de comunicación', compCode: '240201524', aaKey: 'AA1' },
+    { rapCode: '240201524-02', rapName: 'Argumentar comunicación oral/escrita', compCode: '240201524', aaKey: 'AA2' },
+    { rapCode: '240201524-03', rapName: 'Relacionar procesos comunicativos', compCode: '240201524', aaKey: 'AA3' },
+    { rapCode: '240201524-04', rapName: 'Enriquecimiento léxico comunicativo', compCode: '240201524', aaKey: 'AA4' },
+    { rapCode: '240202501-03', rapName: 'Discutir soluciones a problemas (inglés)', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501106-01', rapName: 'Configurar hardware y SO para red', compCode: '220501106', aaKey: 'AA1' },
+    { rapCode: '240201064-01', rapName: 'Analizar contexto productivo', compCode: '240201064', aaKey: 'AA1' },
+    { rapCode: '240201064-02', rapName: 'Estructurar proyecto investigativo', compCode: '240201064', aaKey: 'AA2' },
+    { rapCode: '240201064-03', rapName: 'Argumentar aspectos teóricos', compCode: '240201064', aaKey: 'AA2' },
+    { rapCode: '240201064-04', rapName: 'Proponer soluciones investigativas', compCode: '240201064', aaKey: 'AA2' },
+    { rapCode: '240202501-04', rapName: 'Implementar mejoras lingüísticas (inglés)', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501091-02', rapName: 'Configurar equipos y software VoIP', compCode: '220501091', aaKey: 'AA1' },
+    { rapCode: '240202501-05', rapName: 'Presentar procesos laborales (inglés)', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501105-02', rapName: 'Implementar sistemas de monitoreo', compCode: '220501105', aaKey: 'AA1' },
+    { rapCode: '220501014-02', rapName: 'Implementar plan de seguridad', compCode: '220501014', aaKey: 'AA1' },
+    { rapCode: '230101507-01', rapName: 'Desarrollar habilidades psicomotrices', compCode: '230101507', aaKey: 'AA1' },
+    { rapCode: '230101507-02', rapName: 'Practicar hábitos saludables', compCode: '230101507', aaKey: 'AA2' },
+    { rapCode: '230101507-03', rapName: 'Ejecutar acondicionamiento físico', compCode: '230101507', aaKey: 'AA3' },
+    { rapCode: '230101507-04', rapName: 'Implementar ergonomía y pausas activas', compCode: '230101507', aaKey: 'AA4' },
+    { rapCode: '240202501-06', rapName: 'Explicar funciones ocupación (inglés)', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501106-02', rapName: 'Implementar servicios de red', compCode: '220501106', aaKey: 'AA1' },
+  ],
+  'Fase 4: Evaluación': [
+    { rapCode: '220501104-03', rapName: 'Verificar funcionamiento equipos activos', compCode: '220501104', aaKey: 'AA1' },
+    { rapCode: '220501104-04', rapName: 'Gestionar equipos activos de red', compCode: '220501104', aaKey: 'AA2' },
+    { rapCode: '220501107-04', rapName: 'Validar parámetros certificación inalámbrica', compCode: '220501107', aaKey: 'AA1' },
+    { rapCode: '220601501-01', rapName: 'Analizar estrategias SST/ambiental', compCode: '220601501', aaKey: 'AA1' },
+    { rapCode: '220601501-02', rapName: 'Implementar estrategias SST/ambiente', compCode: '220601501', aaKey: 'AA2' },
+    { rapCode: '220601501-03', rapName: 'Seguimiento a planes SST/ambiente', compCode: '220601501', aaKey: 'AA3' },
+    { rapCode: '220601501-04', rapName: 'Proponer mejoras SST/ambiente', compCode: '220601501', aaKey: 'AA4' },
+    { rapCode: '220501106-03', rapName: 'Verificar dispositivos y servicios de red', compCode: '220501106', aaKey: 'AA1' },
+    { rapCode: '220501106-04', rapName: 'Gestionar dispositivos y servicios', compCode: '220501106', aaKey: 'AA2' },
+    { rapCode: '220501091-03', rapName: 'Verificar equipos y software VoIP', compCode: '220501091', aaKey: 'AA1' },
+    { rapCode: '220501091-04', rapName: 'Gestionar equipos y software VoIP', compCode: '220501091', aaKey: 'AA2' },
+    { rapCode: '240201529-01', rapName: 'Integrar cultura emprendedora', compCode: '240201529', aaKey: 'AA1' },
+    { rapCode: '240201529-02', rapName: 'Caracterizar idea de negocio', compCode: '240201529', aaKey: 'AA2' },
+    { rapCode: '240201529-03', rapName: 'Estructurar plan de negocio', compCode: '240201529', aaKey: 'AA3' },
+    { rapCode: '240201529-04', rapName: 'Valorar propuesta de negocio', compCode: '240201529', aaKey: 'AA4' },
+    { rapCode: '220501014-03', rapName: 'Verificar eventos de seguridad en red', compCode: '220501014', aaKey: 'AA1' },
+    { rapCode: '220501014-04', rapName: 'Gestionar seguridad en red', compCode: '220501014', aaKey: 'AA2' },
+    { rapCode: '210201501-01', rapName: 'Reconocer el trabajo (movilidad social)', compCode: '210201501', aaKey: 'AA1' },
+    { rapCode: '210201501-02', rapName: 'Valorar ciudadanía laboral', compCode: '210201501', aaKey: 'AA2' },
+    { rapCode: '210201501-03', rapName: 'Practicar derechos fundamentales', compCode: '210201501', aaKey: 'AA3' },
+    { rapCode: '210201501-04', rapName: 'Participar en acciones solidarias', compCode: '210201501', aaKey: 'AA4' },
+    { rapCode: '220501105-03', rapName: 'Monitorear infraestructura de red', compCode: '220501105', aaKey: 'AA1' },
+    { rapCode: '220501105-04', rapName: 'Gestionar recursos con herramientas de monitoreo', compCode: '220501105', aaKey: 'AA1' },
+    { rapCode: '240201526-01', rapName: 'Promover dignidad (ética)', compCode: '240201526', aaKey: 'AA1' },
+    { rapCode: '240201526-02', rapName: 'Establecer relaciones comunitarias', compCode: '240201526', aaKey: 'AA2' },
+    { rapCode: '240201526-03', rapName: 'Promover uso racional de recursos', compCode: '240201526', aaKey: 'AA3' },
+    { rapCode: '240201526-04', rapName: 'Contribuir a la cultura de paz', compCode: '240201526', aaKey: 'AA4' },
+  ],
+};
+
+/** Mapa de rapCode → info para búsqueda rápida */
+const RAP_LOOKUP = new Map<string, CronogramaRap>();
+Object.values(FASE_RAPS).forEach(raps => raps.forEach(r => RAP_LOOKUP.set(r.rapCode, r)));
+
+/** Devuelve la info estática de un RAP dado su código ("220501014-01") */
+const getRapStaticInfo = (rapCode: string): CronogramaRap | undefined => RAP_LOOKUP.get(rapCode);
+
 const normalizeText = (value: string) =>
   value
     .toLowerCase()
@@ -389,6 +511,23 @@ export const CalificacionesView: React.FC = () => {
     }
   }, [studentDetailModal]);
 
+  // Auto-inicializar columnas RAP desde el cronograma cuando son genéricas o vacías
+  useEffect(() => {
+    if (selectedFicha === 'Todas') return;
+    const key = `${selectedFicha}::${selectedPhase}`;
+    const existing = rapColumns[key] || rapColumns[selectedFicha] || [];
+    const isGenericOrEmpty =
+      existing.length === 0 || existing.every(r => /^RAP\s*\d+$/i.test(r.trim()));
+    if (!isGenericOrEmpty) return;
+
+    const phaseRaps = FASE_RAPS[selectedPhase];
+    if (!phaseRaps || phaseRaps.length === 0) return;
+
+    const rapCodes = phaseRaps.map(r => r.rapCode);
+    const current = getRapColumns();
+    saveRapColumns({ ...current, [key]: rapCodes });
+  }, [selectedFicha, selectedPhase]);
+
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedFicha, selectedPhase, searchTerm, finalFilter, filterStatus, sortOrder, sortDirection]);
@@ -551,7 +690,7 @@ export const CalificacionesView: React.FC = () => {
       const evKey = getCanonicalEvidenceKey(activity.detail || activity.name);
       const info = merged[evKey];
       const compCode = info?.competenciaCode || '__ungrouped__';
-      const compName = info?.competenciaName || compCode;
+      const compName = COMPETENCIA_NAMES[compCode] || info?.competenciaName || compCode;
 
       if (compCode !== currentCode) {
         currentCode = compCode;
@@ -1116,11 +1255,14 @@ export const CalificacionesView: React.FC = () => {
         const rawName = detail || activity.detail || activity.name;
         const info = parseCompetenciaInfoFromName(rawName);
         if (info) {
+          const staticRap = FASE_RAPS[selectedPhase]?.find(
+            r => r.compCode === info.competenciaCode && r.aaKey === info.aaKey.toUpperCase()
+          );
           byEvKey[canonicalKey] = {
             competenciaCode: info.competenciaCode,
-            competenciaName: info.competenciaCode,
+            competenciaName: COMPETENCIA_NAMES[info.competenciaCode] || info.competenciaCode,
             aaKey: info.aaKey,
-            aaName: info.aaKey,
+            aaName: staticRap?.rapName || info.aaKey,
           };
           if (!seenComps.includes(info.competenciaCode)) seenComps.push(info.competenciaCode);
         }
@@ -1394,11 +1536,17 @@ export const CalificacionesView: React.FC = () => {
                 ))}
 
                 {/* RAP and computed cols – span both rows */}
-                {rapColumnsForFicha.map(key => (
-                  <th key={key} rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center">
-                    <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted">{key}</button>
-                  </th>
-                ))}
+                {rapColumnsForFicha.map(key => {
+                  const rapInfo = getRapStaticInfo(key);
+                  return (
+                    <th key={key} rowSpan={2} className="px-3 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[80px]" title={rapInfo ? `${COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}\n${rapInfo.rapName}` : key}>
+                      <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
+                        <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
+                        {rapInfo && <span className="text-[10px] text-gray-400 font-normal leading-tight block truncate max-w-[72px]">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</span>}
+                      </button>
+                    </th>
+                  );
+                })}
                 {hasActivities && (
                   <>
                     <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center">Pendientes</th>
@@ -1494,11 +1642,17 @@ export const CalificacionesView: React.FC = () => {
               {/* RAP + computed cols only in single-row mode; in dual-row they have rowspan=2 */}
               {!compGroups && (
                 <>
-                  {rapColumnsForFicha.map(key => (
-                    <th key={key} className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                      <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted">{key}</button>
-                    </th>
-                  ))}
+                  {rapColumnsForFicha.map(key => {
+                    const rapInfo = getRapStaticInfo(key);
+                    return (
+                      <th key={key} className="px-3 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[80px]" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={rapInfo ? `${COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}\n${rapInfo.rapName}` : key}>
+                        <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
+                          <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
+                          {rapInfo && <span className="text-[10px] text-gray-400 font-normal leading-tight block truncate max-w-[72px]">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</span>}
+                        </button>
+                      </th>
+                    );
+                  })}
                   {hasActivities && (
                     <>
                       <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Pendientes</th>
@@ -1861,15 +2015,22 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                         </tr>
                       );
                     })}
-                    {rapColumnsForFicha.map(key => (
+                    {rapColumnsForFicha.map(key => {
+                      const rapInfo = getRapStaticInfo(key);
+                      return (
                       <tr key={key}>
-                        <td className="px-3 py-2 text-gray-900">{key}</td>
+                        <td className="px-3 py-2 text-gray-900">
+                          <div className="font-medium text-xs">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</div>
+                          {rapInfo && <div className="text-[11px] text-gray-500 leading-tight">{rapInfo.rapName}</div>}
+                          {rapInfo && <div className="text-[10px] text-indigo-400">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</div>}
+                        </td>
                         <td className="px-3 py-2 text-right">-</td>
                         <td className="px-3 py-2 text-center">
                           {rapLetter === '-' ? '-' : <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">A</span>}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                     {visibleActivities.length > 0 && (
                       <>
                         <tr className="bg-gray-50 font-medium">
