@@ -1589,7 +1589,7 @@ export const CalificacionesView: React.FC = () => {
                       <th key={key} rowSpan={2} className="px-3 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[80px]" title={rapInfo ? `${COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}\n${rapInfo.rapName}` : key}>
                         <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
                           <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
-                          {rapInfo && <span className="text-[10px] text-gray-400 font-normal leading-tight block truncate max-w-[72px]">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</span>}
+                          {rapInfo && <span className="text-[10px] text-gray-400 font-normal leading-tight block whitespace-normal">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</span>}
                         </button>
                       </th>
                     );
@@ -2024,7 +2024,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
         const rapLetter = final.letter === 'A' ? 'A' : '-';
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setStudentDetailModal(null)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
               <h3 className="text-lg font-bold text-gray-900">Detalle del aprendiz</h3>
               <button onClick={() => setStudentDetailModal(null)} className="text-gray-400 hover:text-gray-600">
@@ -2038,70 +2038,104 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
               <div><span className="font-medium text-gray-500">Correo:</span> <span className="text-gray-900">{studentDetailModal.email || '-'}</span></div>
               <div><span className="font-medium text-gray-500">Ficha:</span> <span className="text-gray-900">{studentDetailModal.group || 'General'}</span></div>
             </div>
-            <div className="mt-4 flex-shrink-0">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Calificaciones</h4>
-              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2 font-medium text-gray-600">Actividad</th>
-                      <th className="px-3 py-2 font-medium text-gray-600 text-right w-20">Nota</th>
-                      <th className="px-3 py-2 font-medium text-gray-600 text-center w-14">Letra</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {visibleActivities.map(activity => {
-                      const grade = gradeMap.get(`${sid}-${activity.id}`);
-                      return (
-                        <tr key={activity.id}>
-                          <td className="px-3 py-2 text-gray-900">{getActivityShortLabel(activity.name)}</td>
-                          <td className="px-3 py-2 text-right font-medium">{grade ? grade.score : '-'}</td>
-                          <td className="px-3 py-2 text-center">
-                            {grade ? (
-                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${grade.letter === 'A' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{grade.letter}</span>
-                            ) : '-'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {rapColumnsForFicha.map(key => {
-                      const rapInfo = getRapStaticInfo(key);
-                      return (
-                      <tr key={key}>
-                        <td className="px-3 py-2 text-gray-900">
-                          <div className="font-medium text-xs">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</div>
-                          {rapInfo && <div className="text-[11px] text-gray-500 leading-tight">{rapInfo.rapName}</div>}
-                          {rapInfo && <div className="text-[10px] text-indigo-400">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</div>}
-                        </td>
-                        <td className="px-3 py-2 text-right">-</td>
-                        <td className="px-3 py-2 text-center">
-                          {rapLetter === '-' ? '-' : <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">A</span>}
-                        </td>
-                      </tr>
-                      );
-                    })}
-                    {visibleActivities.length > 0 && (
-                      <>
-                        <tr className="bg-gray-50 font-medium">
-                          <td className="px-3 py-2 text-gray-900">Pendientes</td>
-                          <td className="px-3 py-2 text-center" colSpan={2}>{final.pending}</td>
-                        </tr>
-                        <tr className="bg-gray-50 font-medium">
-                          <td className="px-3 py-2 text-gray-900">Promedio</td>
-                          <td className="px-3 py-2 text-center font-medium" colSpan={2}>{final.score !== null ? Number(final.score).toFixed(2) : '-'}</td>
-                        </tr>
-                        <tr className="bg-gray-50 font-medium">
-                          <td className="px-3 py-2 text-gray-900">FINAL</td>
-                          <td className="px-3 py-2 text-center" colSpan={2}>
-                            {final.letter === 'A' ? <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">A</span> : '-'}
-                          </td>
-                        </tr>
-                      </>
-                    )}
-                  </tbody>
-                </table>
+            {/* ── Summary (always visible) ── */}
+            {visibleActivities.length > 0 && (
+              <div className="mt-4 flex-shrink-0 grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-center">
+                  <div className="text-[10px] font-semibold uppercase text-gray-400 tracking-wide">Pendientes</div>
+                  <div className="text-lg font-bold text-gray-800 mt-0.5">{final.pending}</div>
+                </div>
+                <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-center">
+                  <div className="text-[10px] font-semibold uppercase text-gray-400 tracking-wide">Promedio</div>
+                  <div className="text-lg font-bold text-gray-800 mt-0.5">
+                    {final.score !== null ? Number(final.score).toFixed(1) : '-'}
+                  </div>
+                </div>
+                <div className="rounded-lg border px-3 py-2 text-center flex flex-col items-center justify-center gap-0.5"
+                  style={{ borderColor: final.letter === 'A' ? '#bbf7d0' : '#e5e7eb', backgroundColor: final.letter === 'A' ? '#f0fdf4' : '#f9fafb' }}>
+                  <div className="text-[10px] font-semibold uppercase text-gray-400 tracking-wide">FINAL</div>
+                  {final.letter === 'A'
+                    ? <span className="text-sm font-bold px-3 py-0.5 rounded-full bg-green-100 text-green-700">A</span>
+                    : <span className="text-lg font-bold text-gray-400">–</span>}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* ── Calificaciones (evidencias) ── */}
+            {visibleActivities.length > 0 && (
+              <div className="mt-3 flex-shrink-0">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Evidencias</h4>
+                <div className="border border-gray-200 rounded-lg overflow-hidden max-h-36 overflow-y-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-1.5 font-medium text-gray-600 text-xs">Actividad</th>
+                        <th className="px-3 py-1.5 font-medium text-gray-600 text-right text-xs w-16">Nota</th>
+                        <th className="px-3 py-1.5 font-medium text-gray-600 text-center text-xs w-12">Letra</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {visibleActivities.map(activity => {
+                        const grade = gradeMap.get(`${sid}-${activity.id}`);
+                        return (
+                          <tr key={activity.id}>
+                            <td className="px-3 py-1.5 text-gray-900 text-xs">{getActivityShortLabel(activity.name)}</td>
+                            <td className="px-3 py-1.5 text-right font-medium text-xs">{grade ? grade.score : '-'}</td>
+                            <td className="px-3 py-1.5 text-center">
+                              {grade ? (
+                                <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${grade.letter === 'A' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{grade.letter}</span>
+                              ) : <span className="text-gray-400 text-xs">-</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── RAPs ── */}
+            {rapColumnsForFicha.length > 0 && (
+              <div className="mt-3 flex-shrink-0">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                  Resultados de Aprendizaje
+                  {rapLetter === 'A' && <span className="ml-2 text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">A</span>}
+                </h4>
+                <div className="border border-gray-200 rounded-lg overflow-hidden max-h-36 overflow-y-auto">
+                  <table className="w-full text-left text-sm">
+                    <tbody className="divide-y divide-gray-100">
+                      {rapColumnsForFicha.map(key => {
+                        const rapInfo = getRapStaticInfo(key);
+                        return (
+                          <tr key={key}>
+                            <td className="px-3 py-2 text-gray-900">
+                              <div className="flex items-start gap-1.5">
+                                <span className="text-[10px] font-bold text-indigo-400 bg-indigo-50 rounded px-1 py-0.5 mt-0.5 flex-shrink-0 font-mono">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
+                                <div>
+                                  {rapInfo
+                                    ? <>
+                                        <div className="text-xs font-semibold text-gray-800 leading-snug">{rapInfo.rapName}</div>
+                                        <div className="text-[10px] text-indigo-500 mt-0.5">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</div>
+                                      </>
+                                    : <div className="text-xs text-gray-600">{key}</div>
+                                  }
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-center w-14">
+                              {rapLetter === 'A'
+                                ? <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">A</span>
+                                : <span className="text-gray-400 text-xs">-</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             <div className="mt-4 flex-shrink-0">
               <h4 className="text-sm font-semibold text-gray-700 mb-2">Observaciones</h4>
               <textarea
@@ -2136,11 +2170,20 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setRapModal(null)}>
             <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
               {/* Header */}
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-900">
-                  {rapInfo ? rapShort : rapModal.key}
-                </h3>
-                <button onClick={() => setRapModal(null)} className="text-gray-400 hover:text-gray-600">
+              <div className="flex justify-between items-start mb-4 gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-xs font-mono font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">{rapShort}</span>
+                    {rapInfo && <span className="text-[11px] text-gray-400 font-mono">{rapInfo.rapCode}</span>}
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900 leading-snug">
+                    {rapInfo ? rapInfo.rapName : rapModal.key}
+                  </h3>
+                  {compName && (
+                    <p className="text-sm text-indigo-600 font-medium mt-0.5">{compName}</p>
+                  )}
+                </div>
+                <button onClick={() => setRapModal(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 mt-0.5">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -2149,17 +2192,17 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
               {rapInfo && (
                 <div className="mb-5 rounded-lg bg-indigo-50 border border-indigo-100 divide-y divide-indigo-100">
                   <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400 w-24 flex-shrink-0 pt-0.5">Competencia</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400 w-28 flex-shrink-0 pt-0.5">Competencia</span>
                     <div>
-                      <span className="text-xs font-mono font-semibold text-indigo-700">{rapInfo.compCode}</span>
-                      {compName && <p className="text-sm text-gray-700 font-medium mt-0.5">{compName}</p>}
+                      <span className="text-xs font-mono text-indigo-500">{rapInfo.compCode}</span>
+                      {compName && <p className="text-sm text-gray-800 font-semibold mt-0.5 leading-snug">{compName}</p>}
                     </div>
                   </div>
                   <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400 w-24 flex-shrink-0 pt-0.5">RAP ({rapInfo.aaKey})</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400 w-28 flex-shrink-0 pt-0.5">RAP · {rapInfo.aaKey}</span>
                     <div>
-                      <span className="text-xs font-mono font-semibold text-indigo-700">{rapInfo.rapCode}</span>
-                      <p className="text-sm text-gray-700 mt-0.5">{rapInfo.rapName}</p>
+                      <span className="text-xs font-mono text-indigo-500">{rapInfo.rapCode}</span>
+                      <p className="text-sm text-gray-800 font-semibold mt-0.5 leading-snug">{rapInfo.rapName}</p>
                     </div>
                   </div>
                 </div>
