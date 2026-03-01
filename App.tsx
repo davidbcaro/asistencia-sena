@@ -11,6 +11,7 @@ import { FichasView } from './views/FichasView';
 import { SettingsView } from './views/SettingsView';
 import { StudentAttendanceView } from './views/StudentAttendanceView';
 import { CalificacionesView } from './views/CalificacionesView';
+import { SofiaPlusView } from './views/SofiaPlusView';
 import { CronogramaView } from './views/CronogramaView';
 import { AsistenciaLmsView } from './views/AsistenciaLmsView';
 import { DebidoProcesoView } from './views/DebidoProcesoView';
@@ -27,6 +28,7 @@ const instructorRouteToTab: Record<string, string> = {
   alerts: 'alerts',
   settings: 'settings',
   grades: 'grades',
+  'sofia-plus': 'sofia-plus',
 };
 
 const getActiveTabFromPath = (pathname: string) => {
@@ -143,6 +145,7 @@ const App: React.FC = () => {
         <Route path="attendance" element={<AttendanceView />} />
         <Route path="reports" element={<ReportsView />} />
         <Route path="grades" element={<CalificacionesView />} />
+        <Route path="sofia-plus" element={<SofiaPlusView />} />
         <Route path="alerts" element={<AlertsView />} />
         <Route path="settings" element={<SettingsView />} />
       </Route>
