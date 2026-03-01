@@ -23,6 +23,7 @@ const STORAGE_KEYS = {
   SOFIA_JUICIO_ENTRIES: 'asistenciapro_sofia_juicio_entries',
   SOFIA_JUICIO_HISTORY: 'asistenciapro_sofia_juicio_history',
   SOFIA_STUDENT_ESTADOS: 'asistenciapro_sofia_student_estados',
+  EVIDENCE_COMP_MAP: 'asistenciapro_evidence_comp_map',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -1327,6 +1328,40 @@ export const upsertSofiaStudentEstados = (map: Record<string, string>) => {
   notifyChange();
 };
 
+// ---------------------------------------------------------------------------
+// Evidence → Competencia mapping (for CalificacionesView double header)
+// ---------------------------------------------------------------------------
+
+/** Per-evidence entry with competencia and AA (RAP) info extracted from Excel columns */
+export type EvCompEntry = {
+  competenciaCode: string;  // e.g., "220501014"
+  competenciaName: string;  // display name (same as code initially)
+  aaKey: string;            // e.g., "AA1"
+  aaName: string;           // display name (same as aaKey initially)
+};
+
+/** Full map stored in localStorage.
+ *  Key = "fichaCode::phase" (or "" for all-fichas)
+ */
+export type EvidenceCompMapData = Record<string, {
+  byEvKey: Record<string, EvCompEntry>;  // canonicalEvidenceKey → comp entry
+  compOrder: string[];                    // ordered competencia codes
+}>;
+
+export const getEvidenceCompMap = (): EvidenceCompMapData => {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.EVIDENCE_COMP_MAP);
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+};
+
+export const saveEvidenceCompMap = (map: EvidenceCompMapData) => {
+  localStorage.setItem(STORAGE_KEYS.EVIDENCE_COMP_MAP, JSON.stringify(map));
+  notifyChange();
+};
+
 export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.STUDENTS);
     localStorage.removeItem(STORAGE_KEYS.ATTENDANCE);
@@ -1347,6 +1382,7 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.SOFIA_JUICIO_ENTRIES);
     localStorage.removeItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY);
     localStorage.removeItem(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS);
+    localStorage.removeItem(STORAGE_KEYS.EVIDENCE_COMP_MAP);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };

@@ -26,7 +26,10 @@ import {
   updateGradeActivity,
   updateStudent,
   upsertGrades,
+  getEvidenceCompMap,
+  saveEvidenceCompMap,
 } from '../services/db';
+import type { EvidenceCompMapData, EvCompEntry } from '../services/db';
 
 const PASSING_SCORE = 70;
 /** Altura fija de cada fila de la tabla (px) para que coincidan las dos mitades (datos + calificaciones). */
@@ -192,6 +195,7 @@ export const CalificacionesView: React.FC = () => {
   const [activityDetailModal, setActivityDetailModal] = useState<GradeActivity | null>(null);
   const [activityDetailText, setActivityDetailText] = useState('');
   const [studentDetailModal, setStudentDetailModal] = useState<Student | null>(null);
+  const [evidenceCompMap, setEvidenceCompMap] = useState<EvidenceCompMapData>({});
   const [studentDetailObservation, setStudentDetailObservation] = useState('');
   const activityNameRef = useRef<HTMLTextAreaElement | null>(null);
   const selectedFichaRef = useRef<string>('');
@@ -239,6 +243,7 @@ export const CalificacionesView: React.FC = () => {
     setRapNotes(loadedRapNotes);
     setRapColumns(loadedRapColumns);
     setJuiciosEvaluativos(loadedJuicios);
+    setEvidenceCompMap(getEvidenceCompMap());
     if (loadedFichas.length > 0 && selectedFichaRef.current === '') {
       setSelectedFicha('Todas');
     }
@@ -492,6 +497,79 @@ export const CalificacionesView: React.FC = () => {
     });
     return map;
   }, [grades]);
+
+  /** Key used to look up competencia mapping for current ficha+phase */
+  const evidenceMapKey = showAllFichasColumns ? '' : `${selectedFicha}::${selectedPhase}`;
+
+  /** Helper: get the EvCompEntry for an activity (handles all-fichas fallback) */
+  const getEvCompEntry = (activity: GradeActivity): EvCompEntry | undefined => {
+    const evKey = getCanonicalEvidenceKey(activity.detail || activity.name);
+    // Try specific ficha+phase key first, then all-fichas key ('')
+    return (
+      evidenceCompMap[`${activity.group || selectedFicha}::${activity.phase || selectedPhase}`]?.byEvKey?.[evKey] ??
+      evidenceCompMap[evidenceMapKey]?.byEvKey?.[evKey] ??
+      evidenceCompMap['']?.byEvKey?.[evKey]
+    );
+  };
+
+  /** Competencia groups derived from visible activities + evidenceCompMap.
+   *  Returns null when no mapping exists (fall back to single-row header). */
+  const compGroups = useMemo<Array<{ compCode: string; compName: string; aaKeys: string; activities: GradeActivity[] }> | null>(() => {
+    // Collect all mapping sources relevant to the current view
+    const mappingSources: Array<Record<string, EvCompEntry>> = [];
+    if (evidenceCompMap[evidenceMapKey]?.byEvKey) {
+      mappingSources.push(evidenceCompMap[evidenceMapKey].byEvKey);
+    }
+    if (showAllFichasColumns) {
+      // Gather mappings from all fichas for current phase
+      fichas.forEach(f => {
+        const k = `${f.code}::${selectedPhase}`;
+        if (evidenceCompMap[k]?.byEvKey) mappingSources.push(evidenceCompMap[k].byEvKey);
+      });
+    }
+    if (mappingSources.length === 0 && evidenceCompMap['']?.byEvKey) {
+      mappingSources.push(evidenceCompMap[''].byEvKey);
+    }
+    if (mappingSources.length === 0) return null;
+
+    // Merge all sources into one lookup
+    const merged: Record<string, EvCompEntry> = {};
+    mappingSources.forEach(src => Object.assign(merged, src));
+
+    // Check if any visible activity has a comp entry
+    const hasAnyMapping = visibleActivities.some(a => {
+      const evKey = getCanonicalEvidenceKey(a.detail || a.name);
+      return !!merged[evKey];
+    });
+    if (!hasAnyMapping) return null;
+
+    // Build groups maintaining order of visibleActivities
+    const groups: Array<{ compCode: string; compName: string; aaKeys: string; activities: GradeActivity[] }> = [];
+    let currentCode: string | null = null;
+
+    visibleActivities.forEach(activity => {
+      const evKey = getCanonicalEvidenceKey(activity.detail || activity.name);
+      const info = merged[evKey];
+      const compCode = info?.competenciaCode || '__ungrouped__';
+      const compName = info?.competenciaName || compCode;
+
+      if (compCode !== currentCode) {
+        currentCode = compCode;
+        groups.push({ compCode, compName, aaKeys: '', activities: [] });
+      }
+      const g = groups[groups.length - 1];
+      g.activities.push(activity);
+      // Collect unique AA keys for subtitle
+      if (info?.aaKey) {
+        const existing = g.aaKeys ? g.aaKeys.split(', ') : [];
+        if (!existing.includes(info.aaKey)) {
+          g.aaKeys = [...existing, info.aaKey].filter(Boolean).join(', ');
+        }
+      }
+    });
+
+    return groups.length > 0 ? groups : null;
+  }, [evidenceCompMap, evidenceMapKey, visibleActivities, fichas, selectedPhase, showAllFichasColumns]);
 
   const getFinalForStudent = (studentId: string, studentGroup?: string) => {
     const totalActivities = visibleActivities.length;
@@ -1020,6 +1098,45 @@ export const CalificacionesView: React.FC = () => {
       });
 
       upsertGrades(entries);
+
+      // -----------------------------------------------------------------------
+      // Extract and persist competencia / AA mapping from Excel column names.
+      // Columns follow the pattern: GA#-<competenciaCode>-AA#-EV##
+      // -----------------------------------------------------------------------
+      const parseCompetenciaInfoFromName = (baseName: string): { competenciaCode: string; aaKey: string } | null => {
+        const match = baseName.match(/GA\d+-(\d+)-(AA\d+)-EV\d+/i);
+        if (match) return { competenciaCode: match[1], aaKey: match[2].toUpperCase() };
+        return null;
+      };
+
+      const byEvKey: Record<string, EvCompEntry> = {};
+      const seenComps: string[] = [];
+
+      activityColumns.forEach(({ activity, detail }, canonicalKey) => {
+        const rawName = detail || activity.detail || activity.name;
+        const info = parseCompetenciaInfoFromName(rawName);
+        if (info) {
+          byEvKey[canonicalKey] = {
+            competenciaCode: info.competenciaCode,
+            competenciaName: info.competenciaCode,
+            aaKey: info.aaKey,
+            aaName: info.aaKey,
+          };
+          if (!seenComps.includes(info.competenciaCode)) seenComps.push(info.competenciaCode);
+        }
+      });
+
+      if (Object.keys(byEvKey).length > 0) {
+        const compMappingKey = isAllFichas ? '' : `${selectedFicha}::${selectedPhase}`;
+        const existingCompMap = getEvidenceCompMap();
+        const existingEntry = existingCompMap[compMappingKey] || { byEvKey: {}, compOrder: [] };
+        const mergedByEvKey = { ...existingEntry.byEvKey, ...byEvKey };
+        // Preserve existing order; append new codes at end
+        const mergedOrder = [...existingEntry.compOrder];
+        seenComps.forEach(c => { if (!mergedOrder.includes(c)) mergedOrder.push(c); });
+        saveEvidenceCompMap({ ...existingCompMap, [compMappingKey]: { byEvKey: mergedByEvKey, compOrder: mergedOrder } });
+      }
+
       const infoParts = [];
       infoParts.push(`Se actualizaron ${entries.length} calificaciones.`);
       if (unmatched.length > 0) {
@@ -1213,117 +1330,198 @@ export const CalificacionesView: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
         <table className="w-full text-left min-w-[900px] border-collapse">
           <thead className="bg-gray-50 border-b border-gray-200">
-            <tr style={{ height: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-              <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-10 min-w-10 max-w-10 sticky left-0 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                <input
-                  type="checkbox"
-                  checked={paginatedStudentsFiltered.length > 0 && paginatedStudentsFiltered.every(s => selectedStudents.has(s.id))}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                />
-              </th>
-              <th className="px-4 py-4 font-semibold text-gray-600 text-xs font-mono w-10 min-w-10 max-w-10 sticky left-10 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>No</th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-32 min-w-32 max-w-32 sticky left-20 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Documento</th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[208px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                <button
-                  type="button"
-                  onClick={() => handleSort('firstname')}
-                  className={`inline-flex items-center gap-1 hover:text-indigo-700 ${
-                    sortOrder === 'firstname' ? 'text-indigo-700' : ''
-                  }`}
-                >
-                  Nombres
-                  {sortOrder === 'firstname' && (
-                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </button>
-              </th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                <button
-                  type="button"
-                  onClick={() => handleSort('lastname')}
-                  className={`inline-flex items-center gap-1 hover:text-indigo-700 ${
-                    sortOrder === 'lastname' ? 'text-indigo-700' : ''
-                  }`}
-                >
-                  Apellidos
-                  {sortOrder === 'lastname' && (
-                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </button>
-              </th>
-              <th className={`px-4 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowStatusFilter(prev => !prev)}
-                    className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none whitespace-nowrap"
-                    title="Filtrar por estado"
-                  >
-                    Estado
-                    <Filter className="w-3.5 h-3.5 text-gray-400" />
-                    {filterStatus !== 'Todos' && (
-                      <span className="text-indigo-600 text-xs">({filterStatus})</span>
-                    )}
+            {/* ── Row 1 (competencia groups) – only rendered when mapping exists ── */}
+            {compGroups && (
+              <tr style={{ height: 36 }}>
+                {/* Sticky identity cols – span both rows */}
+                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-10 min-w-10 max-w-10 sticky left-0 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden">
+                  <input
+                    type="checkbox"
+                    checked={paginatedStudentsFiltered.length > 0 && paginatedStudentsFiltered.every(s => selectedStudents.has(s.id))}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                </th>
+                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-xs font-mono w-10 min-w-10 max-w-10 sticky left-10 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden">No</th>
+                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-32 min-w-32 max-w-32 sticky left-20 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Documento</th>
+                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[208px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">
+                  <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 ${sortOrder === 'firstname' ? 'text-indigo-700' : ''}`}>
+                    Nombres{sortOrder === 'firstname' && <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                   </button>
-                  {showStatusFilter && (
-                    <>
-                      <div className="fixed inset-0 z-[99]" onClick={() => setShowStatusFilter(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-[100] py-1">
-                        <button type="button" onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos los Estados</button>
-                        <button type="button" onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Formación</button>
-                        <button type="button" onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Cancelado</button>
-                        <button type="button" onClick={() => { setFilterStatus('Retiro Voluntario'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Retiro Voluntario</button>
-                        <button type="button" onClick={() => { setFilterStatus('Deserción'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Deserción</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 max-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
-              <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 max-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para marcar como evaluado">Juicios Evaluativos</th>
-              {visibleActivities.map(activity => (
-                <th key={activity.id} className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                  <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => openActivityDetail(activity)} className="hover:text-gray-900 underline decoration-dotted">{getActivityShortLabel(activity.name)}</button>
-                    <button onClick={() => openEditActivity(activity)} className="text-gray-400 hover:text-indigo-600" title="Editar actividad"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => setActivityToDelete(activity)} className="text-gray-400 hover:text-red-600" title="Eliminar actividad"><Trash2 className="w-3.5 h-3.5" /></button>
+                </th>
+                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">
+                  <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 ${sortOrder === 'lastname' ? 'text-indigo-700' : ''}`}>
+                    Apellidos{sortOrder === 'lastname' && <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                  </button>
+                </th>
+                <th rowSpan={2} className={`px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`}>
+                  <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
+                    <button type="button" onClick={() => setShowStatusFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none whitespace-nowrap" title="Filtrar por estado">
+                      Estado<Filter className="w-3.5 h-3.5 text-gray-400" />{filterStatus !== 'Todos' && <span className="text-indigo-600 text-xs">({filterStatus})</span>}
+                    </button>
+                    {showStatusFilter && (
+                      <>
+                        <div className="fixed inset-0 z-[99]" onClick={() => setShowStatusFilter(false)} />
+                        <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-[100] py-1">
+                          <button type="button" onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos los Estados</button>
+                          <button type="button" onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Formación</button>
+                          <button type="button" onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Cancelado</button>
+                          <button type="button" onClick={() => { setFilterStatus('Retiro Voluntario'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Retiro Voluntario</button>
+                          <button type="button" onClick={() => { setFilterStatus('Deserción'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Deserción</button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </th>
-              ))}
-              {rapColumnsForFicha.map(key => (
-                <th key={key} className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                  <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted">{key}</button>
-                </th>
-              ))}
-              {hasActivities && (
+                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-28 min-w-28 max-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Ficha</th>
+                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 max-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para marcar como evaluado">Juicios Evaluativos</th>
+
+                {/* Competencia group headers */}
+                {compGroups.map((g, gi) => (
+                  <th
+                    key={`comp-${gi}`}
+                    colSpan={g.activities.length}
+                    className="px-2 py-1 text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
+                    title={g.compName}
+                  >
+                    <span className="block text-xs font-bold text-indigo-700 truncate" style={{ maxWidth: Math.max(72, g.activities.length * 60) }}>
+                      {g.compCode}
+                    </span>
+                    {g.aaKeys && (
+                      <span className="block text-[10px] text-indigo-400 font-normal truncate">{g.aaKeys}</span>
+                    )}
+                  </th>
+                ))}
+
+                {/* RAP and computed cols – span both rows */}
+                {rapColumnsForFicha.map(key => (
+                  <th key={key} rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center">
+                    <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted">{key}</button>
+                  </th>
+                ))}
+                {hasActivities && (
+                  <>
+                    <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center">Pendientes</th>
+                    <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center">Promedio</th>
+                    <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center">
+                      <div className="relative inline-block" ref={finalFilterRef}>
+                        <button type="button" onClick={() => setShowFinalFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none" title="Aprobado (A) solo cuando el aprendiz entrega y aprueba todas las actividades. Clic para filtrar.">
+                          Final<Filter className="w-3.5 h-3.5 text-gray-400" />{finalFilter !== 'all' && <span className="text-indigo-600 text-xs">({finalFilter === 'A' ? 'A' : '-'})</span>}
+                        </button>
+                        {showFinalFilter && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowFinalFilter(false)} />
+                            <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                              <button type="button" onClick={() => { setFinalFilter('all'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'all' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                              <button type="button" onClick={() => { setFinalFilter('A'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'A' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo A (aprobados)</button>
+                              <button type="button" onClick={() => { setFinalFilter('-'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === '-' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo - (resto)</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </th>
+                  </>
+                )}
+              </tr>
+            )}
+
+            {/* ── Row 2 (or only row when no compGroups): evidence columns + full sticky when no compGroups ── */}
+            <tr style={{ height: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+              {/* Sticky cols only rendered here when there is NO competencia group header */}
+              {!compGroups && (
                 <>
-                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Pendientes</th>
-                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Promedio</th>
-                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                    <div className="relative inline-block" ref={finalFilterRef}>
-                      <button
-                        type="button"
-                        onClick={() => setShowFinalFilter(prev => !prev)}
-                        className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none"
-                        title="Aprobado (A) solo cuando el aprendiz entrega y aprueba todas las actividades. Clic para filtrar."
-                      >
-                        Final
-                        <Filter className="w-3.5 h-3.5 text-gray-400" />
-                        {finalFilter !== 'all' && <span className="text-indigo-600 text-xs">({finalFilter === 'A' ? 'A' : '-'})</span>}
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-10 min-w-10 max-w-10 sticky left-0 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                    <input
+                      type="checkbox"
+                      checked={paginatedStudentsFiltered.length > 0 && paginatedStudentsFiltered.every(s => selectedStudents.has(s.id))}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    />
+                  </th>
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-xs font-mono w-10 min-w-10 max-w-10 sticky left-10 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>No</th>
+                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-32 min-w-32 max-w-32 sticky left-20 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Documento</th>
+                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[208px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                    <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 ${sortOrder === 'firstname' ? 'text-indigo-700' : ''}`}>
+                      Nombres{sortOrder === 'firstname' && <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                    <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 ${sortOrder === 'lastname' ? 'text-indigo-700' : ''}`}>
+                      Apellidos{sortOrder === 'lastname' && <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                    </button>
+                  </th>
+                  <th className={`px-4 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                    <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
+                      <button type="button" onClick={() => setShowStatusFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none whitespace-nowrap" title="Filtrar por estado">
+                        Estado<Filter className="w-3.5 h-3.5 text-gray-400" />{filterStatus !== 'Todos' && <span className="text-indigo-600 text-xs">({filterStatus})</span>}
                       </button>
-                      {showFinalFilter && (
+                      {showStatusFilter && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setShowFinalFilter(false)} />
-                          <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                            <button type="button" onClick={() => { setFinalFilter('all'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'all' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
-                            <button type="button" onClick={() => { setFinalFilter('A'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'A' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo A (aprobados)</button>
-                            <button type="button" onClick={() => { setFinalFilter('-'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === '-' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo - (resto)</button>
+                          <div className="fixed inset-0 z-[99]" onClick={() => setShowStatusFilter(false)} />
+                          <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-[100] py-1">
+                            <button type="button" onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos los Estados</button>
+                            <button type="button" onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Formación</button>
+                            <button type="button" onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Cancelado</button>
+                            <button type="button" onClick={() => { setFilterStatus('Retiro Voluntario'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Retiro Voluntario</button>
+                            <button type="button" onClick={() => { setFilterStatus('Deserción'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Deserción</button>
                           </div>
                         </>
                       )}
                     </div>
                   </th>
+                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 max-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 max-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para marcar como evaluado">Juicios Evaluativos</th>
+                </>
+              )}
+
+              {/* Evidence column headers (always in this row) */}
+              {visibleActivities.map(activity => {
+                const compEntry = getEvCompEntry(activity);
+                return (
+                  <th key={activity.id} className="px-4 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle bg-gray-50" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                    {compEntry?.aaKey && (
+                      <div className="text-[10px] text-indigo-400 font-medium leading-tight mb-0.5 text-center">{compEntry.aaKey}</div>
+                    )}
+                    <div className="flex items-center gap-2 justify-center">
+                      <button type="button" onClick={() => openActivityDetail(activity)} className="hover:text-gray-900 underline decoration-dotted">{getActivityShortLabel(activity.name)}</button>
+                      <button onClick={() => openEditActivity(activity)} className="text-gray-400 hover:text-indigo-600" title="Editar actividad"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setActivityToDelete(activity)} className="text-gray-400 hover:text-red-600" title="Eliminar actividad"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </th>
+                );
+              })}
+
+              {/* RAP + computed cols only in single-row mode; in dual-row they have rowspan=2 */}
+              {!compGroups && (
+                <>
+                  {rapColumnsForFicha.map(key => (
+                    <th key={key} className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                      <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted">{key}</button>
+                    </th>
+                  ))}
+                  {hasActivities && (
+                    <>
+                      <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Pendientes</th>
+                      <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Promedio</th>
+                      <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                        <div className="relative inline-block" ref={finalFilterRef}>
+                          <button type="button" onClick={() => setShowFinalFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none" title="Aprobado (A) solo cuando el aprendiz entrega y aprueba todas las actividades. Clic para filtrar.">
+                            Final<Filter className="w-3.5 h-3.5 text-gray-400" />{finalFilter !== 'all' && <span className="text-indigo-600 text-xs">({finalFilter === 'A' ? 'A' : '-'})</span>}
+                          </button>
+                          {showFinalFilter && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setShowFinalFilter(false)} />
+                              <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                                <button type="button" onClick={() => { setFinalFilter('all'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'all' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                                <button type="button" onClick={() => { setFinalFilter('A'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'A' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo A (aprobados)</button>
+                                <button type="button" onClick={() => { setFinalFilter('-'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === '-' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo - (resto)</button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </th>
+                    </>
+                  )}
                 </>
               )}
             </tr>
