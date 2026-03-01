@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
-import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep } from '../services/db';
+import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep } from '../services/db';
 
 /** Pasos del stepper Cancelación (igual que DebidoProcesoView). */
 const CANCELACION_STEPS: { step: number; tooltip: string }[] = [
@@ -21,6 +21,13 @@ const RETIRO_STEPS: { step: number; tooltip: string }[] = [
   { step: 3, tooltip: 'Solicitud de retiro' },
   { step: 4, tooltip: 'Agregar novedad de retiro al acta' },
   { step: 5, tooltip: 'Retiro efectuado en Sofia Plus' },
+];
+
+/** Pasos del stepper Plan de mejoramiento (igual que DebidoProcesoView). */
+const PMA_STEPS: { step: number; tooltip: string }[] = [
+  { step: 0, tooltip: 'Sin PMA' },
+  { step: 1, tooltip: 'Se asigna PMA' },
+  { step: 2, tooltip: 'Aprobación de PMA' },
 ];
 
 /** Mini stepper para Cancelación / Retiro voluntario (misma lógica que DebidoProcesoView). */
@@ -202,6 +209,7 @@ export const AsistenciaLmsView: React.FC = () => {
 
   const [cancelacionMap, setCancelacionMap] = useState<Record<string, number>>({});
   const [retiroMap, setRetiroMap] = useState<Record<string, number>>({});
+  const [pmaMap, setPmaMap] = useState<Record<string, number>>({});
 
   const loadData = () => {
     setStudents(getStudents());
@@ -211,6 +219,7 @@ export const AsistenciaLmsView: React.FC = () => {
     setGrades(getGrades());
     setCancelacionMap(getDebidoProcesoState());
     setRetiroMap(getRetiroVoluntarioState());
+    setPmaMap(getPlanMejoramientoState());
   };
 
   useEffect(() => {
@@ -1019,12 +1028,13 @@ export const AsistenciaLmsView: React.FC = () => {
               </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center">Cancelación</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center">Retiro voluntario</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center min-w-[140px]">Plan de mejoramiento</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {paginatedStudents.length === 0 ? (
               <tr>
-                <td colSpan={14} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={15} className="px-6 py-8 text-center text-gray-500">
                   {students.length === 0
                     ? 'No hay aprendices registrados.'
                     : searchTerm
@@ -1146,6 +1156,17 @@ export const AsistenciaLmsView: React.FC = () => {
                         onStepClick={(step) => {
                           saveRetiroVoluntarioStep(student.id, step);
                           setRetiroMap(getRetiroVoluntarioState());
+                        }}
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <AsistenciaLmsStepper
+                        steps={PMA_STEPS}
+                        currentStep={pmaMap[student.id] ?? 0}
+                        defaultStep={0}
+                        onStepClick={(step) => {
+                          savePlanMejoramientoStep(student.id, step);
+                          setPmaMap(getPlanMejoramientoState());
                         }}
                       />
                     </td>
