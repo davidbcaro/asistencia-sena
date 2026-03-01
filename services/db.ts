@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   SOFIA_RAP_DEFS: 'asistenciapro_sofia_rap_defs',
   SOFIA_JUICIO_ENTRIES: 'asistenciapro_sofia_juicio_entries',
   SOFIA_JUICIO_HISTORY: 'asistenciapro_sofia_juicio_history',
+  SOFIA_STUDENT_ESTADOS: 'asistenciapro_sofia_student_estados',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -1314,6 +1315,18 @@ export const appendSofiaJuicioHistory = (entries: JuicioRapHistoryEntry[]) => {
   localStorage.setItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY, JSON.stringify([...existing, ...newEntries]));
 };
 
+export const getSofiaStudentEstados = (): Record<string, string> => {
+  const data = localStorage.getItem(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS);
+  return data ? JSON.parse(data) : {};
+};
+
+export const upsertSofiaStudentEstados = (map: Record<string, string>) => {
+  const existing = getSofiaStudentEstados();
+  const merged = { ...existing, ...map };
+  localStorage.setItem(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS, JSON.stringify(merged));
+  notifyChange();
+};
+
 export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.STUDENTS);
     localStorage.removeItem(STORAGE_KEYS.ATTENDANCE);
@@ -1333,6 +1346,7 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.SOFIA_RAP_DEFS);
     localStorage.removeItem(STORAGE_KEYS.SOFIA_JUICIO_ENTRIES);
     localStorage.removeItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY);
+    localStorage.removeItem(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };

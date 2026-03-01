@@ -11,9 +11,11 @@ import {
   getSofiaJuicioEntries,
   getSofiaJuicioHistory,
   getSofiaRapDefs,
+  getSofiaStudentEstados,
   getStudents,
   saveSofiaRapDefs,
   upsertSofiaJuicioEntries,
+  upsertSofiaStudentEstados,
 } from '../services/db';
 
 // ---------------------------------------------------------------------------
@@ -125,6 +127,31 @@ const JUICIO_BADGE: Record<string, { label: string; cls: string }> = {
   'POR EVALUAR': { label: 'PE', cls: 'bg-gray-100 text-gray-500 border border-gray-200' },
 };
 
+/** Devuelve las clases Tailwind para el badge de Estado Sofia.
+ *  Cubre los valores más comunes del sistema SENA / Sofia Plus. */
+const getSofiaEstadoBadgeCls = (estado: string): string => {
+  const norm = estado.toLowerCase().trim();
+  if (norm.includes('activo') || norm === 'en formacion' || norm.includes('formaci')) {
+    return 'bg-green-100 text-green-800';
+  }
+  if (norm.includes('retiro') || norm.includes('voluntario')) {
+    return 'bg-orange-100 text-orange-800';
+  }
+  if (norm.includes('cancelado') || norm.includes('incumplimiento')) {
+    return 'bg-yellow-100 text-yellow-800';
+  }
+  if (norm.includes('deserci') || norm.includes('abandon')) {
+    return 'bg-red-100 text-red-800';
+  }
+  if (norm.includes('suspendido') || norm.includes('suspendi')) {
+    return 'bg-purple-100 text-purple-800';
+  }
+  if (norm.includes('egresado') || norm.includes('certificado') || norm.includes('graduado')) {
+    return 'bg-blue-100 text-blue-800';
+  }
+  return 'bg-gray-100 text-gray-700';
+};
+
 const TABLE_ROW_HEIGHT_PX = 52;
 const ITEMS_PER_PAGE = 15;
 
@@ -137,6 +164,8 @@ export const SofiaPlusView: React.FC = () => {
   const [rapDefs, setRapDefs] = useState<Record<string, RapDefinition>>({});
   const [juicioEntries, setJuicioEntries] = useState<Record<string, JuicioRapEntry>>({});
   const [juicioHistory, setJuicioHistory] = useState<JuicioRapHistoryEntry[]>([]);
+  // Estado del aprendiz según el último Excel cargado (studentId → estado Sofia)
+  const [sofiaEstados, setSofiaEstados] = useState<Record<string, string>>({});
 
   // Filters
   const [selectedFicha, setSelectedFicha] = useState('Todas');
@@ -185,6 +214,7 @@ export const SofiaPlusView: React.FC = () => {
     setRapDefs(getSofiaRapDefs());
     setJuicioEntries(getSofiaJuicioEntries());
     setJuicioHistory(getSofiaJuicioHistory());
+    setSofiaEstados(getSofiaStudentEstados());
   };
 
   useEffect(() => {
@@ -338,11 +368,14 @@ export const SofiaPlusView: React.FC = () => {
       const newEntries: JuicioRapEntry[] = [];
       const newRapDefs: Record<string, RapDefinition> = { ...rapDefs };
       const unmatched: string[] = [];
+      // Map studentId → estado extraído del Excel (tomamos el primero que aparezca por aprendiz)
+      const newEstados: Record<string, string> = {};
 
       dataRows.forEach(row => {
         const docRaw = normalizeDoc(row[1]);
         const firstName = String(row[2] || '').trim();
         const lastName = String(row[3] || '').trim();
+        const estadoRaw = String(row[4] || '').trim();
         const competenciaRaw = String(row[5] || '').trim();
         const rapRaw = String(row[6] || '').trim();
         const juicioRaw = String(row[7] || '').trim().toUpperCase();
@@ -368,6 +401,11 @@ export const SofiaPlusView: React.FC = () => {
           if (docRaw || firstName || lastName)
             unmatched.push(docRaw || `${firstName} ${lastName}`.trim());
           return;
+        }
+
+        // Guardar estado Sofia (tomamos el primero que aparezca; todos los RAPs del mismo aprendiz tienen el mismo estado)
+        if (estadoRaw && !newEstados[student.id]) {
+          newEstados[student.id] = estadoRaw;
         }
 
         // Extract RAP and competencia IDs
@@ -403,6 +441,11 @@ export const SofiaPlusView: React.FC = () => {
 
       // Save juicio entries (upsert)
       upsertSofiaJuicioEntries(newEntries);
+
+      // Save student estados from Excel (upsert, preserving data from other fichas)
+      if (Object.keys(newEstados).length > 0) {
+        upsertSofiaStudentEstados(newEstados);
+      }
 
       // Append APROBADO entries to history
       const historyEntries: JuicioRapHistoryEntry[] = newEntries
@@ -684,17 +727,26 @@ export const SofiaPlusView: React.FC = () => {
                     <td className="px-4 w-40 min-w-40 text-xs font-medium text-gray-900 sticky left-[368px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] align-middle overflow-hidden whitespace-nowrap" style={{ height: TABLE_ROW_HEIGHT_PX }}>
                       {student.lastName}
                     </td>
-                    {/* Estado */}
+                    {/* Estado — usa el valor extraído del Excel si existe, si no el del sistema */}
                     <td className="px-4 w-32 min-w-32 sticky left-[528px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] align-middle" style={{ height: TABLE_ROW_HEIGHT_PX }}>
-                      <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${
-                        student.status === 'Formación' ? 'bg-green-100 text-green-800' :
-                        student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
-                        student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
-                        student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {student.status || 'Formación'}
-                      </span>
+                      {sofiaEstados[student.id] ? (
+                        <span
+                          className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${getSofiaEstadoBadgeCls(sofiaEstados[student.id])}`}
+                          title={`Sofia: ${sofiaEstados[student.id]}`}
+                        >
+                          {sofiaEstados[student.id]}
+                        </span>
+                      ) : (
+                        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${
+                          student.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                          student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                          student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                          student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {student.status || 'Formación'}
+                        </span>
+                      )}
                     </td>
                     {/* Ficha */}
                     <td className="px-4 w-24 min-w-24 text-xs text-gray-600 sticky left-[656px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] align-middle whitespace-nowrap" style={{ height: TABLE_ROW_HEIGHT_PX }}>
