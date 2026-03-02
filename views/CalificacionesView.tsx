@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet, Filter, Pencil, Plus, Trash2, Upload, X, Search } from 'lucide-react';
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FileDown, FileSpreadsheet, Filter, Pencil, Plus, Trash2, Upload, X, Search } from 'lucide-react';
 import { Ficha, GradeActivity, GradeEntry, Student } from '../types';
 import {
   addGradeActivity,
@@ -297,6 +297,11 @@ export const CalificacionesView: React.FC = () => {
   const [rapNotes, setRapNotes] = useState<Record<string, Record<string, string>>>({});
   const [rapModal, setRapModal] = useState<{ key: string; text: string } | null>(null);
   const [compDetailModal, setCompDetailModal] = useState<{ compCode: string } | null>(null);
+  const [hiddenCompCodes, setHiddenCompCodes] = useState<Record<string, string[]>>(() => {
+    try { return JSON.parse(localStorage.getItem('asistenciapro_hidden_comps') || '{}'); }
+    catch { return {}; }
+  });
+  const [compVisibilityOpen, setCompVisibilityOpen] = useState(false);
   const [rapColumns, setRapColumns] = useState<Record<string, string[]>>({});
   const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<Record<string, Record<string, 'orange' | 'green'>>>({});
   const [rapManagerOpen, setRapManagerOpen] = useState(false);
@@ -719,15 +724,32 @@ export const CalificacionesView: React.FC = () => {
     return groups.length > 0 ? groups : null;
   }, [evidenceCompMap, evidenceMapKey, visibleActivities, fichas, selectedPhase, showAllFichasColumns]);
 
-  /** Competencia groups derived from rapColumnsForFicha + static RAP lookup.
+  /** Códigos de competencia ocultos para la ficha/fase actual */
+  const hiddenForFicha = useMemo(() => {
+    return new Set([
+      ...(hiddenCompCodes[rapKey] ?? []),
+      ...(hiddenCompCodes[selectedFicha] ?? []),
+    ]);
+  }, [hiddenCompCodes, rapKey, selectedFicha]);
+
+  /** RAP columns visibles (filtra competencias ocultas de rapColumnsForFicha) */
+  const activeRapColumns = useMemo(() => {
+    if (hiddenForFicha.size === 0) return rapColumnsForFicha;
+    return rapColumnsForFicha.filter(key => {
+      const info = getRapStaticInfo(key);
+      return !info || !hiddenForFicha.has(info.compCode);
+    });
+  }, [rapColumnsForFicha, hiddenForFicha]);
+
+  /** Competencia groups derived from activeRapColumns + static RAP lookup.
    *  Returns null when all RAP cols are generic (no static info available). */
   const rapCompGroups = useMemo<Array<{ compCode: string; compName: string; raps: string[] }> | null>(() => {
-    if (rapColumnsForFicha.length === 0) return null;
-    const hasAnyInfo = rapColumnsForFicha.some(k => !!getRapStaticInfo(k));
+    if (activeRapColumns.length === 0) return null;
+    const hasAnyInfo = activeRapColumns.some(k => !!getRapStaticInfo(k));
     if (!hasAnyInfo) return null;
     const groups: Array<{ compCode: string; compName: string; raps: string[] }> = [];
     let currentCode: string | null = null;
-    rapColumnsForFicha.forEach(key => {
+    activeRapColumns.forEach(key => {
       const rapInfo = getRapStaticInfo(key);
       const compCode = rapInfo?.compCode ?? '__ungrouped__';
       const compName = rapInfo ? (COMPETENCIA_NAMES[compCode] || compCode) : key;
@@ -738,7 +760,7 @@ export const CalificacionesView: React.FC = () => {
       groups[groups.length - 1].raps.push(key);
     });
     return groups.length > 0 ? groups : null;
-  }, [rapColumnsForFicha]);
+  }, [activeRapColumns]);
 
   const getFinalForStudent = (studentId: string, studentGroup?: string) => {
     const totalActivities = visibleActivities.length;
@@ -1428,6 +1450,18 @@ export const CalificacionesView: React.FC = () => {
                 <span>RAP</span>
               </button>
 
+              <button
+                onClick={() => setCompVisibilityOpen(true)}
+                className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors shadow-sm border ${hiddenForFicha.size > 0 ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200' : 'bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200'}`}
+                title="Mostrar / ocultar competencias"
+              >
+                {hiddenForFicha.size > 0 ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                <span>CO</span>
+                {hiddenForFicha.size > 0 && (
+                  <span className="text-xs font-bold bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 leading-none">{hiddenForFicha.size}</span>
+                )}
+              </button>
+
 
               <label className="cursor-pointer inline-flex items-center justify-center space-x-2 bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
                 <Upload className="w-4 h-4" />
@@ -1596,7 +1630,7 @@ export const CalificacionesView: React.FC = () => {
                       </button>
                     </th>
                   ))
-                  : rapColumnsForFicha.map(key => {
+                  : activeRapColumns.map(key => {
                     const rapInfo = getRapStaticInfo(key);
                     return (
                       <th key={key} rowSpan={2} className="px-3 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[64px]" title={rapInfo ? rapInfo.rapName : key}>
@@ -1703,10 +1737,10 @@ export const CalificacionesView: React.FC = () => {
                   - single-row (!compGroups && !rapCompGroups): render here
                   - rapCompGroups present: render here (Row 1 has comp group headers)
                   - compGroups only (!rapCompGroups): NOT here (rowSpan=2 from Row 1) */}
-              {(rapCompGroups || !compGroups) && rapColumnsForFicha.map(key => {
+              {(rapCompGroups || !compGroups) && activeRapColumns.map(key => {
                 const rapInfo = getRapStaticInfo(key);
                 return (
-                  <th key={key} className="px-3 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[64px]" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={rapInfo ? `${rapInfo.rapName}` : key}>
+                  <th key={key} className="px-3 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[64px]" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={rapInfo ? rapInfo.rapName : key}>
                     <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-indigo-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
                       <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
                     </button>
@@ -1743,13 +1777,13 @@ export const CalificacionesView: React.FC = () => {
           <tbody className="divide-y divide-gray-100">
             {studentsForFicha.length === 0 ? (
               <tr>
-                <td colSpan={8 + visibleActivities.length + rapColumnsForFicha.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={8 + visibleActivities.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
                   {filterStatus !== 'Todos' ? 'Ningún aprendiz coincide con el filtro de estado seleccionado.' : hasSearchTerm ? 'No se encontraron aprendices con la búsqueda.' : selectedFicha === 'Todas' ? 'No hay aprendices.' : 'No hay aprendices en esta ficha.'}
                 </td>
               </tr>
             ) : studentsFilteredByFinal.length === 0 ? (
               <tr>
-                <td colSpan={8 + visibleActivities.length + rapColumnsForFicha.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={8 + visibleActivities.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
                   Ningún aprendiz coincide con el filtro FINAL seleccionado.
                 </td>
               </tr>
@@ -1833,7 +1867,7 @@ export const CalificacionesView: React.FC = () => {
                     const rapLetter = allApproved ? 'A' : '-';
                     return (
                       <>
-                        {rapColumnsForFicha.map(key => (
+                        {activeRapColumns.map(key => (
                           <td key={`${student.id}-${key}`} className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                             {rapLetter === '-' ? <span className="text-gray-400">-</span> : <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${rapLetter === 'A' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{rapLetter}</span>}
                           </td>
@@ -2170,6 +2204,116 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
             </div>
           </div>
         </div>
+        );
+      })()}
+
+      {compVisibilityOpen && (() => {
+        // Unique competencias que aparecen en rapColumnsForFicha (lista completa, incluye ocultas)
+        const compCodesInFicha: Array<{ compCode: string; rapCount: number }> = [];
+        const seen = new Set<string>();
+        rapColumnsForFicha.forEach(key => {
+          const info = getRapStaticInfo(key);
+          if (!info) return;
+          if (!seen.has(info.compCode)) {
+            seen.add(info.compCode);
+            compCodesInFicha.push({ compCode: info.compCode, rapCount: 0 });
+          }
+          const entry = compCodesInFicha.find(e => e.compCode === info.compCode);
+          if (entry) entry.rapCount++;
+        });
+
+        const toggleComp = (compCode: string) => {
+          const currentHidden = [...(hiddenCompCodes[rapKey] ?? [])];
+          const isHidden = currentHidden.includes(compCode);
+          const next = isHidden
+            ? currentHidden.filter(c => c !== compCode)
+            : [...currentHidden, compCode];
+          const updated = { ...hiddenCompCodes, [rapKey]: next };
+          setHiddenCompCodes(updated);
+          localStorage.setItem('asistenciapro_hidden_comps', JSON.stringify(updated));
+        };
+
+        const showAll = () => {
+          const updated = { ...hiddenCompCodes, [rapKey]: [] };
+          setHiddenCompCodes(updated);
+          localStorage.setItem('asistenciapro_hidden_comps', JSON.stringify(updated));
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setCompVisibilityOpen(false)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Visibilidad de Competencias</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Oculta competencias y sus RAPs de la tabla</p>
+                </div>
+                <button onClick={() => setCompVisibilityOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Lista de competencias */}
+              <div className="overflow-y-auto flex-1 min-h-0 space-y-1.5">
+                {compCodesInFicha.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-6">No hay competencias con RAPs estáticos en esta vista.</p>
+                ) : compCodesInFicha.map(({ compCode, rapCount }) => {
+                  const isHidden = hiddenForFicha.has(compCode);
+                  const compId = COMPETENCIA_IDS[compCode] || compCode;
+                  const compName = COMPETENCIA_NAMES[compCode] || compCode;
+                  return (
+                    <button
+                      key={compCode}
+                      type="button"
+                      onClick={() => toggleComp(compCode)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors text-left ${
+                        isHidden
+                          ? 'bg-gray-50 border-gray-200 opacity-60'
+                          : 'bg-white border-indigo-100 hover:border-indigo-300'
+                      }`}
+                    >
+                      <div className="flex-shrink-0">
+                        {isHidden
+                          ? <EyeOff className="w-4 h-4 text-gray-400" />
+                          : <Eye className="w-4 h-4 text-indigo-500" />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-xs font-bold font-mono text-indigo-600">{compId}</span>
+                          <span className="text-[10px] text-gray-400 font-mono">{compCode}</span>
+                        </div>
+                        <p className={`text-xs leading-snug ${isHidden ? 'text-gray-400' : 'text-gray-700'}`}>{compName}</p>
+                      </div>
+                      <span className="text-[10px] font-mono text-gray-400 flex-shrink-0">{rapCount} RAP{rapCount !== 1 ? 's' : ''}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 flex-shrink-0">
+                <button
+                  onClick={showAll}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                  disabled={hiddenForFicha.size === 0}
+                >
+                  Mostrar todas
+                </button>
+                <div className="flex items-center gap-2">
+                  {hiddenForFicha.size > 0 && (
+                    <span className="text-xs text-amber-600 font-medium">{hiddenForFicha.size} oculta{hiddenForFicha.size !== 1 ? 's' : ''}</span>
+                  )}
+                  <button
+                    onClick={() => setCompVisibilityOpen(false)}
+                    className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg hover:bg-indigo-700 text-sm font-medium"
+                  >
+                    Listo
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         );
       })()}
 
