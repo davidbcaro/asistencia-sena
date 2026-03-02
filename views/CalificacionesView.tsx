@@ -40,25 +40,25 @@ const TABLE_ROW_HEIGHT_PX = 56;
 // Fuente: docs/cronogramas/Cronograma_*.docx
 // ---------------------------------------------------------------------------
 
-/** Nombres cortos de competencias por código SENA */
+/** Nombres oficiales de competencias por código SENA */
 const COMPETENCIA_NAMES: Record<string, string> = {
-  '210201501': 'Ética del trabajo',
-  '220201501': 'Física aplicada',
-  '220501014': 'Seguridad en redes',
-  '220501046': 'Herramientas TIC',
-  '220501091': 'VoIP',
-  '220501104': 'Redes cableadas',
-  '220501105': 'Monitoreo de red',
-  '220501106': 'Servicios de red',
-  '220501107': 'Redes inalámbricas',
-  '220601501': 'SST / Ambiente',
-  '230101507': 'Ed. Física',
-  '240201064': 'Investigación',
-  '240201524': 'Comunicación',
-  '240201526': 'Ética / Proyecto de vida',
-  '240201528': 'Matemáticas',
-  '240201529': 'Emprendimiento',
-  '240202501': 'Inglés',
+  '210201501': 'Promover la interacción idónea consigo mismo, con los demás y con la naturaleza en los contextos laboral y social',
+  '220201501': 'Utilizar los principios y leyes de la Física en la solución de problemas del contexto productivo',
+  '220501014': 'Gestionar la seguridad en redes de datos de acuerdo con los estándares y normas internacionales',
+  '220501046': 'Utilizar herramientas de tecnologías de la información y la comunicación (TIC) para el procesamiento de información y comunicación',
+  '220501091': 'Gestionar la infraestructura de comunicaciones unificadas de voz sobre IP (VoIP) según el diseño establecido',
+  '220501104': 'Gestionar la infraestructura de redes cableadas de acuerdo con los requerimientos y estándares establecidos',
+  '220501105': 'Gestionar sistemas de monitoreo de infraestructura tecnológica de red de acuerdo con políticas organizacionales',
+  '220501106': 'Gestionar dispositivos de cómputo y servicios de red para garantizar el funcionamiento de la plataforma tecnológica',
+  '220501107': 'Gestionar la infraestructura de redes inalámbricas de acuerdo con especificaciones de diseño y normatividad vigente',
+  '220601501': 'Implementar las estrategias de prevención y control de impactos ambientales y de la seguridad y salud en el trabajo (SST)',
+  '230101507': 'Utilizar estrategias de acondicionamiento físico y psicomotriz con criterios de salud, condición física y ergonomía',
+  '240201064': 'Utilizar técnicas e instrumentos de investigación para la presentación de proyectos, de acuerdo con el contexto productivo',
+  '240201524': 'Procesar información de acuerdo con las necesidades de comunicación del contexto productivo y social',
+  '240201526': 'Promover la interacción idónea consigo mismo, con los demás y con la naturaleza en el contexto laboral y social desde los principios éticos',
+  '240201528': 'Resolver problemas matemáticos de acuerdo con las necesidades del contexto productivo y social',
+  '240201529': 'Formular el plan de negocio de acuerdo con las características del mercado y las necesidades del entorno',
+  '240202501': 'Comprender y producir textos en inglés en forma oral y escrita en contextos sociales y laborales',
 };
 
 interface CronogramaRap {
@@ -71,82 +71,82 @@ interface CronogramaRap {
 /** RAPs por fase, en orden del cronograma pedagógico */
 const FASE_RAPS: Record<string, CronogramaRap[]> = {
   'Fase 1: Análisis': [
-    { rapCode: '220501014-01', rapName: 'Interpretar plan de seguridad de red', compCode: '220501014', aaKey: 'AA1' },
-    { rapCode: '220501046-01', rapName: 'Alistar herramientas TIC', compCode: '220501046', aaKey: 'AA1' },
-    { rapCode: '220501046-02', rapName: 'Aplicar funcionalidades TIC', compCode: '220501046', aaKey: 'AA2' },
-    { rapCode: '220501046-03', rapName: 'Evaluar resultados TIC', compCode: '220501046', aaKey: 'AA3' },
-    { rapCode: '220501046-04', rapName: 'Optimizar resultados TIC', compCode: '220501046', aaKey: 'AA4' },
-    { rapCode: '240202501-01', rapName: 'Comprender información cotidiana/laboral', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501014-01', rapName: 'Interpretar el plan de seguridad para la red de datos definidos en la solución, según estándares y normas internacionales', compCode: '220501014', aaKey: 'AA1' },
+    { rapCode: '220501046-01', rapName: 'Alistar herramientas de tecnologías de la información y la comunicación (TIC), de acuerdo con las necesidades de procesamiento de información y comunicación', compCode: '220501046', aaKey: 'AA1' },
+    { rapCode: '220501046-02', rapName: 'Aplicar funcionalidades de herramientas y servicios TIC, de acuerdo con manuales de uso, procedimientos establecidos y buenas prácticas', compCode: '220501046', aaKey: 'AA2' },
+    { rapCode: '220501046-03', rapName: 'Evaluar los resultados, de acuerdo con los requerimientos', compCode: '220501046', aaKey: 'AA3' },
+    { rapCode: '220501046-04', rapName: 'Optimizar los resultados, de acuerdo con la verificación', compCode: '220501046', aaKey: 'AA4' },
+    { rapCode: '240202501-01', rapName: 'Comprender información sobre situaciones cotidianas y laborales actuales y futuras a través de interacciones sociales de forma oral y escrita', compCode: '240202501', aaKey: 'AA1' },
   ],
   'Fase 2: Planeación': [
-    { rapCode: '220501104-01', rapName: 'Planificar arquitectura red cableada', compCode: '220501104', aaKey: 'AA1' },
-    { rapCode: '220501107-01', rapName: 'Planificar componentes inalámbricos', compCode: '220501107', aaKey: 'AA1' },
-    { rapCode: '240201528-01', rapName: 'Identificar modelos matemáticos', compCode: '240201528', aaKey: 'AA1' },
-    { rapCode: '240201528-02', rapName: 'Plantear problemas matemáticos', compCode: '240201528', aaKey: 'AA2' },
-    { rapCode: '240201528-03', rapName: 'Resolver problemas matemáticos', compCode: '240201528', aaKey: 'AA3' },
-    { rapCode: '240201528-04', rapName: 'Proponer mejoras matemáticas', compCode: '240201528', aaKey: 'AA4' },
-    { rapCode: '240202501-02', rapName: 'Intercambiar opiniones (inglés)', compCode: '240202501', aaKey: 'AA1' },
-    { rapCode: '220501091-01', rapName: 'Planificar implementación VoIP', compCode: '220501091', aaKey: 'AA1' },
-    { rapCode: '220501105-01', rapName: 'Planificar plataforma de monitoreo', compCode: '220501105', aaKey: 'AA1' },
-    { rapCode: '220201501-01', rapName: 'Identificar principios de física', compCode: '220201501', aaKey: 'AA1' },
-    { rapCode: '220201501-02', rapName: 'Solucionar problemas de física', compCode: '220201501', aaKey: 'AA2' },
-    { rapCode: '220201501-03', rapName: 'Verificar transformaciones físicas', compCode: '220201501', aaKey: 'AA3' },
-    { rapCode: '220201501-04', rapName: 'Proponer mejoras (física)', compCode: '220201501', aaKey: 'AA4' },
+    { rapCode: '220501104-01', rapName: 'Planificar la implementación de la arquitectura de la red según el diseño establecido', compCode: '220501104', aaKey: 'AA1' },
+    { rapCode: '220501107-01', rapName: 'Planificar la implementación de los componentes inalámbricos en la red de datos, de acuerdo con especificaciones del diseño y normatividad vigente', compCode: '220501107', aaKey: 'AA1' },
+    { rapCode: '240201528-01', rapName: 'Identificar modelos matemáticos de acuerdo con los requerimientos del problema planteado en contextos sociales y productivo', compCode: '240201528', aaKey: 'AA1' },
+    { rapCode: '240201528-02', rapName: 'Plantear problemas matemáticos a partir de situaciones generadas en el contexto social y productivo', compCode: '240201528', aaKey: 'AA2' },
+    { rapCode: '240201528-03', rapName: 'Resolver problemas matemáticos a partir de situaciones generadas en el contexto social y productivo', compCode: '240201528', aaKey: 'AA3' },
+    { rapCode: '240201528-04', rapName: 'Proponer acciones de mejora frente a los resultados de los procedimientos matemáticos de acuerdo con el problema planteado', compCode: '240201528', aaKey: 'AA4' },
+    { rapCode: '240202501-02', rapName: 'Intercambiar opiniones sobre situaciones cotidianas y laborales actuales, pasadas y futuras en contextos sociales orales y escritos', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501091-01', rapName: 'Planificar la implementación de los equipos y software de comunicación de voz sobre IP (VoIP), según el diseño establecido', compCode: '220501091', aaKey: 'AA1' },
+    { rapCode: '220501105-01', rapName: 'Planificar la implementación de plataformas de gestión y monitoreo según parámetros definidos en la solución', compCode: '220501105', aaKey: 'AA1' },
+    { rapCode: '220201501-01', rapName: 'Identificar los principios y leyes de la física en la solución de problemas de acuerdo al contexto productivo', compCode: '220201501', aaKey: 'AA1' },
+    { rapCode: '220201501-02', rapName: 'Solucionar problemas asociados con el sector productivo con base en los principios y leyes de la física', compCode: '220201501', aaKey: 'AA2' },
+    { rapCode: '220201501-03', rapName: 'Verificar las transformaciones físicas de la materia utilizando herramientas tecnológicas', compCode: '220201501', aaKey: 'AA3' },
+    { rapCode: '220201501-04', rapName: 'Proponer acciones de mejora en los procesos productivos de acuerdo con los principios y leyes de la física', compCode: '220201501', aaKey: 'AA4' },
   ],
   'Fase 3: Ejecución': [
-    { rapCode: '220501104-02', rapName: 'Configurar equipos activos de interconexión', compCode: '220501104', aaKey: 'AA1' },
-    { rapCode: '220501107-02', rapName: 'Configurar componentes inalámbricos', compCode: '220501107', aaKey: 'AA1' },
-    { rapCode: '220501107-03', rapName: 'Verificar transmisión inalámbrica', compCode: '220501107', aaKey: 'AA1' },
-    { rapCode: '240201524-01', rapName: 'Analizar componentes de comunicación', compCode: '240201524', aaKey: 'AA1' },
-    { rapCode: '240201524-02', rapName: 'Argumentar comunicación oral/escrita', compCode: '240201524', aaKey: 'AA2' },
-    { rapCode: '240201524-03', rapName: 'Relacionar procesos comunicativos', compCode: '240201524', aaKey: 'AA3' },
-    { rapCode: '240201524-04', rapName: 'Enriquecimiento léxico comunicativo', compCode: '240201524', aaKey: 'AA4' },
-    { rapCode: '240202501-03', rapName: 'Discutir soluciones a problemas (inglés)', compCode: '240202501', aaKey: 'AA1' },
-    { rapCode: '220501106-01', rapName: 'Configurar hardware y SO para red', compCode: '220501106', aaKey: 'AA1' },
-    { rapCode: '240201064-01', rapName: 'Analizar contexto productivo', compCode: '240201064', aaKey: 'AA1' },
-    { rapCode: '240201064-02', rapName: 'Estructurar proyecto investigativo', compCode: '240201064', aaKey: 'AA2' },
-    { rapCode: '240201064-03', rapName: 'Argumentar aspectos teóricos', compCode: '240201064', aaKey: 'AA2' },
-    { rapCode: '240201064-04', rapName: 'Proponer soluciones investigativas', compCode: '240201064', aaKey: 'AA2' },
-    { rapCode: '240202501-04', rapName: 'Implementar mejoras lingüísticas (inglés)', compCode: '240202501', aaKey: 'AA1' },
-    { rapCode: '220501091-02', rapName: 'Configurar equipos y software VoIP', compCode: '220501091', aaKey: 'AA1' },
-    { rapCode: '240202501-05', rapName: 'Presentar procesos laborales (inglés)', compCode: '240202501', aaKey: 'AA1' },
-    { rapCode: '220501105-02', rapName: 'Implementar sistemas de monitoreo', compCode: '220501105', aaKey: 'AA1' },
-    { rapCode: '220501014-02', rapName: 'Implementar plan de seguridad', compCode: '220501014', aaKey: 'AA1' },
-    { rapCode: '230101507-01', rapName: 'Desarrollar habilidades psicomotrices', compCode: '230101507', aaKey: 'AA1' },
-    { rapCode: '230101507-02', rapName: 'Practicar hábitos saludables', compCode: '230101507', aaKey: 'AA2' },
-    { rapCode: '230101507-03', rapName: 'Ejecutar acondicionamiento físico', compCode: '230101507', aaKey: 'AA3' },
-    { rapCode: '230101507-04', rapName: 'Implementar ergonomía y pausas activas', compCode: '230101507', aaKey: 'AA4' },
-    { rapCode: '240202501-06', rapName: 'Explicar funciones ocupación (inglés)', compCode: '240202501', aaKey: 'AA1' },
-    { rapCode: '220501106-02', rapName: 'Implementar servicios de red', compCode: '220501106', aaKey: 'AA1' },
+    { rapCode: '220501104-02', rapName: 'Configurar los equipos activos de interconexión, de acuerdo con la arquitectura establecida', compCode: '220501104', aaKey: 'AA1' },
+    { rapCode: '220501107-02', rapName: 'Configurar los componentes inalámbricos, acorde con la arquitectura establecida, técnicas y buenas prácticas', compCode: '220501107', aaKey: 'AA1' },
+    { rapCode: '220501107-03', rapName: 'Verificar la transmisión de datos en la infraestructura inalámbrica bajo criterios y procedimientos técnicos establecidos', compCode: '220501107', aaKey: 'AA1' },
+    { rapCode: '240201524-01', rapName: 'Analizar los componentes de la comunicación según sus características, intencionalidad y contexto', compCode: '240201524', aaKey: 'AA1' },
+    { rapCode: '240201524-02', rapName: 'Argumentar en forma oral y escrita atendiendo las exigencias y particularidades de las diversas situaciones comunicativas mediante los distintos sistemas de representación', compCode: '240201524', aaKey: 'AA2' },
+    { rapCode: '240201524-03', rapName: 'Relacionar los procesos comunicativos teniendo en cuenta criterios de lógica y racionalidad', compCode: '240201524', aaKey: 'AA3' },
+    { rapCode: '240201524-04', rapName: 'Establecer procesos de enriquecimiento lexical y acciones de mejoramiento en el desarrollo de procesos comunicativos según requerimientos del contexto', compCode: '240201524', aaKey: 'AA4' },
+    { rapCode: '240202501-03', rapName: 'Discutir sobre posibles soluciones a problemas dentro de un rango variado de contextos sociales y laborales', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501106-01', rapName: 'Configurar el hardware, dispositivos de cómputo y sistemas operativos necesarios para la implementación de los servicios de red', compCode: '220501106', aaKey: 'AA1' },
+    { rapCode: '240201064-01', rapName: 'Analizar el contexto productivo según sus características y necesidades', compCode: '240201064', aaKey: 'AA1' },
+    { rapCode: '240201064-02', rapName: 'Estructurar el proyecto de acuerdo a criterios de la investigación', compCode: '240201064', aaKey: 'AA2' },
+    { rapCode: '240201064-03', rapName: 'Argumentar aspectos teóricos del proyecto según referentes nacionales e internacionales', compCode: '240201064', aaKey: 'AA2' },
+    { rapCode: '240201064-04', rapName: 'Proponer soluciones a las necesidades del contexto según resultados de la investigación', compCode: '240201064', aaKey: 'AA2' },
+    { rapCode: '240202501-04', rapName: 'Implementar acciones de mejora relacionadas con el uso de expresiones, estructuras y desempeño según los resultados de aprendizaje formulados para el programa', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501091-02', rapName: 'Configurar equipos y software de comunicación de voz sobre IP (VoIP), acorde con la arquitectura establecida, técnicas y buenas prácticas', compCode: '220501091', aaKey: 'AA1' },
+    { rapCode: '240202501-05', rapName: 'Presentar un proceso para la realización de una actividad en su quehacer laboral de acuerdo con los procedimientos establecidos desde su programa de formación', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501105-02', rapName: 'Implementar sistemas de gestión y monitoreo en la red, según estándares, políticas y recursos de la organización', compCode: '220501105', aaKey: 'AA1' },
+    { rapCode: '220501014-02', rapName: 'Implementar el plan de seguridad en la organización aplicando estándares y normas internacionales de seguridad vigentes', compCode: '220501014', aaKey: 'AA1' },
+    { rapCode: '230101507-01', rapName: 'Desarrollar habilidades psicomotrices en el contexto productivo y social', compCode: '230101507', aaKey: 'AA1' },
+    { rapCode: '230101507-02', rapName: 'Practicar hábitos saludables mediante la aplicación de fundamentos de nutrición e higiene', compCode: '230101507', aaKey: 'AA2' },
+    { rapCode: '230101507-03', rapName: 'Ejecutar actividades de acondicionamiento físico orientadas hacia el mejoramiento de la condición física en los contextos productivo y social', compCode: '230101507', aaKey: 'AA3' },
+    { rapCode: '230101507-04', rapName: 'Implementar un plan de ergonomía y pausas activas, según las características de la función productiva', compCode: '230101507', aaKey: 'AA4' },
+    { rapCode: '240202501-06', rapName: 'Explicar las funciones de su ocupación laboral usando expresiones de acuerdo al nivel requerido por el programa de formación', compCode: '240202501', aaKey: 'AA1' },
+    { rapCode: '220501106-02', rapName: 'Implementar los servicios red necesarios para cumplir los requerimientos del portafolio de servicios de tecnologías de la información', compCode: '220501106', aaKey: 'AA1' },
   ],
   'Fase 4: Evaluación': [
-    { rapCode: '220501104-03', rapName: 'Verificar funcionamiento equipos activos', compCode: '220501104', aaKey: 'AA1' },
-    { rapCode: '220501104-04', rapName: 'Gestionar equipos activos de red', compCode: '220501104', aaKey: 'AA2' },
-    { rapCode: '220501107-04', rapName: 'Validar parámetros certificación inalámbrica', compCode: '220501107', aaKey: 'AA1' },
-    { rapCode: '220601501-01', rapName: 'Analizar estrategias SST/ambiental', compCode: '220601501', aaKey: 'AA1' },
-    { rapCode: '220601501-02', rapName: 'Implementar estrategias SST/ambiente', compCode: '220601501', aaKey: 'AA2' },
-    { rapCode: '220601501-03', rapName: 'Seguimiento a planes SST/ambiente', compCode: '220601501', aaKey: 'AA3' },
-    { rapCode: '220601501-04', rapName: 'Proponer mejoras SST/ambiente', compCode: '220601501', aaKey: 'AA4' },
-    { rapCode: '220501106-03', rapName: 'Verificar dispositivos y servicios de red', compCode: '220501106', aaKey: 'AA1' },
-    { rapCode: '220501106-04', rapName: 'Gestionar dispositivos y servicios', compCode: '220501106', aaKey: 'AA2' },
-    { rapCode: '220501091-03', rapName: 'Verificar equipos y software VoIP', compCode: '220501091', aaKey: 'AA1' },
-    { rapCode: '220501091-04', rapName: 'Gestionar equipos y software VoIP', compCode: '220501091', aaKey: 'AA2' },
-    { rapCode: '240201529-01', rapName: 'Integrar cultura emprendedora', compCode: '240201529', aaKey: 'AA1' },
-    { rapCode: '240201529-02', rapName: 'Caracterizar idea de negocio', compCode: '240201529', aaKey: 'AA2' },
-    { rapCode: '240201529-03', rapName: 'Estructurar plan de negocio', compCode: '240201529', aaKey: 'AA3' },
-    { rapCode: '240201529-04', rapName: 'Valorar propuesta de negocio', compCode: '240201529', aaKey: 'AA4' },
-    { rapCode: '220501014-03', rapName: 'Verificar eventos de seguridad en red', compCode: '220501014', aaKey: 'AA1' },
-    { rapCode: '220501014-04', rapName: 'Gestionar seguridad en red', compCode: '220501014', aaKey: 'AA2' },
-    { rapCode: '210201501-01', rapName: 'Reconocer el trabajo (movilidad social)', compCode: '210201501', aaKey: 'AA1' },
-    { rapCode: '210201501-02', rapName: 'Valorar ciudadanía laboral', compCode: '210201501', aaKey: 'AA2' },
-    { rapCode: '210201501-03', rapName: 'Practicar derechos fundamentales', compCode: '210201501', aaKey: 'AA3' },
-    { rapCode: '210201501-04', rapName: 'Participar en acciones solidarias', compCode: '210201501', aaKey: 'AA4' },
-    { rapCode: '220501105-03', rapName: 'Monitorear infraestructura de red', compCode: '220501105', aaKey: 'AA1' },
-    { rapCode: '220501105-04', rapName: 'Gestionar recursos con herramientas de monitoreo', compCode: '220501105', aaKey: 'AA1' },
-    { rapCode: '240201526-01', rapName: 'Promover dignidad (ética)', compCode: '240201526', aaKey: 'AA1' },
-    { rapCode: '240201526-02', rapName: 'Establecer relaciones comunitarias', compCode: '240201526', aaKey: 'AA2' },
-    { rapCode: '240201526-03', rapName: 'Promover uso racional de recursos', compCode: '240201526', aaKey: 'AA3' },
-    { rapCode: '240201526-04', rapName: 'Contribuir a la cultura de paz', compCode: '240201526', aaKey: 'AA4' },
+    { rapCode: '220501104-03', rapName: 'Verificar el funcionamiento de los equipos activos de interconexión, de acuerdo con los requerimientos establecidos', compCode: '220501104', aaKey: 'AA1' },
+    { rapCode: '220501104-04', rapName: 'Gestionar los equipos activos de interconexión, para garantizar el funcionamiento de la red', compCode: '220501104', aaKey: 'AA2' },
+    { rapCode: '220501107-04', rapName: 'Validar que los parámetros de certificación cumplan con estándares y normatividad vigente', compCode: '220501107', aaKey: 'AA1' },
+    { rapCode: '220601501-01', rapName: 'Analizar las estrategias para la prevención y control de los impactos ambientales y de los accidentes y enfermedades laborales (ATEL) de acuerdo con las políticas organizacionales y el entorno social', compCode: '220601501', aaKey: 'AA1' },
+    { rapCode: '220601501-02', rapName: 'Implementar estrategias para el control de los impactos ambientales y de los accidentes y enfermedades, de acuerdo con los planes y programas establecidos por la organización', compCode: '220601501', aaKey: 'AA2' },
+    { rapCode: '220601501-03', rapName: 'Realizar seguimiento y acompañamiento al desarrollo de los planes y programas ambientales y SST, según el área de desempeño', compCode: '220601501', aaKey: 'AA3' },
+    { rapCode: '220601501-04', rapName: 'Proponer acciones de mejora para el manejo ambiental y el control de la SST, de acuerdo con estrategias de trabajo, colaborativo, cooperativo y coordinado en el contexto productivo y social', compCode: '220601501', aaKey: 'AA4' },
+    { rapCode: '220501106-03', rapName: 'Verificar el funcionamiento de dispositivos de cómputo y servicios de red de acuerdo a políticas de la organización', compCode: '220501106', aaKey: 'AA1' },
+    { rapCode: '220501106-04', rapName: 'Gestionar los dispositivos de cómputo y servicios de red para garantizar el funcionamiento de la plataforma tecnológica', compCode: '220501106', aaKey: 'AA2' },
+    { rapCode: '220501091-03', rapName: 'Verificar el funcionamiento de los equipos y software de comunicación de voz sobre IP (VoIP), para validar el cumplimiento de los requerimientos establecidos en el diseño', compCode: '220501091', aaKey: 'AA1' },
+    { rapCode: '220501091-04', rapName: 'Gestionar los equipos y software de comunicación de voz sobre IP (VoIP), para garantizar su funcionamiento acorde con los parámetros establecidos en el diseño', compCode: '220501091', aaKey: 'AA2' },
+    { rapCode: '240201529-01', rapName: 'Integrar elementos de la cultura emprendedora teniendo en cuenta el perfil personal y el contexto de desarrollo social', compCode: '240201529', aaKey: 'AA1' },
+    { rapCode: '240201529-02', rapName: 'Caracterizar la idea de negocio teniendo en cuenta las oportunidades y necesidades del sector productivo y social', compCode: '240201529', aaKey: 'AA2' },
+    { rapCode: '240201529-03', rapName: 'Estructurar el plan de negocio de acuerdo con las características empresariales y tendencias de mercado', compCode: '240201529', aaKey: 'AA3' },
+    { rapCode: '240201529-04', rapName: 'Valorar la propuesta de negocio conforme con su estructura y necesidades del sector productivo y social', compCode: '240201529', aaKey: 'AA4' },
+    { rapCode: '220501014-03', rapName: 'Verificar eventos en la infraestructura de red, mediante herramientas y técnicas de análisis de datos que permitan determinar incidentes de seguridad', compCode: '220501014', aaKey: 'AA1' },
+    { rapCode: '220501014-04', rapName: 'Gestionar el estado de la seguridad en la red de datos de la organización y su pertinencia según el plan de seguridad', compCode: '220501014', aaKey: 'AA2' },
+    { rapCode: '210201501-01', rapName: 'Reconocer el trabajo como factor de movilidad social y transformación vital con referencia a la fenomenología y a los derechos fundamentales en el trabajo', compCode: '210201501', aaKey: 'AA1' },
+    { rapCode: '210201501-02', rapName: 'Valorar la importancia de la ciudadanía laboral con base en el estudio de los derechos humanos y fundamentales en el trabajo', compCode: '210201501', aaKey: 'AA2' },
+    { rapCode: '210201501-03', rapName: 'Practicar los derechos fundamentales en el trabajo de acuerdo con la Constitución Política y los Convenios Internacionales', compCode: '210201501', aaKey: 'AA3' },
+    { rapCode: '210201501-04', rapName: 'Participar en acciones solidarias teniendo en cuenta el ejercicio de los derechos humanos, de los pueblos y de la naturaleza', compCode: '210201501', aaKey: 'AA4' },
+    { rapCode: '220501105-03', rapName: 'Monitorear el funcionamiento de la infraestructura tecnológica de red de acuerdo con políticas y criterios técnicos de la organización', compCode: '220501105', aaKey: 'AA1' },
+    { rapCode: '220501105-04', rapName: 'Gestionar los recursos tecnológicos, utilizando herramientas de administración y monitoreo', compCode: '220501105', aaKey: 'AA1' },
+    { rapCode: '240201526-01', rapName: 'Promover mi dignidad y la del otro a partir de los principios y valores éticos como aporte en la instauración de una cultura de paz', compCode: '240201526', aaKey: 'AA1' },
+    { rapCode: '240201526-02', rapName: 'Establecer relaciones de crecimiento personal y comunitario a partir del bien común como aporte para el desarrollo social', compCode: '240201526', aaKey: 'AA2' },
+    { rapCode: '240201526-03', rapName: 'Promover el uso racional de los recursos naturales a partir de criterios de sostenibilidad y sustentabilidad ética y normativa vigente', compCode: '240201526', aaKey: 'AA3' },
+    { rapCode: '240201526-04', rapName: 'Contribuir con el fortalecimiento de la cultura de paz a partir de la dignidad humana y las estrategias para la transformación de conflictos', compCode: '240201526', aaKey: 'AA4' },
   ],
 };
 
@@ -2208,38 +2208,13 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                 </div>
               )}
 
-              {/* Notes section */}
-              <div className="space-y-3">
-                <label className="block text-xs font-semibold text-gray-600">Notas / Observaciones</label>
-                <textarea
-                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none text-sm"
-                  rows={4}
-                  placeholder="Escribe notas para este RAP..."
-                  value={rapModal.text}
-                  onChange={(e) => setRapModal({ ...rapModal, text: e.target.value })}
-                />
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setRapModal(null)}
-                    className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() => {
-                      const updated = { ...rapNotes };
-                      const fichaNotes = { ...(updated[rapKey] || updated[selectedFicha] || {}) };
-                      fichaNotes[rapModal.key] = rapModal.text.trim();
-                      updated[rapKey] = fichaNotes;
-                      setRapNotes(updated);
-                      saveRapNotes(updated);
-                      setRapModal(null);
-                    }}
-                    className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium"
-                  >
-                    Guardar
-                  </button>
-                </div>
+              <div className="flex justify-end mt-2">
+                <button
+                  onClick={() => setRapModal(null)}
+                  className="bg-gray-100 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                >
+                  Cerrar
+                </button>
               </div>
             </div>
           </div>
