@@ -157,6 +157,11 @@ Object.values(FASE_RAPS).forEach(raps => raps.forEach(r => RAP_LOOKUP.set(r.rapC
 /** Devuelve la info estática de un RAP dado su código ("220501014-01") */
 const getRapStaticInfo = (rapCode: string): CronogramaRap | undefined => RAP_LOOKUP.get(rapCode);
 
+/** Identificadores cortos de competencias: CO-01, CO-02, … en el orden de COMPETENCIA_NAMES */
+const COMPETENCIA_IDS: Record<string, string> = Object.fromEntries(
+  Object.keys(COMPETENCIA_NAMES).map((code, i) => [code, `CO-${String(i + 1).padStart(2, '0')}`])
+);
+
 const normalizeText = (value: string) =>
   value
     .toLowerCase()
@@ -291,6 +296,7 @@ export const CalificacionesView: React.FC = () => {
   const [editingScore, setEditingScore] = useState<string>('');
   const [rapNotes, setRapNotes] = useState<Record<string, Record<string, string>>>({});
   const [rapModal, setRapModal] = useState<{ key: string; text: string } | null>(null);
+  const [compDetailModal, setCompDetailModal] = useState<{ compCode: string } | null>(null);
   const [rapColumns, setRapColumns] = useState<Record<string, string[]>>({});
   const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<Record<string, Record<string, 'orange' | 'green'>>>({});
   const [rapManagerOpen, setRapManagerOpen] = useState(false);
@@ -1550,15 +1556,19 @@ export const CalificacionesView: React.FC = () => {
                     <th
                       key={`comp-${gi}`}
                       colSpan={g.activities.length}
-                      className="px-2 py-1 text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
-                      title={g.compName}
+                      className="px-1 py-1 text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
+                      title={`${COMPETENCIA_IDS[g.compCode] || g.compCode} · ${g.compName}`}
                     >
-                      <span className="block text-xs font-bold text-indigo-700 truncate" style={{ maxWidth: Math.max(72, g.activities.length * 60) }}>
-                        {g.compCode}
-                      </span>
-                      {g.aaKeys && (
-                        <span className="block text-[10px] text-indigo-400 font-normal truncate">{g.aaKeys}</span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setCompDetailModal({ compCode: g.compCode })}
+                        className="w-full flex flex-col items-center hover:bg-indigo-100/70 rounded px-1 py-0.5 transition-colors"
+                      >
+                        <span className="text-xs font-bold text-indigo-700">{COMPETENCIA_IDS[g.compCode] || g.compCode}</span>
+                        {g.aaKeys && (
+                          <span className="text-[10px] text-indigo-400 font-normal">{g.aaKeys}</span>
+                        )}
+                      </button>
                     </th>
                   ))
                   : visibleActivities.length > 0 && (
@@ -1574,22 +1584,24 @@ export const CalificacionesView: React.FC = () => {
                     <th
                       key={`rap-comp-${gi}`}
                       colSpan={g.raps.length}
-                      className="px-2 py-1 text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
-                      title={g.compName}
+                      className="px-1 py-1 text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
+                      title={`${COMPETENCIA_IDS[g.compCode] || g.compCode} · ${g.compName}`}
                     >
-                      <span className="block text-xs font-bold text-indigo-700 truncate" style={{ maxWidth: Math.max(72, g.raps.length * 80) }}>
-                        {g.compCode}
-                      </span>
-                      <span className="block text-[10px] text-indigo-400 font-normal truncate">{g.compName}</span>
+                      <button
+                        type="button"
+                        onClick={() => setCompDetailModal({ compCode: g.compCode })}
+                        className="w-full flex flex-col items-center hover:bg-indigo-100/70 rounded px-1 py-0.5 transition-colors"
+                      >
+                        <span className="text-xs font-bold text-indigo-700">{COMPETENCIA_IDS[g.compCode] || g.compCode}</span>
+                      </button>
                     </th>
                   ))
                   : rapColumnsForFicha.map(key => {
                     const rapInfo = getRapStaticInfo(key);
                     return (
-                      <th key={key} rowSpan={2} className="px-3 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[80px]" title={rapInfo ? `${COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}\n${rapInfo.rapName}` : key}>
-                        <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
+                      <th key={key} rowSpan={2} className="px-3 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[64px]" title={rapInfo ? rapInfo.rapName : key}>
+                        <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-indigo-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
                           <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
-                          {rapInfo && <span className="text-[10px] text-gray-400 font-normal leading-tight block whitespace-normal">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</span>}
                         </button>
                       </th>
                     );
@@ -1694,10 +1706,9 @@ export const CalificacionesView: React.FC = () => {
               {(rapCompGroups || !compGroups) && rapColumnsForFicha.map(key => {
                 const rapInfo = getRapStaticInfo(key);
                 return (
-                  <th key={key} className="px-3 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[80px]" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={rapInfo ? `${COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}\n${rapInfo.rapName}` : key}>
-                    <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-gray-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
+                  <th key={key} className="px-3 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[64px]" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={rapInfo ? `${rapInfo.rapName}` : key}>
+                    <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-indigo-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
                       <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
-                      {rapInfo && <span className="text-[10px] text-gray-400 font-normal leading-tight block truncate max-w-[72px]">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</span>}
                     </button>
                   </th>
                 );
@@ -2159,6 +2170,64 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
             </div>
           </div>
         </div>
+        );
+      })()}
+
+      {compDetailModal && (() => {
+        const { compCode } = compDetailModal;
+        const compId = COMPETENCIA_IDS[compCode] || compCode;
+        const compName = COMPETENCIA_NAMES[compCode] || compCode;
+        const phaseRaps = (FASE_RAPS[selectedPhase] ?? Object.values(FASE_RAPS).flat())
+          .filter(r => r.compCode === compCode);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setCompDetailModal(null)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-xl w-full p-6 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex justify-between items-start mb-5 gap-3 flex-shrink-0">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded font-mono">{compId}</span>
+                    <span className="text-[11px] text-gray-400 font-mono">{compCode}</span>
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900 leading-snug">{compName}</h3>
+                </div>
+                <button onClick={() => setCompDetailModal(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 mt-0.5">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* RAPs list */}
+              {phaseRaps.length > 0 && (
+                <div className="overflow-y-auto flex-1 min-h-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2 flex-shrink-0">
+                    Resultados de Aprendizaje — {selectedPhase}
+                  </p>
+                  <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 overflow-hidden">
+                    {phaseRaps.map(rap => (
+                      <div key={rap.rapCode} className="flex items-start gap-3 px-4 py-3">
+                        <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-14 pt-0.5">
+                          <span className="text-xs font-bold text-indigo-600 font-mono">
+                            {rap.rapCode.replace(/^(\d+)-(\d+)$/, 'RA-$2')}
+                          </span>
+                          <span className="text-[10px] font-mono text-gray-400">{rap.aaKey}</span>
+                        </div>
+                        <p className="text-sm text-gray-800 leading-snug">{rap.rapName}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end mt-5 flex-shrink-0">
+                <button
+                  onClick={() => setCompDetailModal(null)}
+                  className="bg-gray-100 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
         );
       })()}
 
