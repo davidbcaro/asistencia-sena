@@ -32,8 +32,8 @@ import {
 import type { EvidenceCompMapData, EvCompEntry } from '../services/db';
 
 const PASSING_SCORE = 70;
-/** Altura fija de cada fila de la tabla (px) para que coincidan las dos mitades (datos + calificaciones). */
-const TABLE_ROW_HEIGHT_PX = 56;
+/** Altura fija de cada fila de la tabla (px) para que coincidan las dos mitades (datos + calificaciones). Misma que SofiaPlusView. */
+const TABLE_ROW_HEIGHT_PX = 52;
 
 // ---------------------------------------------------------------------------
 // DATOS ESTÁTICOS DEL CRONOGRAMA PEDAGÓGICO
@@ -1534,13 +1534,13 @@ export const CalificacionesView: React.FC = () => {
 
       {/* Una sola tabla con columnas sticky: misma fila para datos y calificaciones, así las alturas siempre coinciden al hacer scroll */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
-        <table className="w-full text-left min-w-[900px] border-collapse">
+        <table className="w-full text-left min-w-max border-collapse">
           <thead className="bg-gray-50 border-b border-gray-200">
             {/* ── Row 1 (competencia groups) – rendered when evidence OR RAP mapping exists ── */}
             {(compGroups || rapCompGroups) && (
               <tr style={{ height: 36 }}>
                 {/* Sticky identity cols – span both rows */}
-                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-10 min-w-10 max-w-10 sticky left-0 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden">
+                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-10 min-w-10 sticky left-0 z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] align-middle overflow-hidden">
                   <input
                     type="checkbox"
                     checked={paginatedStudentsFiltered.length > 0 && paginatedStudentsFiltered.every(s => selectedStudents.has(s.id))}
@@ -1548,19 +1548,19 @@ export const CalificacionesView: React.FC = () => {
                     className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                   />
                 </th>
-                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-xs font-mono w-10 min-w-10 max-w-10 sticky left-10 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden">No</th>
-                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-32 min-w-32 max-w-32 sticky left-20 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Documento</th>
-                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[208px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">
+                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-xs font-mono w-10 min-w-10 sticky left-10 z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] align-middle overflow-hidden">No</th>
+                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-32 min-w-32 sticky left-20 z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Documento</th>
+                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-48 min-w-48 sticky left-[208px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle">
                   <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-teal-700 ${sortOrder === 'firstname' ? 'text-teal-700' : ''}`}>
                     Nombres{sortOrder === 'firstname' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                   </button>
                 </th>
-                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">
+                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-48 min-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle">
                   <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-teal-700 ${sortOrder === 'lastname' ? 'text-teal-700' : ''}`}>
                     Apellidos{sortOrder === 'lastname' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                   </button>
                 </th>
-                <th rowSpan={2} className={`px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`}>
+                <th rowSpan={2} className={`px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[592px] bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`}>
                   <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
                     <button type="button" onClick={() => setShowStatusFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none whitespace-nowrap" title="Filtrar por estado">
                       Estado<Filter className="w-3.5 h-3.5 text-gray-400" />{filterStatus !== 'Todos' && <span className="text-teal-600 text-xs">({filterStatus})</span>}
@@ -1579,8 +1579,8 @@ export const CalificacionesView: React.FC = () => {
                     )}
                   </div>
                 </th>
-                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-28 min-w-28 max-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Ficha</th>
-                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 max-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para marcar como evaluado">Juicios Evaluativos</th>
+                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-28 min-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Ficha</th>
+                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para marcar como evaluado">Juicios Evaluativos</th>
 
                 {/* Evidence section in Row 1:
                     - if compGroups: show competencia group headers (colSpan per group)
@@ -1672,7 +1672,7 @@ export const CalificacionesView: React.FC = () => {
               {/* Sticky cols only rendered here when there is NO double header row */}
               {!(compGroups || rapCompGroups) && (
                 <>
-                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-10 min-w-10 max-w-10 sticky left-0 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-10 min-w-10 sticky left-0 z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <input
                       type="checkbox"
                       checked={paginatedStudentsFiltered.length > 0 && paginatedStudentsFiltered.every(s => selectedStudents.has(s.id))}
@@ -1680,19 +1680,19 @@ export const CalificacionesView: React.FC = () => {
                       className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                     />
                   </th>
-                  <th className="px-4 py-4 font-semibold text-gray-600 text-xs font-mono w-10 min-w-10 max-w-10 sticky left-10 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>No</th>
-                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-32 min-w-32 max-w-32 sticky left-20 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Documento</th>
-                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[208px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-xs font-mono w-10 min-w-10 sticky left-10 z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>No</th>
+                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-32 min-w-32 sticky left-20 z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Documento</th>
+                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 sticky left-[208px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-teal-700 ${sortOrder === 'firstname' ? 'text-teal-700' : ''}`}>
                       Nombres{sortOrder === 'firstname' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                     </button>
                   </th>
-                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-teal-700 ${sortOrder === 'lastname' ? 'text-teal-700' : ''}`}>
                       Apellidos{sortOrder === 'lastname' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                     </button>
                   </th>
-                  <th className={`px-4 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                  <th className={`px-4 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[592px] bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
                       <button type="button" onClick={() => setShowStatusFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none whitespace-nowrap" title="Filtrar por estado">
                         Estado<Filter className="w-3.5 h-3.5 text-gray-400" />{filterStatus !== 'Todos' && <span className="text-teal-600 text-xs">({filterStatus})</span>}
@@ -1711,8 +1711,8 @@ export const CalificacionesView: React.FC = () => {
                       )}
                     </div>
                   </th>
-                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 max-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
-                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 max-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para marcar como evaluado">Juicios Evaluativos</th>
+                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para marcar como evaluado">Juicios Evaluativos</th>
                 </>
               )}
 
@@ -1790,14 +1790,14 @@ export const CalificacionesView: React.FC = () => {
             ) : (
               paginatedStudentsFiltered.map((student, index) => (
                 <tr key={student.id} className="group hover:bg-gray-50" style={{ height: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                  <td className="px-4 py-4 w-10 min-w-10 max-w-10 sticky left-0 z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                  <td className="px-4 py-4 w-10 min-w-10 sticky left-0 z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] align-middle overflow-hidden transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <input type="checkbox" checked={selectedStudents.has(student.id)} onChange={(e) => handleSelectStudent(student.id, e.target.checked)} className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500" />
                   </td>
-                  <td className="px-4 py-4 w-10 min-w-10 max-w-10 text-gray-500 font-mono text-xs sticky left-10 z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{showAllStudents ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
-                  <td className="px-6 py-4 w-32 min-w-32 max-w-32 text-gray-600 font-mono text-xs sticky left-20 z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.documentNumber || '-'}</td>
-                  <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[208px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-teal-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.firstName}</td>
-                  <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[400px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-teal-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.lastName}</td>
-                  <td className="px-4 py-4 w-40 min-w-40 max-w-40 text-sm sticky left-[592px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                  <td className="px-4 py-4 w-10 min-w-10 text-gray-500 font-mono text-xs sticky left-10 z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] align-middle overflow-hidden transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{showAllStudents ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
+                  <td className="px-6 py-4 w-32 min-w-32 text-gray-600 font-mono text-xs sticky left-20 z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.documentNumber || '-'}</td>
+                  <td className="px-6 py-4 w-48 min-w-48 text-xs font-medium text-gray-900 sticky left-[208px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-teal-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.firstName}</td>
+                  <td className="px-6 py-4 w-48 min-w-48 text-xs font-medium text-gray-900 sticky left-[400px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-teal-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.lastName}</td>
+                  <td className="px-4 py-4 w-40 min-w-40 text-sm sticky left-[592px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <span className={`inline-block text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${
                       student.status === 'Formación' ? 'bg-green-100 text-green-800' :
                       student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
@@ -1808,9 +1808,9 @@ export const CalificacionesView: React.FC = () => {
                       {student.status || 'Formación'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 w-28 min-w-28 max-w-28 text-sm text-gray-700 sticky left-[752px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.group || <span className="text-gray-400">-</span>}</td>
+                  <td className="px-6 py-4 w-28 min-w-28 text-sm text-gray-700 sticky left-[752px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.group || <span className="text-gray-400">-</span>}</td>
                   <td
-                    className="px-4 py-4 w-24 min-w-24 max-w-24 sticky left-[864px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[6px_0_8px_-6px_rgba(0,0,0,0.15)] align-middle transition-colors cursor-pointer text-center overflow-hidden"
+                    className="px-4 py-4 w-24 min-w-24 sticky left-[864px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] align-middle transition-colors cursor-pointer text-center overflow-hidden"
                     style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX }}
                     onClick={() => toggleJuicioEvaluativo(student.id, student.group)}
                     title={
@@ -1893,7 +1893,7 @@ export const CalificacionesView: React.FC = () => {
         </table>
       </div>
 
-      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 text-sm flex-wrap gap-2">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl text-sm flex-wrap gap-2">
         <span className="text-gray-500">
           {showAllStudents
             ? `Mostrando todos (${studentsFilteredByFinal.length} aprendices)`
