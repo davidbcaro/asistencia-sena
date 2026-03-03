@@ -500,7 +500,7 @@ export const SofiaPlusView: React.FC = () => {
             <input
               type="text"
               placeholder="Buscar aprendiz..."
-              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white shadow-sm w-56"
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white shadow-sm w-56"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -514,7 +514,7 @@ export const SofiaPlusView: React.FC = () => {
               className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               <Filter className="w-4 h-4 text-gray-500" />
-              Ficha {selectedFicha !== 'Todas' && <span className="text-indigo-600">({selectedFicha})</span>}
+              Ficha {selectedFicha !== 'Todas' && <span className="text-teal-600">({selectedFicha})</span>}
             </button>
             {showFichaFilter && (
               <>
@@ -524,7 +524,7 @@ export const SofiaPlusView: React.FC = () => {
                   <select
                     value={selectedFicha}
                     onChange={e => { setSelectedFicha(e.target.value); setShowFichaFilter(false); }}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                   >
                     <option value="Todas">Todas las fichas</option>
                     {fichas.map(f => <option key={f.id} value={f.code}>{f.code} - {f.program}</option>)}
@@ -542,7 +542,7 @@ export const SofiaPlusView: React.FC = () => {
               className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               <Filter className="w-4 h-4 text-gray-500" />
-              Estado {filterStatus !== 'Todos' && <span className="text-indigo-600">({filterStatus})</span>}
+              Estado {filterStatus !== 'Todos' && <span className="text-teal-600">({filterStatus})</span>}
             </button>
             {showStatusFilter && (
               <>
@@ -551,7 +551,7 @@ export const SofiaPlusView: React.FC = () => {
                   {['Todos', 'Formación', 'Cancelado', 'Retiro Voluntario', 'Deserción'].map(opt => (
                     <button key={opt} type="button"
                       onClick={() => { setFilterStatus(opt); setShowStatusFilter(false); }}
-                      className={`w-full text-left px-3 py-2 text-sm ${filterStatus === opt ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                      className={`w-full text-left px-3 py-2 text-sm ${filterStatus === opt ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
                     >
                       {opt === 'Todos' ? 'Todos los estados' : opt}
                     </button>
@@ -569,7 +569,7 @@ export const SofiaPlusView: React.FC = () => {
               className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               <Filter className="w-4 h-4 text-gray-500" />
-              Juicio {filterJuicio !== 'all' && <span className="text-indigo-600">({JUICIO_BADGE[filterJuicio]?.label})</span>}
+              Juicio {filterJuicio !== 'all' && <span className="text-teal-600">({JUICIO_BADGE[filterJuicio]?.label})</span>}
             </button>
             {showJuicioFilter && (
               <>
@@ -578,7 +578,7 @@ export const SofiaPlusView: React.FC = () => {
                   {(['all', 'APROBADO', 'NO APROBADO', 'POR EVALUAR'] as const).map(opt => (
                     <button key={opt} type="button"
                       onClick={() => { setFilterJuicio(opt); setShowJuicioFilter(false); }}
-                      className={`w-full text-left px-3 py-2 text-sm ${filterJuicio === opt ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                      className={`w-full text-left px-3 py-2 text-sm ${filterJuicio === opt ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
                     >
                       {opt === 'all' ? 'Todos los juicios' : opt}
                     </button>
@@ -592,7 +592,7 @@ export const SofiaPlusView: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowHistory(p => !p)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border shadow-sm text-sm font-medium transition-colors ${showHistory ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border shadow-sm text-sm font-medium transition-colors ${showHistory ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
           >
             <History className="w-4 h-4" />
             Historial APROBADOS
@@ -628,8 +628,8 @@ export const SofiaPlusView: React.FC = () => {
 
       {/* -------- Stats bar -------- */}
       {hasData && (
-        <div className="flex items-center gap-6 px-4 py-2 bg-indigo-50 rounded-lg border border-indigo-100 text-sm">
-          <span className="text-indigo-700 font-medium">{stats.total} aprendices</span>
+        <div className="flex items-center gap-6 px-4 py-2 bg-teal-50 rounded-lg border border-teal-100 text-sm">
+          <span className="text-teal-700 font-medium">{stats.total} aprendices</span>
           <span className="text-green-700 font-medium">{stats.aprobados} con todos los RAPs aprobados</span>
           <span className="text-gray-600">{rapColumns.length} resultados de aprendizaje</span>
           <span className="text-gray-600">{juicioHistory.length} aprobaciones en historial</span>
@@ -648,12 +648,12 @@ export const SofiaPlusView: React.FC = () => {
               <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-xs w-10 min-w-10 sticky left-10 z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] align-middle">No</th>
               <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-32 min-w-32 sticky left-20 z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] align-middle whitespace-nowrap">Documento</th>
               <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[208px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] align-middle">
-                <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 whitespace-nowrap ${sortOrder === 'firstname' ? 'text-indigo-700' : ''}`}>
+                <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-teal-700 whitespace-nowrap ${sortOrder === 'firstname' ? 'text-teal-700' : ''}`}>
                   Nombres {sortOrder === 'firstname' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </button>
               </th>
               <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[368px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] align-middle">
-                <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 whitespace-nowrap ${sortOrder === 'lastname' ? 'text-indigo-700' : ''}`}>
+                <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-teal-700 whitespace-nowrap ${sortOrder === 'lastname' ? 'text-teal-700' : ''}`}>
                   Apellidos {sortOrder === 'lastname' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </button>
               </th>
@@ -664,14 +664,14 @@ export const SofiaPlusView: React.FC = () => {
                 <th
                   key={g.competenciaId}
                   colSpan={g.raps.length}
-                  className="px-2 py-1 text-xs font-semibold text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
+                  className="px-2 py-1 text-xs font-semibold text-center border-l border-gray-300 bg-teal-50/70 align-middle"
                   title={g.competenciaName}
                 >
-                  <span className="block truncate max-w-[160px] mx-auto text-indigo-700" style={{ maxWidth: Math.max(80, g.raps.length * 52) }}>
+                  <span className="block truncate max-w-[160px] mx-auto text-teal-700" style={{ maxWidth: Math.max(80, g.raps.length * 52) }}>
                     {g.ap && <span className="font-bold mr-1">{g.ap}</span>}
                     {abbreviateCompetencia(g.competenciaName, 4)}
                   </span>
-                  {g.fase && <span className="block text-indigo-400 font-normal text-[10px]">{g.fase}</span>}
+                  {g.fase && <span className="block text-teal-400 font-normal text-[10px]">{g.fase}</span>}
                 </th>
               ))}
             </tr>
@@ -759,7 +759,7 @@ export const SofiaPlusView: React.FC = () => {
                       return (
                         <td
                           key={rap.rapId}
-                          className="px-1 text-center border-l border-gray-100 align-middle cursor-pointer hover:bg-indigo-50/50 transition-colors"
+                          className="px-1 text-center border-l border-gray-100 align-middle cursor-pointer hover:bg-teal-50/50 transition-colors"
                           style={{ height: TABLE_ROW_HEIGHT_PX, minWidth: 52 }}
                           onClick={() => setCellDetail({ student, rap, entry: entry || null })}
                           title={`${rap.rapId} · Click para ver detalles`}
@@ -801,7 +801,7 @@ export const SofiaPlusView: React.FC = () => {
               </button>
             </>
           )}
-          <button type="button" onClick={() => setShowAllStudents(p => !p)} className="text-indigo-600 hover:text-indigo-700 font-medium">
+          <button type="button" onClick={() => setShowAllStudents(p => !p)} className="text-teal-600 hover:text-teal-700 font-medium">
             {showAllStudents ? 'Mostrar 15 por página' : 'Mostrar todos'}
           </button>
         </div>

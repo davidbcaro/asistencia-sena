@@ -84,7 +84,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
           onClick={() => setMobileOpen(false)}
           className={`flex items-center gap-3 min-w-0 flex-1 ${!expanded ? 'justify-center' : ''}`}
         >
-          <div className={`p-2 rounded-lg flex-shrink-0 transition-colors ${role === 'professor' ? 'bg-indigo-600' : 'bg-green-600'}`}>
+          <div className={`p-2 rounded-lg flex-shrink-0 transition-colors ${role === 'professor' ? 'bg-teal-600' : 'bg-green-600'}`}>
             <GraduationCap className="w-5 h-5 text-white" />
           </div>
           {/* Text fades + slides in when expanded */}
@@ -107,8 +107,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
             title={isPinned ? 'Desanclar menú' : 'Anclar menú abierto'}
             className={`flex-shrink-0 p-1.5 rounded-lg transition-all duration-200 ${
               isPinned
-                ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
-                : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'
+                ? 'text-teal-600 bg-teal-50 hover:bg-teal-100'
+                : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'
             } ${expanded ? 'opacity-100' : 'opacity-0 pointer-events-none w-0 p-0 overflow-hidden'}`}
           >
             {isPinned
@@ -135,10 +135,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                 ${expanded ? 'gap-3 px-3 py-2.5' : 'justify-center px-2 py-2.5'}
                 ${isActive
                   ? role === 'professor'
-                    ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                    ? 'bg-teal-50 text-teal-700 font-semibold'
                     : 'bg-green-50 text-green-700 font-semibold'
                   : isPortalItem && role === 'professor'
-                    ? 'text-indigo-500 bg-indigo-50/30 hover:bg-indigo-100 font-medium border border-dashed border-indigo-100'
+                    ? 'text-teal-500 bg-teal-50/30 hover:bg-teal-100 font-medium border border-dashed border-teal-100'
                     : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                 }
               `}
@@ -226,7 +226,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
             {/* Mobile: logo */}
             <div className="md:hidden">
               <Link to={homePath} className="flex items-center gap-2">
-                <GraduationCap className={`w-5 h-5 ${role === 'professor' ? 'text-indigo-600' : 'text-green-600'}`} />
+                <GraduationCap className={`w-5 h-5 ${role === 'professor' ? 'text-teal-600' : 'text-green-600'}`} />
                 <span className="font-bold text-gray-800 text-sm">AsistenciaPro</span>
               </Link>
             </div>

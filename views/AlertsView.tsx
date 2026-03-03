@@ -611,7 +611,7 @@ Atentamente,`
             <input
               type="text"
               placeholder="Buscar por nombre, documento o correo..."
-              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full bg-white"
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none w-full bg-white"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -620,7 +620,7 @@ Atentamente,`
             <div className="relative">
               <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <select
-                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium text-gray-700"
+                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700"
                 value={filterFicha}
                 onChange={(e) => setFilterFicha(e.target.value)}
               >
@@ -633,7 +633,7 @@ Atentamente,`
               </select>
             </div>
             <select
-              className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium text-gray-700"
+              className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700"
               value={filterNovedad}
               onChange={(e) => setFilterNovedad(e.target.value)}
             >
@@ -660,7 +660,7 @@ Atentamente,`
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
           <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-            <Edit3 className="w-5 h-5 text-indigo-600" />
+            <Edit3 className="w-5 h-5 text-teal-600" />
             Redactar plantilla
           </h3>
           <div className="space-y-4">
@@ -668,7 +668,7 @@ Atentamente,`
               <label className="block text-sm font-medium text-gray-700 mb-1">Asunto</label>
               <input
                 type="text"
-                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
                 value={templateSubject}
                 onChange={(e) => setTemplateSubject(e.target.value)}
               />
@@ -693,7 +693,7 @@ Atentamente,`
                     key={v}
                     type="button"
                     onClick={() => insertVariable(v)}
-                    className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-100 hover:bg-indigo-100"
+                    className="text-xs bg-teal-50 text-teal-700 px-2 py-1 rounded border border-teal-100 hover:bg-teal-100"
                   >
                     {v}
                   </button>
@@ -726,7 +726,7 @@ Atentamente,`
                   <Underline className="w-4 h-4" />
                 </button>
                 <select
-                  className="ml-1 text-sm border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:ring-1 focus:ring-indigo-500 outline-none"
+                  className="ml-1 text-sm border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:ring-1 focus:ring-teal-500 outline-none"
                   title="Fuente"
                   onChange={(e) => {
                     const v = e.target.value;
@@ -778,7 +778,7 @@ Atentamente,`
                 ref={editorRef}
                 contentEditable
                 suppressContentEditableWarning
-                className="w-full min-h-[12rem] bg-white border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm leading-relaxed overflow-y-auto"
+                className="w-full min-h-[12rem] bg-white border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-teal-500 outline-none text-sm leading-relaxed overflow-y-auto"
                 onInput={() => {
                   const el = editorRef.current;
                   if (el) setTemplateBody(el.innerHTML);
@@ -789,7 +789,7 @@ Atentamente,`
             <button
               onClick={generatePreviews}
               disabled={filteredList.length === 0}
-              className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+              className="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
               Generar vista previa ({filteredList.length})
@@ -861,7 +861,7 @@ Atentamente,`
                           </span>
                         )}
                         {currentPreviewEmail.status === 'sending' && (
-                          <span className="text-indigo-600 text-xs font-bold bg-indigo-50 px-2 py-1 rounded flex items-center gap-1">
+                          <span className="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded flex items-center gap-1">
                             <RefreshCw className="w-3 h-3 animate-spin" /> Enviando
                           </span>
                         )}
@@ -890,7 +890,7 @@ Atentamente,`
                           <button
                             type="button"
                             onClick={handleCopyBodyWithFormat}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100"
                             title="Copiar cuerpo con formato para pegar en el correo"
                           >
                             <Copy className="w-3.5 h-3.5" />
@@ -946,7 +946,7 @@ Atentamente,`
               <X className="w-5 h-5" />
             </button>
             <h3 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
-              <Settings className="w-5 h-5 text-indigo-600" />
+              <Settings className="w-5 h-5 text-teal-600" />
               Configuración de envío
             </h3>
             <p className="text-sm text-gray-500 mb-6">
@@ -968,18 +968,18 @@ Atentamente,`
                 </p>
               </div>
 
-              <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                <h4 className="font-semibold text-indigo-900 text-sm mb-3">
+              <div className="bg-teal-50 p-4 rounded-lg border border-teal-100">
+                <h4 className="font-semibold text-teal-900 text-sm mb-3">
                   Datos del remitente (Instructor)
                 </h4>
                 <div className="grid gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-indigo-800 mb-1">
+                    <label className="block text-xs font-medium text-teal-800 mb-1">
                       Nombre para mostrar
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-white border border-indigo-200 rounded px-3 py-2 text-sm"
+                      className="w-full bg-white border border-teal-200 rounded px-3 py-2 text-sm"
                       placeholder="Ej: Instructor Juan Pérez"
                       value={emailConfig.teacherName}
                       onChange={(e) =>
@@ -988,12 +988,12 @@ Atentamente,`
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-indigo-800 mb-1">
+                    <label className="block text-xs font-medium text-teal-800 mb-1">
                       Tu correo (responder a)
                     </label>
                     <input
                       type="email"
-                      className="w-full bg-white border border-indigo-200 rounded px-3 py-2 text-sm"
+                      className="w-full bg-white border border-teal-200 rounded px-3 py-2 text-sm"
                       placeholder="instructor@ejemplo.com"
                       value={emailConfig.teacherEmail}
                       onChange={(e) =>

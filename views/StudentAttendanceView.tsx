@@ -132,7 +132,7 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
       
       {/* HEADER LOGO AREA */}
       <Link to="/" className="mb-6 text-center">
-        <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
+        <div className="w-16 h-16 bg-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-teal-200">
           <UserCheck className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Portal Aprendiz</h1>
@@ -148,7 +148,7 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
                     onClick={() => setMode('register')}
                     className={`flex-1 py-4 text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
                         mode === 'register' 
-                        ? 'bg-indigo-600 text-white' 
+                        ? 'bg-teal-600 text-white' 
                         : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                     }`}
                 >
@@ -159,7 +159,7 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
                     onClick={() => setMode('consult')}
                     className={`flex-1 py-4 text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
                         mode === 'consult' 
-                        ? 'bg-indigo-600 text-white' 
+                        ? 'bg-teal-600 text-white' 
                         : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                     }`}
                 >
@@ -168,7 +168,7 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
                 </button>
             </div>
 
-            <div className="bg-indigo-50/50 p-6 text-indigo-900 border-b border-indigo-50">
+            <div className="bg-teal-50/50 p-6 text-teal-900 border-b border-teal-50">
                 {mode === 'register' ? (
                     <>
                         <h2 className="text-lg font-bold">Marcar presencia hoy</h2>
@@ -188,7 +188,7 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
                     <input 
                         type="text" 
                         required
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-lg shadow-sm"
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-lg shadow-sm"
                         placeholder="Ej: 1098765432"
                         value={docNumber}
                         onChange={(e) => setDocNumber(e.target.value)}
@@ -200,7 +200,7 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
                     <input 
                         type="text" 
                         required
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-lg uppercase shadow-sm"
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-lg uppercase shadow-sm"
                         placeholder="Ej: 2902090"
                         value={classCode}
                         onChange={(e) => setClassCode(e.target.value)}
@@ -237,11 +237,11 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
       {step === 'success' && studentData && (
         <div className="w-full max-w-2xl animate-fade-in space-y-6">
             {/* Success Card */}
-            <div className={`bg-white rounded-2xl shadow-xl border overflow-hidden relative ${mode === 'register' ? 'border-green-100' : 'border-indigo-100'}`}>
-                <div className={`absolute top-0 left-0 w-full h-2 ${mode === 'register' ? 'bg-green-500' : 'bg-indigo-500'}`}></div>
+            <div className={`bg-white rounded-2xl shadow-xl border overflow-hidden relative ${mode === 'register' ? 'border-green-100' : 'border-teal-100'}`}>
+                <div className={`absolute top-0 left-0 w-full h-2 ${mode === 'register' ? 'bg-green-500' : 'bg-teal-500'}`}></div>
                 <div className="p-8 text-center">
-                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-short ${mode === 'register' ? 'bg-green-100' : 'bg-indigo-100'}`}>
-                        {mode === 'register' ? <CheckCircle className="w-10 h-10 text-green-600" /> : <UserCheck className="w-10 h-10 text-indigo-600" />}
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-short ${mode === 'register' ? 'bg-green-100' : 'bg-teal-100'}`}>
+                        {mode === 'register' ? <CheckCircle className="w-10 h-10 text-green-600" /> : <UserCheck className="w-10 h-10 text-teal-600" />}
                     </div>
                     
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -254,7 +254,7 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
                     <div className="bg-gray-50 rounded-xl p-4 inline-block text-left w-full max-w-sm border border-gray-200">
                         <div className="flex justify-between items-center mb-2 border-b border-gray-200 pb-2">
                             <span className="text-xs text-gray-400 uppercase font-bold">Aprendiz</span>
-                            <span className="text-indigo-600 font-bold font-mono">{studentData.documentNumber}</span>
+                            <span className="text-teal-600 font-bold font-mono">{studentData.documentNumber}</span>
                         </div>
                         <p className="text-lg font-bold text-gray-800">{studentData.firstName} {studentData.lastName}</p>
                         <p className="text-sm text-gray-500">{studentData.email}</p>
@@ -266,7 +266,7 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
                 {/* Stats Card */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
                     <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <History className="w-5 h-5 text-indigo-600" />
+                        <History className="w-5 h-5 text-teal-600" />
                         Resumen Histórico
                     </h3>
                     <div className="grid grid-cols-2 gap-4">

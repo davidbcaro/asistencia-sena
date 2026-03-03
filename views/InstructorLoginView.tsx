@@ -83,7 +83,7 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
   if (isPasswordInitialized === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
       </div>
     );
   }
@@ -92,7 +92,7 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <Link
         to="/"
-        className="absolute top-6 left-6 flex items-center gap-2 text-gray-500 hover:text-indigo-600 transition-colors text-sm font-medium p-2 rounded-lg hover:bg-gray-100"
+        className="absolute top-6 left-6 flex items-center gap-2 text-gray-500 hover:text-teal-600 transition-colors text-sm font-medium p-2 rounded-lg hover:bg-gray-100"
       >
         <ArrowLeft className="w-4 h-4" />
         Volver al inicio
@@ -100,7 +100,7 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
 
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8 animate-fade-in-up">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4">
+          <div className="w-14 h-14 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mb-4">
             <ShieldCheck className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Acceso Instructor</h1>
@@ -121,7 +121,7 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
                 autoComplete="new-password"
                 autoFocus
                 placeholder="Nueva contraseña"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center text-lg tracking-widest"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-center text-lg tracking-widest"
                 value={setupPassword}
                 onChange={(e) => setSetupPassword(e.target.value)}
                 disabled={isSetupLoading}
@@ -134,7 +134,7 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
                 name="confirm-password"
                 autoComplete="new-password"
                 placeholder="Confirmar contraseña"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center text-lg tracking-widest"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-center text-lg tracking-widest"
                 value={setupConfirm}
                 onChange={(e) => setSetupConfirm(e.target.value)}
                 disabled={isSetupLoading}
@@ -150,7 +150,7 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
             <button
               type="submit"
               disabled={isSetupLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-70"
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-teal-200 flex items-center justify-center gap-2 disabled:opacity-70"
             >
               {isSetupLoading && <Loader2 className="w-5 h-5 animate-spin" />}
               Guardar contraseña
@@ -186,7 +186,7 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
                 autoComplete="current-password"
                 autoFocus
                 placeholder="Contraseña"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-center text-lg tracking-widest"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-center text-lg tracking-widest"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
@@ -202,7 +202,7 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-70"
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-teal-200 flex items-center justify-center gap-2 disabled:opacity-70"
             >
               {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
               Ingresar

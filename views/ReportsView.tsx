@@ -114,7 +114,7 @@ const SearchBar: React.FC<{
     <input
       type="text"
       placeholder="Buscar..."
-      className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-56 bg-white shadow-sm"
+      className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none w-56 bg-white shadow-sm"
       value={value}
       onChange={e => onChange(e.target.value)}
     />
@@ -126,7 +126,7 @@ const SearchBar: React.FC<{
 const ExportBtn: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <button
     onClick={onClick}
-    className="flex items-center gap-2 text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg border border-indigo-100 font-medium transition-colors"
+    className="flex items-center gap-2 text-sm text-teal-600 bg-teal-50 hover:bg-teal-100 px-3 py-2 rounded-lg border border-teal-100 font-medium transition-colors"
   >
     <FileDown className="w-4 h-4" />
     Exportar
@@ -536,7 +536,7 @@ export const ReportsView: React.FC = () => {
         <div className="relative">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <select
-            className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none appearance-none bg-white shadow-sm font-medium text-gray-700"
+            className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none appearance-none bg-white shadow-sm font-medium text-gray-700"
             value={selectedFicha}
             onChange={e => setSelectedFicha(e.target.value)}
           >
@@ -555,7 +555,7 @@ export const ReportsView: React.FC = () => {
               onClick={() => setActiveTab(id)}
               className={`flex items-center gap-2 py-3 px-2 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                 activeTab === id
-                  ? 'border-indigo-500 text-indigo-600'
+                  ? 'border-teal-500 text-teal-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -593,7 +593,7 @@ export const ReportsView: React.FC = () => {
             <KpiCard
               label="Clases registradas"
               value={sessionKpis.totalSessions}
-              valueColor="text-indigo-600"
+              valueColor="text-teal-600"
             />
           </div>
 
@@ -689,10 +689,10 @@ export const ReportsView: React.FC = () => {
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
-                      Apellidos {sortSessions === 'lastname' && <span className="text-indigo-500">↓</span>}
+                      Apellidos {sortSessions === 'lastname' && <span className="text-teal-500">↓</span>}
                     </th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
-                      Nombres {sortSessions === 'firstname' && <span className="text-indigo-500">↓</span>}
+                      Nombres {sortSessions === 'firstname' && <span className="text-teal-500">↓</span>}
                     </th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ficha</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-center">Clases</th>
@@ -958,7 +958,7 @@ export const ReportsView: React.FC = () => {
             <KpiCard
               label="Actividad más pendiente"
               value={evidenciasKpis.worstActivity}
-              valueColor="text-indigo-600"
+              valueColor="text-teal-600"
             />
           </div>
 

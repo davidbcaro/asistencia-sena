@@ -303,12 +303,12 @@ END $$;
       </div>
 
       {/* --- CLOUD SYNC SECTION --- */}
-      <div className="bg-white p-6 rounded-xl border border-indigo-100 shadow-md animate-fade-in relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-400 to-purple-500"></div>
+      <div className="bg-white p-6 rounded-xl border border-teal-100 shadow-md animate-fade-in relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-400 to-purple-500"></div>
         
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
                     <Cloud className="w-8 h-8" />
                 </div>
                 <div>
@@ -354,14 +354,14 @@ END $$;
                 disabled={connectionStatus !== 'connected' || syncStatus === 'loading'}
                 className={`flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 transition-all ${
                     connectionStatus === 'connected' 
-                    ? 'border-indigo-100 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 cursor-pointer' 
+                    ? 'border-teal-100 bg-teal-50 hover:bg-teal-100 hover:border-teal-300 cursor-pointer' 
                     : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
                 }`}
             >
-                {syncStatus === 'loading' ? <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" /> : <CloudDownload className="w-8 h-8 text-indigo-600" />}
+                {syncStatus === 'loading' ? <RefreshCw className="w-8 h-8 text-teal-600 animate-spin" /> : <CloudDownload className="w-8 h-8 text-teal-600" />}
                 <div className="text-center">
-                    <span className="block font-bold text-indigo-900">Bajar datos de Nube a App</span>
-                    <span className="text-xs text-indigo-700 px-4">Recuperar mis datos guardados.</span>
+                    <span className="block font-bold text-teal-900">Bajar datos de Nube a App</span>
+                    <span className="text-xs text-teal-700 px-4">Recuperar mis datos guardados.</span>
                 </div>
             </button>
 
@@ -370,7 +370,7 @@ END $$;
                 disabled={connectionStatus !== 'connected' || syncStatus === 'loading'}
                 className={`flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 transition-all ${
                     connectionStatus === 'connected' 
-                    ? 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md cursor-pointer' 
+                    ? 'border-gray-200 bg-white hover:border-teal-300 hover:shadow-md cursor-pointer' 
                     : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
                 }`}
             >
@@ -410,7 +410,7 @@ END $$;
                   <label className="block text-xs font-bold text-gray-700 mb-1">Contraseña Actual</label>
                   <input 
                       type="password"
-                      className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                       value={currentPass}
                       onChange={e => setCurrentPass(e.target.value)}
                   />
@@ -419,7 +419,7 @@ END $$;
                   <label className="block text-xs font-bold text-gray-700 mb-1">Nueva Contraseña</label>
                   <input 
                       type="password"
-                      className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                       value={newPass}
                       onChange={e => setNewPass(e.target.value)}
                   />
@@ -428,7 +428,7 @@ END $$;
                   <label className="block text-xs font-bold text-gray-700 mb-1">Confirmar Nueva</label>
                   <input 
                       type="password"
-                      className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                       value={confirmPass}
                       onChange={e => setConfirmPass(e.target.value)}
                   />
@@ -499,7 +499,7 @@ END $$;
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
                   <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                       <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                          <Database className="w-6 h-6 text-indigo-600"/>
+                          <Database className="w-6 h-6 text-teal-600"/>
                           Script de Instalación (SQL)
                       </h3>
                       <button onClick={() => setShowSql(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-6 h-6"/></button>

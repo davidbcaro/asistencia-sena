@@ -407,7 +407,7 @@ export const StudentsView: React.FC = () => {
                 <input 
                     type="text"
                     placeholder="Buscar..."
-                    className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-64 bg-white shadow-sm"
+                    className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none w-full md:w-64 bg-white shadow-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -433,7 +433,7 @@ export const StudentsView: React.FC = () => {
                                     setFilterFicha(e.target.value);
                                     setShowFilters(false);
                                 }}
-                                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                             >
                                 <option value="Todas">Todas las Fichas</option>
                                 {fichas.map(f => (
@@ -450,7 +450,7 @@ export const StudentsView: React.FC = () => {
                                     setFilterStatus(e.target.value);
                                     setShowFilters(false);
                                 }}
-                                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                             >
                                 <option value="Todos">Todos los Estados</option>
                                 <option value="Formación">Formación</option>
@@ -473,7 +473,7 @@ export const StudentsView: React.FC = () => {
 
             <button
             onClick={() => setIsAdding(!isAdding)}
-            className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+            className="flex items-center justify-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
             >
             {isAdding ? <span>Cancelar</span> : <><Plus className="w-4 h-4" /> <span>Agregar</span></>}
             </button>
@@ -482,8 +482,8 @@ export const StudentsView: React.FC = () => {
 
       {/* Bulk Actions Bar */}
       {selectedStudents.size > 0 && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between">
-          <span className="text-indigo-900 font-medium">
+        <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-teal-900 font-medium">
             {selectedStudents.size} aprendiz{selectedStudents.size > 1 ? 'es' : ''} seleccionado{selectedStudents.size > 1 ? 's' : ''}
           </span>
           <button
@@ -506,7 +506,7 @@ export const StudentsView: React.FC = () => {
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">Ficha/Grupo</label>
               <select
-                  className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                   value={newGroup}
                   onChange={(e) => setNewGroup(e.target.value)}
               >
@@ -518,7 +518,7 @@ export const StudentsView: React.FC = () => {
               <input
                 type="text"
                 placeholder="No. Documento"
-                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                 value={newDoc}
                 onChange={(e) => setNewDoc(e.target.value)}
               />
@@ -526,14 +526,14 @@ export const StudentsView: React.FC = () => {
                   <input
                     type="text"
                     placeholder="Nombres"
-                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                     value={newFirstName}
                     onChange={(e) => setNewFirstName(e.target.value)}
                   />
                    <input
                     type="text"
                     placeholder="Apellidos"
-                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                     value={newLastName}
                     onChange={(e) => setNewLastName(e.target.value)}
                   />
@@ -541,7 +541,7 @@ export const StudentsView: React.FC = () => {
               <input
                 type="email"
                 placeholder="Correo Electrónico"
-                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
               />
@@ -564,7 +564,7 @@ export const StudentsView: React.FC = () => {
             <div className="mb-4">
                 <label className="block text-sm font-bold text-gray-700 mb-1">1. Ficha de Destino</label>
                 <select
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                     value={bulkSelectedFicha}
                     onChange={(e) => setBulkSelectedFicha(e.target.value)}
                 >
@@ -584,14 +584,14 @@ export const StudentsView: React.FC = () => {
             </div>
             <p className="text-xs text-gray-500 mb-2">Formato: <b>Documento, Nombres, Apellidos, Email</b></p>
             <textarea
-              className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 h-32 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm font-mono"
+              className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 h-32 focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm font-mono"
               placeholder="123, Juan, Perez, juan@gmail.com&#10;456, Maria, Lopez, maria@gmail.com"
               value={bulkText}
               onChange={(e) => setBulkText(e.target.value)}
             />
             <button
               onClick={handleBulkSubmit}
-              className="mt-3 w-full flex justify-center items-center space-x-2 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+              className="mt-3 w-full flex justify-center items-center space-x-2 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700"
             >
               <FileText className="w-4 h-4" />
               <span>Procesar Lista en Ficha</span>
@@ -610,7 +610,7 @@ export const StudentsView: React.FC = () => {
                   type="checkbox"
                   checked={paginatedStudents.length > 0 && paginatedStudents.every(s => selectedStudents.has(s.id))}
                   onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                 />
               </th>
               <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-14 text-center">No.</th>
@@ -619,12 +619,12 @@ export const StudentsView: React.FC = () => {
                       type="button"
                       onClick={() => handleSort('document')}
                       className={`inline-flex items-center gap-1 hover:text-gray-900 ${
-                          sortOrder === 'document' ? 'text-indigo-700' : ''
+                          sortOrder === 'document' ? 'text-teal-700' : ''
                       }`}
                   >
                       Documento
                       {sortOrder === 'document' && (
-                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                        <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                       )}
                   </button>
               </th>
@@ -633,12 +633,12 @@ export const StudentsView: React.FC = () => {
                       type="button"
                       onClick={() => handleSort('firstname')}
                       className={`inline-flex items-center gap-1 hover:text-gray-900 ${
-                          sortOrder === 'firstname' ? 'text-indigo-700' : ''
+                          sortOrder === 'firstname' ? 'text-teal-700' : ''
                       }`}
                   >
                       Nombres
                       {sortOrder === 'firstname' && (
-                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                        <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                       )}
                   </button>
               </th>
@@ -647,12 +647,12 @@ export const StudentsView: React.FC = () => {
                       type="button"
                       onClick={() => handleSort('lastname')}
                       className={`inline-flex items-center gap-1 hover:text-gray-900 ${
-                          sortOrder === 'lastname' ? 'text-indigo-700' : ''
+                          sortOrder === 'lastname' ? 'text-teal-700' : ''
                       }`}
                   >
                       Apellidos
                       {sortOrder === 'lastname' && (
-                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                        <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                       )}
                   </button>
               </th>
@@ -662,12 +662,12 @@ export const StudentsView: React.FC = () => {
                       type="button"
                       onClick={() => handleSort('group')}
                       className={`inline-flex items-center gap-1 hover:text-gray-900 ${
-                          sortOrder === 'group' ? 'text-indigo-700' : ''
+                          sortOrder === 'group' ? 'text-teal-700' : ''
                       }`}
                   >
                       Ficha
                       {sortOrder === 'group' && (
-                        <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                        <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                       )}
                   </button>
               </th>
@@ -681,7 +681,7 @@ export const StudentsView: React.FC = () => {
                     Estado
                     <Filter className="w-3.5 h-3.5 text-gray-400" />
                     {filterStatus !== 'Todos' && (
-                      <span className="text-indigo-600 text-xs">({filterStatus})</span>
+                      <span className="text-teal-600 text-xs">({filterStatus})</span>
                     )}
                   </button>
                   {showStatusFilter && (
@@ -691,35 +691,35 @@ export const StudentsView: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }}
-                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
                         >
                           Todos los Estados
                         </button>
                         <button
                           type="button"
                           onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }}
-                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
                         >
                           Formación
                         </button>
                         <button
                           type="button"
                           onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }}
-                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
                         >
                           Cancelado
                         </button>
                         <button
                           type="button"
                           onClick={() => { setFilterStatus('Retiro Voluntario'); setShowStatusFilter(false); }}
-                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
                         >
                           Retiro Voluntario
                         </button>
                         <button
                           type="button"
                           onClick={() => { setFilterStatus('Deserción'); setShowStatusFilter(false); }}
-                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                          className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
                         >
                           Deserción
                         </button>
@@ -750,7 +750,7 @@ export const StudentsView: React.FC = () => {
                       type="checkbox"
                       checked={selectedStudents.has(student.id)}
                       onChange={(e) => handleSelectStudent(student.id, e.target.checked)}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                     />
                   </td>
                   <td className="px-4 py-4 text-center text-gray-500 text-xs tabular-nums">
@@ -759,7 +759,7 @@ export const StudentsView: React.FC = () => {
                    <td className="px-6 py-4 text-gray-600 font-mono text-xs">
                         {student.documentNumber || '-'}
                    </td>
-                   <td className="px-6 py-4 text-gray-800 text-xs cursor-pointer hover:text-indigo-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
+                   <td className="px-6 py-4 text-gray-800 text-xs cursor-pointer hover:text-teal-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
                         <span className="inline-flex flex-wrap items-center gap-1.5">
                           <span>{student.firstName}</span>
                           {student.isVocero && (
@@ -770,7 +770,7 @@ export const StudentsView: React.FC = () => {
                           )}
                         </span>
                    </td>
-                   <td className="px-6 py-4 font-medium text-gray-900 text-xs cursor-pointer hover:text-indigo-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
+                   <td className="px-6 py-4 font-medium text-gray-900 text-xs cursor-pointer hover:text-teal-600 hover:underline transition-colors min-w-[11rem] w-52" title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>
                         {student.lastName}
                    </td>
                   <td className="px-6 py-4 text-gray-600 text-sm w-80 min-w-[20rem] whitespace-nowrap" title={student.email || undefined}>
@@ -798,7 +798,7 @@ export const StudentsView: React.FC = () => {
                     <div className="flex justify-end space-x-2">
                         <button
                             onClick={() => startEdit(student)}
-                            className="text-gray-400 hover:text-indigo-600 p-2 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
+                            className="text-gray-400 hover:text-teal-600 p-2 hover:bg-teal-50 rounded-lg transition-colors border border-transparent hover:border-teal-100"
                             title="Editar Aprendiz"
                         >
                             <Pencil className="w-4 h-4" />
@@ -830,7 +830,7 @@ export const StudentsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAllStudents(false)}
-                className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+                className="text-teal-600 hover:text-teal-700 font-medium text-sm"
               >
                 Mostrar 15 por página
               </button>
@@ -839,7 +839,7 @@ export const StudentsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAllStudents(true)}
-                  className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+                  className="text-teal-600 hover:text-teal-700 font-medium text-sm"
                 >
                   Mostrar todos
                 </button>
@@ -898,7 +898,7 @@ export const StudentsView: React.FC = () => {
               )}
             </div>
             <div className="pt-4 mt-4">
-              <button onClick={() => setStudentDetailModal(null)} className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700">
+              <button onClick={() => setStudentDetailModal(null)} className="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700">
                 Cerrar
               </button>
             </div>
@@ -950,7 +950,7 @@ export const StudentsView: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Documento</label>
                         <input 
                             type="text"
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.documentNumber}
                             onChange={e => setEditForm({...editForm, documentNumber: e.target.value})}
                         />
@@ -959,7 +959,7 @@ export const StudentsView: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Nombres</label>
                         <input 
                             type="text"
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.firstName}
                             onChange={e => setEditForm({...editForm, firstName: e.target.value})}
                         />
@@ -968,7 +968,7 @@ export const StudentsView: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Apellidos</label>
                         <input 
                             type="text"
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.lastName}
                             onChange={e => setEditForm({...editForm, lastName: e.target.value})}
                         />
@@ -977,7 +977,7 @@ export const StudentsView: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
                         <input 
                             type="email"
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.email}
                             onChange={e => setEditForm({...editForm, email: e.target.value})}
                         />
@@ -985,7 +985,7 @@ export const StudentsView: React.FC = () => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Ficha / Grupo</label>
                         <select
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.group}
                             onChange={(e) => setEditForm({...editForm, group: e.target.value})}
                         >
@@ -997,7 +997,7 @@ export const StudentsView: React.FC = () => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                         <select
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.status}
                             onChange={(e) => setEditForm({...editForm, status: e.target.value as 'Formación' | 'Cancelado' | 'Retiro Voluntario' | 'Deserción'})}
                         >
@@ -1013,7 +1013,7 @@ export const StudentsView: React.FC = () => {
                                 type="checkbox"
                                 checked={editForm.isVocero}
                                 onChange={(e) => setEditForm({ ...editForm, isVocero: e.target.checked })}
-                                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                             />
                             <span className="text-sm font-medium text-gray-700">Vocero</span>
                         </label>
@@ -1022,7 +1022,7 @@ export const StudentsView: React.FC = () => {
                                 type="checkbox"
                                 checked={editForm.isVoceroSuplente}
                                 onChange={(e) => setEditForm({ ...editForm, isVoceroSuplente: e.target.checked })}
-                                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                             />
                             <span className="text-sm font-medium text-gray-700">Vocero suplente</span>
                         </label>
@@ -1030,7 +1030,7 @@ export const StudentsView: React.FC = () => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Descripción / Comentarios</label>
                         <textarea
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none resize-none"
                             rows={3}
                             placeholder="Comentarios y novedades sobre el aprendiz..."
                             value={editForm.description}
@@ -1046,7 +1046,7 @@ export const StudentsView: React.FC = () => {
                         </button>
                         <button 
                             onClick={handleUpdate}
-                            className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+                            className="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700"
                         >
                             Guardar Cambios
                         </button>

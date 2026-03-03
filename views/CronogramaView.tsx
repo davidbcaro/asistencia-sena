@@ -203,7 +203,7 @@ export const CronogramaView: React.FC = () => {
           </div>
         </div>
         {ficha && (
-          <div className="rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-700">
+          <div className="rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-700">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               <span>Consulta por fases y actividades del programa.</span>
@@ -228,7 +228,7 @@ export const CronogramaView: React.FC = () => {
               onClick={() => setSelectedPhaseId(section.id)}
               className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                 section.id === selectedPhaseId
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-teal-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >

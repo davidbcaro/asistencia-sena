@@ -1361,7 +1361,7 @@ export const CalificacionesView: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Buscar aprendiz..."
-                  className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full bg-white shadow-sm"
+                  className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none w-full bg-white shadow-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -1375,7 +1375,7 @@ export const CalificacionesView: React.FC = () => {
                   >
                     <Filter className="w-4 h-4 text-gray-500" />
                     <span>Ficha</span>
-                    {selectedFicha !== 'Todas' && <span className="text-indigo-600 text-xs">({selectedFicha})</span>}
+                    {selectedFicha !== 'Todas' && <span className="text-teal-600 text-xs">({selectedFicha})</span>}
                   </button>
                   {showFichaFilter && (
                     <>
@@ -1388,7 +1388,7 @@ export const CalificacionesView: React.FC = () => {
                             setSelectedFicha(e.target.value);
                             setShowFichaFilter(false);
                           }}
-                          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                         >
                           <option value="Todas">Todas las fichas</option>
                           {fichas.map(f => (
@@ -1407,7 +1407,7 @@ export const CalificacionesView: React.FC = () => {
                   >
                     <Filter className="w-4 h-4 text-gray-500" />
                     <span>Fase</span>
-                    <span className="text-indigo-600 text-xs max-w-[120px] truncate" title={selectedPhase}>{selectedPhase.replace(/^Fase \d+:?\s*/, '')}</span>
+                    <span className="text-teal-600 text-xs max-w-[120px] truncate" title={selectedPhase}>{selectedPhase.replace(/^Fase \d+:?\s*/, '')}</span>
                   </button>
                   {showPhaseFilter && (
                     <>
@@ -1420,7 +1420,7 @@ export const CalificacionesView: React.FC = () => {
                             setSelectedPhase(e.target.value);
                             setShowPhaseFilter(false);
                           }}
-                          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                         >
                           {phases.map(phase => (
                             <option key={phase} value={phase}>{phase}</option>
@@ -1436,7 +1436,7 @@ export const CalificacionesView: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-stretch gap-2">
               <button
                 onClick={openAddActivity}
-                className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+                className="flex items-center justify-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 <span>Actividad</span>
@@ -1444,7 +1444,7 @@ export const CalificacionesView: React.FC = () => {
 
               <button
                 onClick={() => setRapManagerOpen(true)}
-                className="flex items-center justify-center space-x-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg transition-colors shadow-sm border border-indigo-200"
+                className="flex items-center justify-center space-x-2 bg-teal-50 hover:bg-teal-100 text-teal-700 px-4 py-2 rounded-lg transition-colors shadow-sm border border-teal-200"
               >
                 <Plus className="w-4 h-4" />
                 <span>RAP</span>
@@ -1545,35 +1545,35 @@ export const CalificacionesView: React.FC = () => {
                     type="checkbox"
                     checked={paginatedStudentsFiltered.length > 0 && paginatedStudentsFiltered.every(s => selectedStudents.has(s.id))}
                     onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                   />
                 </th>
                 <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-xs font-mono w-10 min-w-10 max-w-10 sticky left-10 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden">No</th>
                 <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-32 min-w-32 max-w-32 sticky left-20 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Documento</th>
                 <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[208px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">
-                  <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 ${sortOrder === 'firstname' ? 'text-indigo-700' : ''}`}>
-                    Nombres{sortOrder === 'firstname' && <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                  <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-teal-700 ${sortOrder === 'firstname' ? 'text-teal-700' : ''}`}>
+                    Nombres{sortOrder === 'firstname' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                   </button>
                 </th>
                 <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle">
-                  <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 ${sortOrder === 'lastname' ? 'text-indigo-700' : ''}`}>
-                    Apellidos{sortOrder === 'lastname' && <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                  <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-teal-700 ${sortOrder === 'lastname' ? 'text-teal-700' : ''}`}>
+                    Apellidos{sortOrder === 'lastname' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                   </button>
                 </th>
                 <th rowSpan={2} className={`px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`}>
                   <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
                     <button type="button" onClick={() => setShowStatusFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none whitespace-nowrap" title="Filtrar por estado">
-                      Estado<Filter className="w-3.5 h-3.5 text-gray-400" />{filterStatus !== 'Todos' && <span className="text-indigo-600 text-xs">({filterStatus})</span>}
+                      Estado<Filter className="w-3.5 h-3.5 text-gray-400" />{filterStatus !== 'Todos' && <span className="text-teal-600 text-xs">({filterStatus})</span>}
                     </button>
                     {showStatusFilter && (
                       <>
                         <div className="fixed inset-0 z-[99]" onClick={() => setShowStatusFilter(false)} />
                         <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-[100] py-1">
-                          <button type="button" onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos los Estados</button>
-                          <button type="button" onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Formación</button>
-                          <button type="button" onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Cancelado</button>
-                          <button type="button" onClick={() => { setFilterStatus('Retiro Voluntario'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Retiro Voluntario</button>
-                          <button type="button" onClick={() => { setFilterStatus('Deserción'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Deserción</button>
+                          <button type="button" onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos los Estados</button>
+                          <button type="button" onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Formación</button>
+                          <button type="button" onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Cancelado</button>
+                          <button type="button" onClick={() => { setFilterStatus('Retiro Voluntario'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Retiro Voluntario</button>
+                          <button type="button" onClick={() => { setFilterStatus('Deserción'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Deserción</button>
                         </div>
                       </>
                     )}
@@ -1590,17 +1590,17 @@ export const CalificacionesView: React.FC = () => {
                     <th
                       key={`comp-${gi}`}
                       colSpan={g.activities.length}
-                      className="px-1 py-1 text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
+                      className="px-1 py-1 text-center border-l border-gray-300 bg-teal-50/70 align-middle"
                       title={`${COMPETENCIA_IDS[g.compCode] || g.compCode} · ${g.compName}`}
                     >
                       <button
                         type="button"
                         onClick={() => setCompDetailModal({ compCode: g.compCode })}
-                        className="w-full flex flex-col items-center hover:bg-indigo-100/70 rounded px-1 py-0.5 transition-colors"
+                        className="w-full flex flex-col items-center hover:bg-teal-100/70 rounded px-1 py-0.5 transition-colors"
                       >
-                        <span className="text-xs font-bold text-indigo-700">{COMPETENCIA_IDS[g.compCode] || g.compCode}</span>
+                        <span className="text-xs font-bold text-teal-700">{COMPETENCIA_IDS[g.compCode] || g.compCode}</span>
                         {g.aaKeys && (
-                          <span className="text-[10px] text-indigo-400 font-normal">{g.aaKeys}</span>
+                          <span className="text-[10px] text-teal-400 font-normal">{g.aaKeys}</span>
                         )}
                       </button>
                     </th>
@@ -1618,15 +1618,15 @@ export const CalificacionesView: React.FC = () => {
                     <th
                       key={`rap-comp-${gi}`}
                       colSpan={g.raps.length}
-                      className="px-1 py-1 text-center border-l border-gray-300 bg-indigo-50/70 align-middle"
+                      className="px-1 py-1 text-center border-l border-gray-300 bg-teal-50/70 align-middle"
                       title={`${COMPETENCIA_IDS[g.compCode] || g.compCode} · ${g.compName}`}
                     >
                       <button
                         type="button"
                         onClick={() => setCompDetailModal({ compCode: g.compCode })}
-                        className="w-full flex flex-col items-center hover:bg-indigo-100/70 rounded px-1 py-0.5 transition-colors"
+                        className="w-full flex flex-col items-center hover:bg-teal-100/70 rounded px-1 py-0.5 transition-colors"
                       >
-                        <span className="text-xs font-bold text-indigo-700">{COMPETENCIA_IDS[g.compCode] || g.compCode}</span>
+                        <span className="text-xs font-bold text-teal-700">{COMPETENCIA_IDS[g.compCode] || g.compCode}</span>
                       </button>
                     </th>
                   ))
@@ -1634,8 +1634,8 @@ export const CalificacionesView: React.FC = () => {
                     const rapInfo = getRapStaticInfo(key);
                     return (
                       <th key={key} rowSpan={2} className="px-3 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[64px]" title={rapInfo ? rapInfo.rapName : key}>
-                        <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-indigo-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
-                          <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
+                        <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-teal-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
+                          <span className="text-xs font-bold text-teal-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
                         </button>
                       </th>
                     );
@@ -1648,15 +1648,15 @@ export const CalificacionesView: React.FC = () => {
                     <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center">
                       <div className="relative inline-block" ref={finalFilterRef}>
                         <button type="button" onClick={() => setShowFinalFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none" title="Aprobado (A) solo cuando el aprendiz entrega y aprueba todas las actividades. Clic para filtrar.">
-                          Final<Filter className="w-3.5 h-3.5 text-gray-400" />{finalFilter !== 'all' && <span className="text-indigo-600 text-xs">({finalFilter === 'A' ? 'A' : '-'})</span>}
+                          Final<Filter className="w-3.5 h-3.5 text-gray-400" />{finalFilter !== 'all' && <span className="text-teal-600 text-xs">({finalFilter === 'A' ? 'A' : '-'})</span>}
                         </button>
                         {showFinalFilter && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setShowFinalFilter(false)} />
                             <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                              <button type="button" onClick={() => { setFinalFilter('all'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'all' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
-                              <button type="button" onClick={() => { setFinalFilter('A'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'A' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo A (aprobados)</button>
-                              <button type="button" onClick={() => { setFinalFilter('-'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === '-' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo - (resto)</button>
+                              <button type="button" onClick={() => { setFinalFilter('all'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'all' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                              <button type="button" onClick={() => { setFinalFilter('A'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'A' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo A (aprobados)</button>
+                              <button type="button" onClick={() => { setFinalFilter('-'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === '-' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo - (resto)</button>
                             </div>
                           </>
                         )}
@@ -1677,35 +1677,35 @@ export const CalificacionesView: React.FC = () => {
                       type="checkbox"
                       checked={paginatedStudentsFiltered.length > 0 && paginatedStudentsFiltered.every(s => selectedStudents.has(s.id))}
                       onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                     />
                   </th>
                   <th className="px-4 py-4 font-semibold text-gray-600 text-xs font-mono w-10 min-w-10 max-w-10 sticky left-10 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>No</th>
                   <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-32 min-w-32 max-w-32 sticky left-20 z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Documento</th>
                   <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[208px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                    <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 ${sortOrder === 'firstname' ? 'text-indigo-700' : ''}`}>
-                      Nombres{sortOrder === 'firstname' && <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                    <button type="button" onClick={() => handleSort('firstname')} className={`inline-flex items-center gap-1 hover:text-teal-700 ${sortOrder === 'firstname' ? 'text-teal-700' : ''}`}>
+                      Nombres{sortOrder === 'firstname' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                     </button>
                   </th>
                   <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-48 min-w-48 max-w-48 sticky left-[400px] z-30 bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                    <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-indigo-700 ${sortOrder === 'lastname' ? 'text-indigo-700' : ''}`}>
-                      Apellidos{sortOrder === 'lastname' && <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                    <button type="button" onClick={() => handleSort('lastname')} className={`inline-flex items-center gap-1 hover:text-teal-700 ${sortOrder === 'lastname' ? 'text-teal-700' : ''}`}>
+                      Apellidos{sortOrder === 'lastname' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                     </button>
                   </th>
                   <th className={`px-4 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 max-w-40 sticky left-[592px] bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
                       <button type="button" onClick={() => setShowStatusFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none whitespace-nowrap" title="Filtrar por estado">
-                        Estado<Filter className="w-3.5 h-3.5 text-gray-400" />{filterStatus !== 'Todos' && <span className="text-indigo-600 text-xs">({filterStatus})</span>}
+                        Estado<Filter className="w-3.5 h-3.5 text-gray-400" />{filterStatus !== 'Todos' && <span className="text-teal-600 text-xs">({filterStatus})</span>}
                       </button>
                       {showStatusFilter && (
                         <>
                           <div className="fixed inset-0 z-[99]" onClick={() => setShowStatusFilter(false)} />
                           <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-[100] py-1">
-                            <button type="button" onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos los Estados</button>
-                            <button type="button" onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Formación</button>
-                            <button type="button" onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Cancelado</button>
-                            <button type="button" onClick={() => { setFilterStatus('Retiro Voluntario'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Retiro Voluntario</button>
-                            <button type="button" onClick={() => { setFilterStatus('Deserción'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Deserción</button>
+                            <button type="button" onClick={() => { setFilterStatus('Todos'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos los Estados</button>
+                            <button type="button" onClick={() => { setFilterStatus('Formación'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Formación' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Formación</button>
+                            <button type="button" onClick={() => { setFilterStatus('Cancelado'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Cancelado' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Cancelado</button>
+                            <button type="button" onClick={() => { setFilterStatus('Retiro Voluntario'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Retiro Voluntario' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Retiro Voluntario</button>
+                            <button type="button" onClick={() => { setFilterStatus('Deserción'); setShowStatusFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterStatus === 'Deserción' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Deserción</button>
                           </div>
                         </>
                       )}
@@ -1722,11 +1722,11 @@ export const CalificacionesView: React.FC = () => {
                 return (
                   <th key={activity.id} className="px-4 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle bg-gray-50" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     {compEntry?.aaKey && (
-                      <div className="text-[10px] text-indigo-400 font-medium leading-tight mb-0.5 text-center">{compEntry.aaKey}</div>
+                      <div className="text-[10px] text-teal-400 font-medium leading-tight mb-0.5 text-center">{compEntry.aaKey}</div>
                     )}
                     <div className="flex items-center gap-2 justify-center">
                       <button type="button" onClick={() => openActivityDetail(activity)} className="hover:text-gray-900 underline decoration-dotted">{getActivityShortLabel(activity.name)}</button>
-                      <button onClick={() => openEditActivity(activity)} className="text-gray-400 hover:text-indigo-600" title="Editar actividad"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => openEditActivity(activity)} className="text-gray-400 hover:text-teal-600" title="Editar actividad"><Pencil className="w-3.5 h-3.5" /></button>
                       <button onClick={() => setActivityToDelete(activity)} className="text-gray-400 hover:text-red-600" title="Eliminar actividad"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </th>
@@ -1741,8 +1741,8 @@ export const CalificacionesView: React.FC = () => {
                 const rapInfo = getRapStaticInfo(key);
                 return (
                   <th key={key} className="px-3 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[64px]" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={rapInfo ? rapInfo.rapName : key}>
-                    <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-indigo-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
-                      <span className="text-xs font-bold text-indigo-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
+                    <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-teal-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
+                      <span className="text-xs font-bold text-teal-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
                     </button>
                   </th>
                 );
@@ -1756,15 +1756,15 @@ export const CalificacionesView: React.FC = () => {
                   <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <div className="relative inline-block" ref={finalFilterRef}>
                       <button type="button" onClick={() => setShowFinalFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none" title="Aprobado (A) solo cuando el aprendiz entrega y aprueba todas las actividades. Clic para filtrar.">
-                        Final<Filter className="w-3.5 h-3.5 text-gray-400" />{finalFilter !== 'all' && <span className="text-indigo-600 text-xs">({finalFilter === 'A' ? 'A' : '-'})</span>}
+                        Final<Filter className="w-3.5 h-3.5 text-gray-400" />{finalFilter !== 'all' && <span className="text-teal-600 text-xs">({finalFilter === 'A' ? 'A' : '-'})</span>}
                       </button>
                       {showFinalFilter && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setShowFinalFilter(false)} />
                           <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                            <button type="button" onClick={() => { setFinalFilter('all'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'all' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
-                            <button type="button" onClick={() => { setFinalFilter('A'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'A' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo A (aprobados)</button>
-                            <button type="button" onClick={() => { setFinalFilter('-'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === '-' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo - (resto)</button>
+                            <button type="button" onClick={() => { setFinalFilter('all'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'all' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                            <button type="button" onClick={() => { setFinalFilter('A'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === 'A' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo A (aprobados)</button>
+                            <button type="button" onClick={() => { setFinalFilter('-'); setShowFinalFilter(false); }} className={`w-full text-left px-3 py-2 text-sm ${finalFilter === '-' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Solo - (resto)</button>
                           </div>
                         </>
                       )}
@@ -1791,12 +1791,12 @@ export const CalificacionesView: React.FC = () => {
               paginatedStudentsFiltered.map((student, index) => (
                 <tr key={student.id} className="group hover:bg-gray-50" style={{ height: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                   <td className="px-4 py-4 w-10 min-w-10 max-w-10 sticky left-0 z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                    <input type="checkbox" checked={selectedStudents.has(student.id)} onChange={(e) => handleSelectStudent(student.id, e.target.checked)} className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
+                    <input type="checkbox" checked={selectedStudents.has(student.id)} onChange={(e) => handleSelectStudent(student.id, e.target.checked)} className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500" />
                   </td>
                   <td className="px-4 py-4 w-10 min-w-10 max-w-10 text-gray-500 font-mono text-xs sticky left-10 z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] align-middle overflow-hidden transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{showAllStudents ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
                   <td className="px-6 py-4 w-32 min-w-32 max-w-32 text-gray-600 font-mono text-xs sticky left-20 z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.documentNumber || '-'}</td>
-                  <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[208px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-indigo-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.firstName}</td>
-                  <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[400px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-indigo-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.lastName}</td>
+                  <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[208px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-teal-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.firstName}</td>
+                  <td className="px-6 py-4 w-48 min-w-48 max-w-48 text-xs font-medium text-gray-900 sticky left-[400px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-teal-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.lastName}</td>
                   <td className="px-4 py-4 w-40 min-w-40 max-w-40 text-sm sticky left-[592px] z-20 bg-white group-hover:bg-gray-50 shadow-[inset_1px_0_0_0_#e5e7eb,inset_-1px_0_0_0_#e5e7eb] shadow-[4px_0_6px_-4px_rgba(0,0,0,0.12)] overflow-hidden align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <span className={`inline-block text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${
                       student.status === 'Formación' ? 'bg-green-100 text-green-800' :
@@ -1850,7 +1850,7 @@ export const CalificacionesView: React.FC = () => {
                     return (
                       <td key={activity.id} className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} onClick={() => { setEditingCell({ studentId: student.id, activityId: resolvedActivity.id }); setEditingScore(grade ? String(grade.score) : ''); }}>
                         {isEditing ? (
-                          <input type="number" min={0} max={100} className="w-20 bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={editingScore} onChange={(e) => setEditingScore(e.target.value)}
+                          <input type="number" min={0} max={100} className="w-20 bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-teal-500 outline-none" value={editingScore} onChange={(e) => setEditingScore(e.target.value)}
                             onBlur={() => { const trimmed = editingScore.trim(); if (!trimmed) { deleteGradeEntry(student.id, resolvedActivity.id); setEditingCell(null); setEditingScore(''); return; } const numeric = Number(trimmed); if (!Number.isNaN(numeric)) { const finalScore = Math.max(0, Math.min(100, Math.round(numeric))); upsertGrades([{ studentId: student.id, activityId: resolvedActivity.id, score: finalScore, letter: scoreToLetter(finalScore), updatedAt: new Date().toISOString() }]); } setEditingCell(null); setEditingScore(''); }}
                             onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); if (e.key === 'Escape') { setEditingCell(null); setEditingScore(''); } }} autoFocus />
                         ) : grade ? (
@@ -1904,7 +1904,7 @@ export const CalificacionesView: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowAllStudents(false)}
-              className="text-indigo-600 hover:text-indigo-700 font-medium"
+              className="text-teal-600 hover:text-teal-700 font-medium"
             >
               Mostrar 15 por página
             </button>
@@ -1913,7 +1913,7 @@ export const CalificacionesView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAllStudents(true)}
-                className="text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-teal-600 hover:text-teal-700 font-medium"
               >
                 Mostrar todos
               </button>
@@ -1962,7 +1962,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                 <textarea
                   ref={activityNameRef}
-                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none overflow-hidden"
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none resize-none overflow-hidden"
                   rows={2}
                   value={activityName}
                   onChange={(e) => {
@@ -1995,7 +1995,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                 </button>
                 <button
                   onClick={handleSaveActivity}
-                  className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+                  className="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700"
                 >
                   Guardar
                 </button>
@@ -2156,12 +2156,12 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                           <tr key={key}>
                             <td className="px-3 py-2 text-gray-900">
                               <div className="flex items-start gap-1.5">
-                                <span className="text-[10px] font-bold text-indigo-400 bg-indigo-50 rounded px-1 py-0.5 mt-0.5 flex-shrink-0 font-mono">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
+                                <span className="text-[10px] font-bold text-teal-400 bg-teal-50 rounded px-1 py-0.5 mt-0.5 flex-shrink-0 font-mono">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
                                 <div>
                                   {rapInfo
                                     ? <>
                                         <div className="text-xs font-semibold text-gray-800 leading-snug">{rapInfo.rapName}</div>
-                                        <div className="text-[10px] text-indigo-500 mt-0.5">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</div>
+                                        <div className="text-[10px] text-teal-500 mt-0.5">{COMPETENCIA_NAMES[rapInfo.compCode] || rapInfo.compCode}</div>
                                       </>
                                     : <div className="text-xs text-gray-600">{key}</div>
                                   }
@@ -2187,7 +2187,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                 value={studentDetailObservation}
                 onChange={(e) => setStudentDetailObservation(e.target.value)}
                 placeholder="Escribe aquí observaciones sobre el aprendiz..."
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-y min-h-[80px] max-h-32"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none resize-y min-h-[80px] max-h-32"
                 rows={3}
               />
               <button
@@ -2197,7 +2197,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                   const prev = getStudentGradeObservations();
                   saveStudentGradeObservations({ ...prev, [studentDetailModal.id]: studentDetailObservation });
                 }}
-                className="mt-2 w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium"
+                className="mt-2 w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 text-sm font-medium"
               >
                 Guardar observaciones
               </button>
@@ -2269,18 +2269,18 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors text-left ${
                         isHidden
                           ? 'bg-gray-50 border-gray-200 opacity-60'
-                          : 'bg-white border-indigo-100 hover:border-indigo-300'
+                          : 'bg-white border-teal-100 hover:border-teal-300'
                       }`}
                     >
                       <div className="flex-shrink-0">
                         {isHidden
                           ? <EyeOff className="w-4 h-4 text-gray-400" />
-                          : <Eye className="w-4 h-4 text-indigo-500" />
+                          : <Eye className="w-4 h-4 text-teal-500" />
                         }
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-xs font-bold font-mono text-indigo-600">{compId}</span>
+                          <span className="text-xs font-bold font-mono text-teal-600">{compId}</span>
                           <span className="text-[10px] text-gray-400 font-mono">{compCode}</span>
                         </div>
                         <p className={`text-xs leading-snug ${isHidden ? 'text-gray-400' : 'text-gray-700'}`}>{compName}</p>
@@ -2295,7 +2295,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 flex-shrink-0">
                 <button
                   onClick={showAll}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                  className="text-xs text-teal-600 hover:text-teal-800 font-medium"
                   disabled={hiddenForFicha.size === 0}
                 >
                   Mostrar todas
@@ -2306,7 +2306,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                   )}
                   <button
                     onClick={() => setCompVisibilityOpen(false)}
-                    className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg hover:bg-indigo-700 text-sm font-medium"
+                    className="bg-teal-600 text-white px-4 py-1.5 rounded-lg hover:bg-teal-700 text-sm font-medium"
                   >
                     Listo
                   </button>
@@ -2330,7 +2330,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
               <div className="flex justify-between items-start mb-5 gap-3 flex-shrink-0">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded font-mono">{compId}</span>
+                    <span className="text-sm font-bold text-teal-600 bg-teal-50 px-2.5 py-0.5 rounded font-mono">{compId}</span>
                     <span className="text-[11px] text-gray-400 font-mono">{compCode}</span>
                   </div>
                   <h3 className="text-base font-bold text-gray-900 leading-snug">{compName}</h3>
@@ -2350,7 +2350,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                     {phaseRaps.map(rap => (
                       <div key={rap.rapCode} className="flex items-start gap-3 px-4 py-3">
                         <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-14 pt-0.5">
-                          <span className="text-xs font-bold text-indigo-600 font-mono">
+                          <span className="text-xs font-bold text-teal-600 font-mono">
                             {rap.rapCode.replace(/^(\d+)-(\d+)$/, 'RA-$2')}
                           </span>
                           <span className="text-[10px] font-mono text-gray-400">{rap.aaKey}</span>
@@ -2386,14 +2386,14 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
               <div className="flex justify-between items-start mb-4 gap-3">
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs font-mono font-semibold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">{rapShort}</span>
+                    <span className="text-xs font-mono font-semibold text-teal-500 bg-teal-50 px-2 py-0.5 rounded">{rapShort}</span>
                     {rapInfo && <span className="text-[11px] text-gray-400 font-mono">{rapInfo.rapCode}</span>}
                   </div>
                   <h3 className="text-base font-bold text-gray-900 leading-snug">
                     {rapInfo ? rapInfo.rapName : rapModal.key}
                   </h3>
                   {compName && (
-                    <p className="text-sm text-indigo-600 font-medium mt-0.5">{compName}</p>
+                    <p className="text-sm text-teal-600 font-medium mt-0.5">{compName}</p>
                   )}
                 </div>
                 <button onClick={() => setRapModal(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 mt-0.5">
@@ -2403,18 +2403,18 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
 
               {/* Detail card */}
               {rapInfo && (
-                <div className="mb-5 rounded-lg bg-indigo-50 border border-indigo-100 divide-y divide-indigo-100">
+                <div className="mb-5 rounded-lg bg-teal-50 border border-teal-100 divide-y divide-teal-100">
                   <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400 w-28 flex-shrink-0 pt-0.5">Competencia</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-teal-400 w-28 flex-shrink-0 pt-0.5">Competencia</span>
                     <div>
-                      <span className="text-xs font-mono text-indigo-500">{rapInfo.compCode}</span>
+                      <span className="text-xs font-mono text-teal-500">{rapInfo.compCode}</span>
                       {compName && <p className="text-sm text-gray-800 font-semibold mt-0.5 leading-snug">{compName}</p>}
                     </div>
                   </div>
                   <div className="flex items-start gap-3 px-4 py-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400 w-28 flex-shrink-0 pt-0.5">RAP · {rapInfo.aaKey}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-teal-400 w-28 flex-shrink-0 pt-0.5">RAP · {rapInfo.aaKey}</span>
                     <div>
-                      <span className="text-xs font-mono text-indigo-500">{rapInfo.rapCode}</span>
+                      <span className="text-xs font-mono text-teal-500">{rapInfo.rapCode}</span>
                       <p className="text-sm text-gray-800 font-semibold mt-0.5 leading-snug">{rapInfo.rapName}</p>
                     </div>
                   </div>
@@ -2447,7 +2447,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
               <div className="flex gap-2">
                 <input
                   type="text"
-                  className="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                   placeholder="Ej: RAP6"
                   value={rapNewName}
                   onChange={(e) => setRapNewName(e.target.value)}
@@ -2475,13 +2475,13 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                     setRapNewName('');
                     setRapNewDetail('');
                   }}
-                  className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700"
+                  className="bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700"
                 >
                   Agregar
                 </button>
               </div>
               <textarea
-                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none resize-none"
                 rows={3}
                 placeholder="Detalle del RAP (opcional)"
                 value={rapNewDetail}

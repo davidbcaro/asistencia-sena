@@ -337,14 +337,14 @@ export const AttendanceView: React.FC = () => {
              <input 
                 type="text"
                 placeholder="Buscar (Apellido, Doc...)"
-                className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full xl:w-48 bg-white shadow-sm"
+                className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none w-full xl:w-48 bg-white shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           <div className="flex items-center space-x-2 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
-             <History className="w-4 h-4 text-indigo-600 ml-1" />
+             <History className="w-4 h-4 text-teal-600 ml-1" />
              <select 
                 className="bg-white border-none focus:ring-0 text-gray-700 font-medium text-sm pr-6 outline-none cursor-pointer w-32"
                 onChange={(e) => {
@@ -410,7 +410,7 @@ export const AttendanceView: React.FC = () => {
 
           <button
             onClick={() => setShowImportModal(true)}
-            className="flex items-center space-x-2 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-200 font-medium text-sm"
+            className="flex items-center space-x-2 bg-teal-50 text-teal-700 px-4 py-2 rounded-lg hover:bg-teal-100 transition-colors border border-teal-200 font-medium text-sm"
           >
             <Upload className="w-4 h-4" />
             <span>Importar</span>
@@ -565,7 +565,7 @@ export const AttendanceView: React.FC = () => {
                      ? 'bg-gray-400 text-gray-100 cursor-not-allowed' 
                      : saved 
                         ? 'bg-green-600 text-white scale-105' 
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 active:scale-95'
+                        : 'bg-teal-600 text-white hover:bg-teal-700 hover:scale-105 active:scale-95'
                 }`}
                 title={!isSessionValid ? "Crea una sesión primero para guardar" : "Guardar cambios"}
             >
@@ -581,7 +581,7 @@ export const AttendanceView: React.FC = () => {
             <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <Calendar className="w-5 h-5 text-indigo-600" />
+                        <Calendar className="w-5 h-5 text-teal-600" />
                         Configurar Sesiones Habilitadas
                     </h3>
                     <button onClick={() => setShowSessionModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -596,12 +596,12 @@ export const AttendanceView: React.FC = () => {
                 <div className="flex flex-col md:flex-row gap-3 mb-6 bg-gray-50 p-4 rounded-lg">
                      <input 
                         type="date"
-                        className="bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                        className="bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500"
                         value={newSessionDate}
                         onChange={e => setNewSessionDate(e.target.value)}
                      />
                      <select
-                        className="bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                        className="bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500"
                         value={newSessionGroup}
                         onChange={e => setNewSessionGroup(e.target.value)}
                      >
@@ -612,13 +612,13 @@ export const AttendanceView: React.FC = () => {
                      <input 
                         type="text"
                         placeholder="Descripción (Opcional)"
-                        className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                        className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500"
                         value={newSessionDesc}
                         onChange={e => setNewSessionDesc(e.target.value)}
                      />
                      <button 
                         onClick={handleAddSession}
-                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center justify-center"
+                        className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 flex items-center justify-center"
                      >
                          <Plus className="w-4 h-4" />
                      </button>
@@ -702,7 +702,7 @@ export const AttendanceView: React.FC = () => {
             <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 flex flex-col max-h-[90vh]">
                 <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <Upload className="w-5 h-5 text-indigo-600" />
+                        <Upload className="w-5 h-5 text-teal-600" />
                         Importar Lista de Aprendices
                     </h3>
                     <button onClick={closeImportModal} className="text-gray-400 hover:text-gray-600">
@@ -714,7 +714,7 @@ export const AttendanceView: React.FC = () => {
                     <p className="text-sm text-gray-600">
                         Copia y pega la lista (CSV o Texto). 
                         <br/>
-                        <span className="text-indigo-600 font-medium">Recomendación:</span> Incluye el <b>número de documento</b> en la lista para una coincidencia exacta. Si no está, se usará el nombre completo.
+                        <span className="text-teal-600 font-medium">Recomendación:</span> Incluye el <b>número de documento</b> en la lista para una coincidencia exacta. Si no está, se usará el nombre completo.
                     </p>
 
                     <div className="flex items-center gap-3">
@@ -727,7 +727,7 @@ export const AttendanceView: React.FC = () => {
 
                     <div>
                         <textarea
-                            className="w-full bg-white h-48 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"
+                            className="w-full bg-white h-48 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none font-mono"
                             placeholder="Ejemplo con documento (Mejor):&#10;1098765432, Juan Perez&#10;555666777, Gomez Maria&#10;&#10;Ejemplo solo nombre:&#10;Carlos A. Rodriguez..."
                             value={importText}
                             onChange={(e) => setImportText(e.target.value)}
@@ -756,7 +756,7 @@ export const AttendanceView: React.FC = () => {
                     </button>
                     <button 
                         onClick={processImport}
-                        className="px-6 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-medium flex items-center gap-2"
+                        className="px-6 py-2 bg-teal-600 text-white hover:bg-teal-700 rounded-lg font-medium flex items-center gap-2"
                     >
                         <Check className="w-4 h-4" />
                         <span>Procesar Asistencia</span>

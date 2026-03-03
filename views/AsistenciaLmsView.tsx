@@ -49,7 +49,7 @@ function AsistenciaLmsStepper(props: {
           <React.Fragment key={step}>
             {i > 0 && (
               <div
-                className={`h-0.5 w-4 flex-shrink-0 ${isDone ? 'bg-indigo-500' : 'bg-gray-200'}`}
+                className={`h-0.5 w-4 flex-shrink-0 ${isDone ? 'bg-teal-500' : 'bg-gray-200'}`}
                 aria-hidden
               />
             )}
@@ -57,11 +57,11 @@ function AsistenciaLmsStepper(props: {
               type="button"
               title={tooltip}
               onClick={() => onStepClick(step)}
-              className={`flex-shrink-0 rounded-full p-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 ${
+              className={`flex-shrink-0 rounded-full p-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 ${
                 isDone
-                  ? 'bg-indigo-500 text-white hover:bg-indigo-600'
+                  ? 'bg-teal-500 text-white hover:bg-teal-600'
                   : isCurrent
-                    ? 'bg-indigo-500 text-white ring-2 ring-indigo-300 ring-offset-1 hover:bg-indigo-600'
+                    ? 'bg-teal-500 text-white ring-2 ring-teal-300 ring-offset-1 hover:bg-teal-600'
                     : 'bg-gray-200 text-gray-400 hover:bg-gray-300'
               }`}
               style={{ width: 22, height: 22 }}
@@ -761,7 +761,7 @@ export const AsistenciaLmsView: React.FC = () => {
             <input
               type="text"
               placeholder="Buscar..."
-              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-64 bg-white shadow-sm"
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none w-full md:w-64 bg-white shadow-sm"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -786,7 +786,7 @@ export const AsistenciaLmsView: React.FC = () => {
                       setFilterFicha(e.target.value);
                       setShowFilters(false);
                     }}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                   >
                     <option value="Todas">Todas las Fichas</option>
                     {fichas.map(f => (
@@ -802,7 +802,7 @@ export const AsistenciaLmsView: React.FC = () => {
                       setFilterStatus(e.target.value);
                       setShowFilters(false);
                     }}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                   >
                     <option value="Todos">Todos los Estados</option>
                     <option value="Formación">Formación</option>
@@ -819,7 +819,7 @@ export const AsistenciaLmsView: React.FC = () => {
                       setFilterNovedad(e.target.value);
                       setShowFilters(false);
                     }}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                   >
                     <option value="Todos">Todas las Novedades</option>
                     <option value="Riesgo de deserción">Riesgo de deserción</option>
@@ -839,7 +839,7 @@ export const AsistenciaLmsView: React.FC = () => {
             <span>Reporte</span>
           </button>
 
-          <label className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
+          <label className="flex items-center justify-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
             <Upload className="w-4 h-4" />
             <span>Cargar documento</span>
             <input
@@ -868,11 +868,11 @@ export const AsistenciaLmsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSort('document')}
-                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'document' ? 'text-indigo-700' : ''}`}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'document' ? 'text-teal-700' : ''}`}
                 >
                   Documento
                   {sortOrder === 'document' && (
-                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </button>
               </th>
@@ -880,11 +880,11 @@ export const AsistenciaLmsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSort('firstname')}
-                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'firstname' ? 'text-indigo-700' : ''}`}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'firstname' ? 'text-teal-700' : ''}`}
                 >
                   Nombres
                   {sortOrder === 'firstname' && (
-                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </button>
               </th>
@@ -892,11 +892,11 @@ export const AsistenciaLmsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSort('lastname')}
-                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'lastname' ? 'text-indigo-700' : ''}`}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'lastname' ? 'text-teal-700' : ''}`}
                 >
                   Apellidos
                   {sortOrder === 'lastname' && (
-                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </button>
               </th>
@@ -905,11 +905,11 @@ export const AsistenciaLmsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSort('group')}
-                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'group' ? 'text-indigo-700' : ''}`}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'group' ? 'text-teal-700' : ''}`}
                 >
                   Ficha
                   {sortOrder === 'group' && (
-                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </button>
               </th>
@@ -923,7 +923,7 @@ export const AsistenciaLmsView: React.FC = () => {
                     Estado
                     <Filter className="w-3.5 h-3.5 text-gray-400" />
                     {filterStatus !== 'Todos' && (
-                      <span className="text-indigo-600 text-xs">({filterStatus})</span>
+                      <span className="text-teal-600 text-xs">({filterStatus})</span>
                     )}
                   </button>
                   {showStatusFilter && (
@@ -940,7 +940,7 @@ export const AsistenciaLmsView: React.FC = () => {
                                 setFilterStatus(val);
                                 setShowStatusFilter(false);
                               }}
-                              className={`w-full text-left px-3 py-2 text-sm ${filterStatus === val ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                              className={`w-full text-left px-3 py-2 text-sm ${filterStatus === val ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
                             >
                               {opt}
                             </button>
@@ -956,11 +956,11 @@ export const AsistenciaLmsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSort('lastAccess')}
-                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'lastAccess' ? 'text-indigo-700' : ''}`}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'lastAccess' ? 'text-teal-700' : ''}`}
                 >
                   Último acceso
                   {sortOrder === 'lastAccess' && (
-                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </button>
               </th>
@@ -968,11 +968,11 @@ export const AsistenciaLmsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSort('daysInactive')}
-                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'daysInactive' ? 'text-indigo-700' : ''}`}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'daysInactive' ? 'text-teal-700' : ''}`}
                 >
                   Días sin ingresar
                   {sortOrder === 'daysInactive' && (
-                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </button>
               </th>
@@ -980,11 +980,11 @@ export const AsistenciaLmsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSort('final')}
-                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'final' ? 'text-indigo-700' : ''}`}
+                  className={`inline-flex items-center gap-1 hover:text-gray-900 ${sortOrder === 'final' ? 'text-teal-700' : ''}`}
                 >
                   Final
                   {sortOrder === 'final' && (
-                    <span className="text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </button>
               </th>
@@ -998,7 +998,7 @@ export const AsistenciaLmsView: React.FC = () => {
                     Novedad
                     <Filter className="w-3.5 h-3.5 text-gray-400" />
                     {filterNovedad !== 'Todos' && (
-                      <span className="text-indigo-600 text-xs">({filterNovedad})</span>
+                      <span className="text-teal-600 text-xs">({filterNovedad})</span>
                     )}
                   </button>
                   {showNovedadFilter && (
@@ -1015,7 +1015,7 @@ export const AsistenciaLmsView: React.FC = () => {
                                 setFilterNovedad(val);
                                 setShowNovedadFilter(false);
                               }}
-                              className={`w-full text-left px-3 py-2 text-sm ${filterNovedad === val ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                              className={`w-full text-left px-3 py-2 text-sm ${filterNovedad === val ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
                             >
                               {opt}
                             </button>
@@ -1188,7 +1188,7 @@ export const AsistenciaLmsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAllStudents(false)}
-                className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+                className="text-teal-600 hover:text-teal-700 font-medium text-sm"
               >
                 Mostrar 15 por página
               </button>
@@ -1197,7 +1197,7 @@ export const AsistenciaLmsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAllStudents(true)}
-                  className="text-indigo-600 hover:text-indigo-700 font-medium text-sm"
+                  className="text-teal-600 hover:text-teal-700 font-medium text-sm"
                 >
                   Mostrar todos
                 </button>

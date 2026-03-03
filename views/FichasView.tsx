@@ -141,7 +141,7 @@ export const FichasView: React.FC = () => {
         </div>
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors"
         >
           {isAdding ? <span>Cancelar</span> : <><Plus className="w-4 h-4" /> <span>Nueva Ficha</span></>}
         </button>
@@ -157,21 +157,21 @@ export const FichasView: React.FC = () => {
                 <input
                     type="text"
                     placeholder="Código Ficha (Ej: 2902090)"
-                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                     value={newCode}
                     onChange={(e) => setNewCode(e.target.value)}
                 />
                 <input
                     type="text"
                     placeholder="Programa (Ej: ADSO)"
-                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                     value={newProgram}
                     onChange={(e) => setNewProgram(e.target.value)}
                 />
                 <input
                     type="text"
                     placeholder="Descripción (Opcional)"
-                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                     value={newDesc}
                     onChange={(e) => setNewDesc(e.target.value)}
                 />
@@ -183,42 +183,42 @@ export const FichasView: React.FC = () => {
                     <input
                         type="text"
                         placeholder="Nombre completo del programa"
-                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                         value={newCronogramaProgramName}
                         onChange={(e) => setNewCronogramaProgramName(e.target.value)}
                     />
                     <input
                         type="text"
                         placeholder="Centro / Regional"
-                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                         value={newCronogramaCenter}
                         onChange={(e) => setNewCronogramaCenter(e.target.value)}
                     />
                     <input
                         type="text"
                         placeholder="Fecha de inicio (Ej: 29 DE SEPTIEMBRE 2025)"
-                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                         value={newCronogramaStartDate}
                         onChange={(e) => setNewCronogramaStartDate(e.target.value)}
                     />
                     <input
                         type="text"
                         placeholder="Inicio de formación (Ej: 14 DE OCTUBRE 2025)"
-                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                         value={newCronogramaTrainingStartDate}
                         onChange={(e) => setNewCronogramaTrainingStartDate(e.target.value)}
                     />
                     <input
                         type="text"
                         placeholder="Fecha fin (Ej: 27 DE JUNIO 2027)"
-                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                         value={newCronogramaEndDate}
                         onChange={(e) => setNewCronogramaEndDate(e.target.value)}
                     />
                     <input
                         type="text"
                         placeholder="URL cronograma descargable"
-                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                         value={newCronogramaDownloadUrl}
                         onChange={(e) => setNewCronogramaDownloadUrl(e.target.value)}
                     />
@@ -239,14 +239,14 @@ export const FichasView: React.FC = () => {
         {fichas.map(ficha => (
             <div key={ficha.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative">
                 <div className="flex items-start justify-between">
-                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                    <div className="p-3 bg-teal-50 text-teal-600 rounded-lg">
                         <BookOpen className="w-6 h-6" />
                     </div>
                     
                     <div className="flex space-x-1">
                         <button 
                             onClick={() => startEdit(ficha)}
-                            className="text-gray-400 hover:text-indigo-600 p-1.5 hover:bg-indigo-50 rounded"
+                            className="text-gray-400 hover:text-teal-600 p-1.5 hover:bg-teal-50 rounded"
                             title="Editar Ficha"
                         >
                             <Pencil className="w-4 h-4" />
@@ -264,13 +264,13 @@ export const FichasView: React.FC = () => {
                 </div>
                 <div className="mt-4">
                     <h3 className="text-lg font-bold text-gray-900">{ficha.code}</h3>
-                    <p className="text-indigo-600 font-medium text-sm">{ficha.program}</p>
+                    <p className="text-teal-600 font-medium text-sm">{ficha.program}</p>
                     {ficha.description && <p className="text-gray-500 text-sm mt-2">{ficha.description}</p>}
                 </div>
                 <div className="mt-4">
                     <button
                         onClick={() => handleOpenCronograma(ficha)}
-                        className="w-full rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+                        className="w-full rounded-lg border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-700 transition-colors hover:bg-teal-100"
                     >
                         Ver cronograma por fases
                     </button>
@@ -294,7 +294,7 @@ export const FichasView: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Código Ficha</label>
                         <input 
                             type="text"
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.code}
                             onChange={e => setEditForm({...editForm, code: e.target.value})}
                         />
@@ -303,7 +303,7 @@ export const FichasView: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Programa</label>
                         <input 
                             type="text"
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.program}
                             onChange={e => setEditForm({...editForm, program: e.target.value})}
                         />
@@ -312,7 +312,7 @@ export const FichasView: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                         <input 
                             type="text"
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.description}
                             onChange={e => setEditForm({...editForm, description: e.target.value})}
                         />
@@ -325,7 +325,7 @@ export const FichasView: React.FC = () => {
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Nombre completo del programa</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                                     value={editForm.cronogramaProgramName}
                                     onChange={e => setEditForm({...editForm, cronogramaProgramName: e.target.value})}
                                 />
@@ -334,7 +334,7 @@ export const FichasView: React.FC = () => {
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Centro / Regional</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                                     value={editForm.cronogramaCenter}
                                     onChange={e => setEditForm({...editForm, cronogramaCenter: e.target.value})}
                                 />
@@ -343,7 +343,7 @@ export const FichasView: React.FC = () => {
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Fecha de inicio</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                                     value={editForm.cronogramaStartDate}
                                     onChange={e => setEditForm({...editForm, cronogramaStartDate: e.target.value})}
                                 />
@@ -352,7 +352,7 @@ export const FichasView: React.FC = () => {
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Inicio de formación</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                                     value={editForm.cronogramaTrainingStartDate}
                                     onChange={e => setEditForm({...editForm, cronogramaTrainingStartDate: e.target.value})}
                                 />
@@ -361,7 +361,7 @@ export const FichasView: React.FC = () => {
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Fecha fin</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                                     value={editForm.cronogramaEndDate}
                                     onChange={e => setEditForm({...editForm, cronogramaEndDate: e.target.value})}
                                 />
@@ -370,7 +370,7 @@ export const FichasView: React.FC = () => {
                                 <label className="block text-xs font-medium text-gray-600 mb-1">URL cronograma descargable</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                                     value={editForm.cronogramaDownloadUrl}
                                     onChange={e => setEditForm({...editForm, cronogramaDownloadUrl: e.target.value})}
                                 />
@@ -387,7 +387,7 @@ export const FichasView: React.FC = () => {
                         </button>
                         <button 
                             onClick={handleUpdate}
-                            className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+                            className="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700"
                         >
                             Guardar Cambios
                         </button>

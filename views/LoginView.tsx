@@ -13,14 +13,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSelectRole }) => {
       {/* Enlace Acceso Instructor (Superior Izquierda) */}
       <Link
         to="/login/instructor"
-        className="absolute top-6 left-6 flex items-center gap-2 text-gray-400 hover:text-indigo-600 transition-colors text-sm font-medium p-2 rounded-lg hover:bg-gray-100"
+        className="absolute top-6 left-6 flex items-center gap-2 text-gray-400 hover:text-teal-600 transition-colors text-sm font-medium p-2 rounded-lg hover:bg-gray-100"
       >
         <ShieldCheck className="w-4 h-4" />
         <span>Acceso Instructor</span>
       </Link>
 
       <Link to="/" className="text-center mb-10 animate-fade-in mt-10 md:mt-0">
-        <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-200 transform rotate-3">
+        <div className="w-20 h-20 bg-teal-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-teal-200 transform rotate-3">
             <GraduationCap className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">AsistenciaPro</h1>
