@@ -459,21 +459,24 @@ export const AttendanceView: React.FC = () => {
 
       {/* Table View */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse min-w-[640px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Aprendiz (Nombres, Apellidos)</th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Grupo</th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Correo</th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center w-32">Asistencia</th>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-32">Documento</th>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Nombres</th>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Apellidos</th>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Correo electrónico</th>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Ficha</th>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm text-center w-28">Asistencia</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {paginatedStudents.length === 0 ? (
                 <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                        {students.length === 0 
-                            ? "No hay aprendices en el grupo seleccionado." 
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                        {students.length === 0
+                            ? "No hay aprendices en el grupo seleccionado."
                             : "No se encontraron aprendices con ese criterio de búsqueda."}
                     </td>
                 </tr>
@@ -481,30 +484,33 @@ export const AttendanceView: React.FC = () => {
                 paginatedStudents.map((student) => {
                     const isPresent = attendanceState[student.id];
                     return (
-                        <tr 
-                            key={student.id} 
+                        <tr
+                            key={student.id}
                             onClick={() => toggleAttendance(student.id)}
                             className={`cursor-pointer transition-colors ${
                                 isPresent ? 'hover:bg-gray-50' : 'bg-red-50 hover:bg-red-100'
                             }`}
                         >
-                            <td className="px-6 py-4 text-sm">
+                            <td className="px-4 py-3 text-sm text-gray-500">
+                                {student.documentNumber || <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
                                 <span className={`font-medium ${isPresent ? 'text-gray-900' : 'text-red-900'}`}>
-                                    {student.firstName}, {student.lastName}
+                                    {student.firstName}
                                 </span>
-                                {student.documentNumber && (
-                                    <span className="block text-xs text-gray-400 mt-0.5">
-                                        ID: {student.documentNumber}
-                                    </span>
-                                )}
                             </td>
-                            <td className="px-6 py-4 text-gray-500 text-sm">
-                                {student.group || 'General'}
+                            <td className="px-4 py-3 text-sm">
+                                <span className={`font-medium ${isPresent ? 'text-gray-900' : 'text-red-900'}`}>
+                                    {student.lastName}
+                                </span>
                             </td>
-                            <td className="px-6 py-4 text-gray-500 text-sm">
+                            <td className="px-4 py-3 text-gray-500 text-sm">
                                 {student.email}
                             </td>
-                            <td className="px-6 py-4 text-center">
+                            <td className="px-4 py-3 text-gray-500 text-sm">
+                                {student.group || 'General'}
+                            </td>
+                            <td className="px-4 py-3 text-center">
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -525,6 +531,7 @@ export const AttendanceView: React.FC = () => {
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Pagination Footer */}
         {totalPages > 1 && (

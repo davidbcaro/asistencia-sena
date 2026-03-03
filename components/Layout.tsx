@@ -244,7 +244,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
         </header>
 
         {/* Page content */}
-        <div className="p-4 md:p-8 flex-1 w-full mx-auto max-w-7xl">
+        <div className="p-4 md:p-6 flex-1 w-full">
           {children}
         </div>
 
