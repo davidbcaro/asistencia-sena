@@ -597,6 +597,57 @@ export const savePlanMejoramientoStep = (studentId: string, step: number) => {
   savePlanMejoramientoState(state);
 };
 
+// Etiquetas de pasos para tooltip de Estado (Cancelación, Retiro, Plan de mejoramiento)
+export const DEBIDO_PROCESO_STEP_LABELS: Record<number, string> = {
+  0: 'Sin novedad',
+  1: 'Correo riesgo de deserción',
+  2: 'Agregar novedad al acta',
+  3: 'Correo Coordinación (5 días)',
+  4: 'Cancelación',
+  5: 'Cancelación en Sofia Plus',
+};
+export const RETIRO_VOLUNTARIO_STEP_LABELS: Record<number, string> = {
+  1: 'Sin novedad',
+  2: 'Intención de retiro',
+  3: 'Solicitud de retiro',
+  4: 'Agregar novedad de retiro al acta',
+  5: 'Retiro efectuado en Sofia Plus',
+};
+export const PLAN_MEJORAMIENTO_STEP_LABELS: Record<number, string> = {
+  0: 'Sin PMA',
+  1: 'Se asigna PMA',
+  2: 'Aprobación de PMA',
+};
+
+/** Tooltip para el badge de Estado: muestra el paso del stepper si aplica (Cancelado, Retiro voluntario, Plan de mejoramiento). */
+export function getEstadoStepperTooltip(
+  studentId: string,
+  status: string | undefined
+): string {
+  const s = status || 'Formación';
+  const stateMap = getDebidoProcesoState();
+  const retiroMap = getRetiroVoluntarioState();
+  const pmaMap = getPlanMejoramientoState();
+  if (s === 'Cancelado') {
+    const step = stateMap[studentId] ?? 0;
+    const label = DEBIDO_PROCESO_STEP_LABELS[step] ?? `Paso ${step}`;
+    return `Cancelado · Paso ${step}: ${label}`;
+  }
+  if (s === 'Retiro Voluntario') {
+    const step = retiroMap[studentId] ?? 1;
+    const label = RETIRO_VOLUNTARIO_STEP_LABELS[step] ?? `Paso ${step}`;
+    return `Retiro voluntario · Paso ${step}: ${label}`;
+  }
+  if (s === 'Formación') {
+    const pmaStep = pmaMap[studentId] ?? 0;
+    if (pmaStep > 0) {
+      const label = PLAN_MEJORAMIENTO_STEP_LABELS[pmaStep] ?? `Paso ${pmaStep}`;
+      return `Formación · Plan de mejoramiento: Paso ${pmaStep}: ${label}`;
+    }
+  }
+  return s;
+}
+
 // Fichas
 export const getFichas = (): Ficha[] => {
   const data = localStorage.getItem(STORAGE_KEYS.FICHAS);

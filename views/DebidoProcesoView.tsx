@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Student, Ficha } from '../types';
-import { getStudents, getFichas, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep } from '../services/db';
+import { getStudents, getFichas, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep, updateStudent, getEstadoStepperTooltip } from '../services/db';
 
 const STEPS: { step: number; tooltip: string }[] = [
   { step: 0, tooltip: 'Sin novedad' },
@@ -239,8 +239,15 @@ export const DebidoProcesoView: React.FC = () => {
                   <td className="px-4 py-3 text-gray-600">{student.email || '—'}</td>
                   <td className="px-4 py-3">{student.group || '—'}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                    <select
+                      value={student.status || 'Formación'}
+                      onChange={(e) => {
+                        const value = e.target.value as Student['status'];
+                        if (value) updateStudent({ ...student, status: value });
+                        loadData();
+                      }}
+                      title={getEstadoStepperTooltip(student.id, student.status)}
+                      className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
                         student.status === 'Formación' ? 'bg-green-100 text-green-800' :
                         student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
                         student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
@@ -248,8 +255,11 @@ export const DebidoProcesoView: React.FC = () => {
                         'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      {student.status || 'Formación'}
-                    </span>
+                      <option value="Formación">Formación</option>
+                      <option value="Cancelado">Cancelado</option>
+                      <option value="Retiro Voluntario">Retiro Voluntario</option>
+                      <option value="Deserción">Deserción</option>
+                    </select>
                   </td>
                   <td className="px-4 py-3">
                     <DebidoProcesoStepper

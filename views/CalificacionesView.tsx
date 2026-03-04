@@ -28,6 +28,7 @@ import {
   upsertGrades,
   getEvidenceCompMap,
   saveEvidenceCompMap,
+  getEstadoStepperTooltip,
 } from '../services/db';
 import type { EvidenceCompMapData, EvCompEntry } from '../services/db';
 
@@ -1798,13 +1799,16 @@ export const CalificacionesView: React.FC = () => {
                   <td className="px-6 py-4 w-48 min-w-48 text-xs font-medium text-gray-900 sticky left-[208px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-teal-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.firstName}</td>
                   <td className="px-6 py-4 w-48 min-w-48 text-xs font-medium text-gray-900 sticky left-[400px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-teal-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.lastName}</td>
                   <td className="px-4 py-4 w-40 min-w-40 text-sm sticky left-[592px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                    <span className={`inline-block text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${
-                      student.status === 'Formación' ? 'bg-green-100 text-green-800' :
-                      student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
-                      student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
-                      student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span
+                      title={getEstadoStepperTooltip(student.id, student.status)}
+                      className={`inline-block text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${
+                        student.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                        student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                        student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                        student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}
+                    >
                       {student.status || 'Formación'}
                     </span>
                   </td>

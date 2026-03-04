@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2, Upload, User, Users, Pencil, X, FileSpreadsheet, FileText, Filter, ChevronLeft, ChevronRight, Search, AlertTriangle, FileDown } from 'lucide-react';
 import { Student, Ficha } from '../types';
-import { getStudents, saveStudents, addStudent, updateStudent, getFichas, deleteStudent, bulkAddStudents, bulkDeleteStudents, getAttendance, getSessions } from '../services/db';
+import { getStudents, saveStudents, addStudent, updateStudent, getFichas, deleteStudent, bulkAddStudents, bulkDeleteStudents, getAttendance, getSessions, getEstadoStepperTooltip } from '../services/db';
 
 export const StudentsView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
@@ -783,13 +783,16 @@ export const StudentsView: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      student.status === 'Formación' ? 'bg-green-100 text-green-800' :
-                      student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
-                      student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
-                      student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span
+                      title={getEstadoStepperTooltip(student.id, student.status)}
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        student.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                        student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                        student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                        student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}
+                    >
                       {student.status || 'Formación'}
                     </span>
                   </td>

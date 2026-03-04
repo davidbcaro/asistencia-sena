@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
-import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep } from '../services/db';
+import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep, getEstadoStepperTooltip } from '../services/db';
 
 /** Pasos del stepper Cancelación (igual que DebidoProcesoView). */
 const CANCELACION_STEPS: { step: number; tooltip: string }[] = [
@@ -1071,6 +1071,7 @@ export const AsistenciaLmsView: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span
+                        title={getEstadoStepperTooltip(student.id, student.status)}
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           student.status === 'Formación'
                             ? 'bg-green-100 text-green-800'
