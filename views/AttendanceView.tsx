@@ -474,9 +474,9 @@ export const AttendanceView: React.FC = () => {
       )}
 
       {/* Table View */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[640px]">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-w-0">
+        <div className="overflow-x-auto min-w-0">
+        <table className="w-full text-left border-collapse">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-32">Documento</th>
