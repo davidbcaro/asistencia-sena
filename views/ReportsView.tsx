@@ -247,12 +247,13 @@ export const ReportsView: React.FC = () => {
     [baseSessionStats, selectedFicha]
   );
 
-  // Solo aprendices en Formación para gráficas y KPIs
+  // Gráficas y KPIs: solo aprendices en Formación o Plan de mejoramiento (excluir Cancelado, Retiro voluntario, Deserción)
+  const excludedStatuses = ['Cancelado', 'Retiro Voluntario', 'Deserción'];
   const sessionsByFichaCharts = useMemo(() => {
-    const formacion = baseSessionStats.filter(s => s.status === 'Formación');
+    const activos = baseSessionStats.filter(s => !excludedStatuses.includes(s.status || ''));
     return selectedFicha === 'Todas'
-      ? formacion
-      : formacion.filter(s => s.group === selectedFicha);
+      ? activos
+      : activos.filter(s => s.group === selectedFicha);
   }, [baseSessionStats, selectedFicha]);
 
   const sessionKpis = useMemo(() => {
@@ -349,12 +350,12 @@ export const ReportsView: React.FC = () => {
     [lmsStatsFull, selectedFicha]
   );
 
-  // Solo aprendices en Formación para gráficas y KPIs
+  // Gráficas y KPIs: solo Formación / Plan de mejoramiento (excluir Cancelado, Retiro voluntario, Deserción)
   const lmsByFichaCharts = useMemo(() => {
-    const formacion = lmsStatsFull.filter(s => s.status === 'Formación');
+    const activos = lmsStatsFull.filter(s => !excludedStatuses.includes(s.status || ''));
     return selectedFicha === 'Todas'
-      ? formacion
-      : formacion.filter(s => s.group === selectedFicha);
+      ? activos
+      : activos.filter(s => s.group === selectedFicha);
   }, [lmsStatsFull, selectedFicha]);
 
   const lmsKpis = useMemo(() => {
@@ -486,12 +487,12 @@ export const ReportsView: React.FC = () => {
     [evidenciasStatsFull, selectedFicha]
   );
 
-  // Solo aprendices en Formación para gráficas y KPIs
+  // Gráficas y KPIs: solo Formación / Plan de mejoramiento (excluir Cancelado, Retiro voluntario, Deserción)
   const evidenciasByFichaCharts = useMemo(() => {
-    const formacion = evidenciasStatsFull.filter(s => s.status === 'Formación');
+    const activos = evidenciasStatsFull.filter(s => !excludedStatuses.includes(s.status || ''));
     return selectedFicha === 'Todas'
-      ? formacion
-      : formacion.filter(s => s.group === selectedFicha);
+      ? activos
+      : activos.filter(s => s.group === selectedFicha);
   }, [evidenciasStatsFull, selectedFicha]);
 
   const evidenciasKpis = useMemo(() => {
@@ -658,7 +659,7 @@ export const ReportsView: React.FC = () => {
               label="En riesgo (≥3 fallas)"
               value={sessionKpis.atRisk}
               valueColor="text-orange-500"
-              sub={`de ${sessionsByFichaCharts.length} aprendices (Formación)`}
+              sub={`de ${sessionsByFichaCharts.length} aprendices (Formación / P. mejoramiento)`}
             />
             <KpiCard
               label="Clases registradas"
@@ -840,7 +841,7 @@ export const ReportsView: React.FC = () => {
               label="Acceso reciente (≤7d)"
               value={lmsKpis.active}
               valueColor="text-green-600"
-              sub={`de ${lmsByFichaCharts.length} aprendices (Formación)`}
+              sub={`de ${lmsByFichaCharts.length} aprendices (Formación / P. mejoramiento)`}
             />
             <KpiCard
               label="Moderados (8–20d)"
@@ -1053,7 +1054,7 @@ export const ReportsView: React.FC = () => {
               label="Al día (0 pendientes)"
               value={evidenciasKpis.alDia}
               valueColor="text-green-600"
-              sub={`de ${evidenciasByFichaCharts.length} aprendices (Formación)`}
+              sub={`de ${evidenciasByFichaCharts.length} aprendices (Formación / P. mejoramiento)`}
             />
             <KpiCard
               label="Con pendientes"

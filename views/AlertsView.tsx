@@ -251,9 +251,10 @@ Atentamente,`
     return { score: avg, letter };
   };
 
-  // Solo aprendices en Estado = Formación (misma regla que gráficas en Reportes)
+  // Solo aprendices en Formación o Plan de mejoramiento (excluir Cancelado, Retiro voluntario, Deserción) — misma regla que gráficas en Reportes
+  const excludedStatuses = ['Cancelado', 'Retiro Voluntario', 'Deserción'];
   const studentsFormacion = useMemo(
-    () => students.filter((s) => (s.status || 'Formación') === 'Formación'),
+    () => students.filter((s) => !excludedStatuses.includes(s.status || '')),
     [students]
   );
 
