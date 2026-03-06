@@ -28,6 +28,19 @@ export const AttendanceView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
 
+  // Sort (like DebidoProcesoView)
+  const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname'>('lastname');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (column: 'lastname' | 'firstname') => {
+    if (sortOrder === column) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortOrder(column);
+    setSortDirection('asc');
+  };
+
   // Modals State
   const [showImportModal, setShowImportModal] = useState(false);
   const [showSessionModal, setShowSessionModal] = useState(false);
@@ -100,12 +113,15 @@ export const AttendanceView: React.FC = () => {
         );
     }
 
-    // Sort alphabetically by last name then first name
+    // Sort by Apellidos or Nombres with direction
+    const dir = sortDirection === 'asc' ? 1 : -1;
     return filtered.sort((a, b) => {
-        const cmp = a.lastName.localeCompare(b.lastName);
-        return cmp !== 0 ? cmp : a.firstName.localeCompare(b.firstName);
+      const cmp = sortOrder === 'lastname'
+        ? (a.lastName || '').localeCompare(b.lastName || '', 'es') || (a.firstName || '').localeCompare(b.firstName || '', 'es')
+        : (a.firstName || '').localeCompare(b.firstName || '', 'es') || (a.lastName || '').localeCompare(b.lastName || '', 'es');
+      return dir * cmp;
     });
-  }, [students, selectedGroup, searchTerm]);
+  }, [students, selectedGroup, searchTerm, sortOrder, sortDirection]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
@@ -114,10 +130,10 @@ export const AttendanceView: React.FC = () => {
       currentPage * ITEMS_PER_PAGE
   );
 
-  // Reset page on filter change
+  // Reset page on filter or sort change
   useEffect(() => {
       setCurrentPage(1);
-  }, [selectedGroup, searchTerm]);
+  }, [selectedGroup, searchTerm, sortOrder, sortDirection]);
 
   useEffect(() => {
     // Load existing attendance for selected date
@@ -464,8 +480,20 @@ export const AttendanceView: React.FC = () => {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-32">Documento</th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Nombres</th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Apellidos</th>
+              <th
+                className="px-6 py-4 font-semibold text-gray-600 text-sm cursor-pointer select-none hover:text-teal-700"
+                onClick={() => handleSort('firstname')}
+                title="Ordenar por nombres"
+              >
+                Nombres {sortOrder === 'firstname' && <span className="text-teal-500">{sortDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
+              </th>
+              <th
+                className="px-6 py-4 font-semibold text-gray-600 text-sm cursor-pointer select-none hover:text-teal-700"
+                onClick={() => handleSort('lastname')}
+                title="Ordenar por apellidos"
+              >
+                Apellidos {sortOrder === 'lastname' && <span className="text-teal-500">{sortDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
+              </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Correo electrónico</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Ficha</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Estado</th>

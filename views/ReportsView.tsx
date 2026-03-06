@@ -162,6 +162,22 @@ export const ReportsView: React.FC = () => {
 
   // ── sort (sessions) ──
   const [sortSessions, setSortSessions] = useState<'lastname' | 'firstname'>('lastname');
+  const [sortSessionsDirection, setSortSessionsDirection] = useState<'asc' | 'desc'>('asc');
+  // ── sort (LMS) ──
+  const [sortLms, setSortLms] = useState<'lastname' | 'firstname'>('lastname');
+  const [sortLmsDirection, setSortLmsDirection] = useState<'asc' | 'desc'>('asc');
+  // ── sort (evidencias) ──
+  const [sortEvidencias, setSortEvidencias] = useState<'lastname' | 'firstname'>('lastname');
+  const [sortEvidenciasDirection, setSortEvidenciasDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSortSessions = (column: 'lastname' | 'firstname') => {
+    if (sortSessions === column) {
+      setSortSessionsDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortSessions(column);
+    setSortSessionsDirection('asc');
+  };
 
   // ── data load ──
   const loadData = () => {
@@ -181,9 +197,9 @@ export const ReportsView: React.FC = () => {
   }, []);
 
   // Reset pages on filter / tab change
-  useEffect(() => { setPageSessions(1);   }, [selectedFicha, searchSessions, sortSessions, activeTab]);
-  useEffect(() => { setPageLms(1);        }, [selectedFicha, searchLms, activeTab]);
-  useEffect(() => { setPageEvidencias(1); }, [selectedFicha, searchEvidencias, activeTab]);
+  useEffect(() => { setPageSessions(1);   }, [selectedFicha, searchSessions, sortSessions, sortSessionsDirection, activeTab]);
+  useEffect(() => { setPageLms(1);        }, [selectedFicha, searchLms, sortLms, sortLmsDirection, activeTab]);
+  useEffect(() => { setPageEvidencias(1); }, [selectedFicha, searchEvidencias, sortEvidencias, sortEvidenciasDirection, activeTab]);
 
   // Reset search when switching tabs
   useEffect(() => {
@@ -271,14 +287,15 @@ export const ReportsView: React.FC = () => {
         s.email.toLowerCase().includes(q)
       )
       .sort((a, b) => {
+        const dir = sortSessionsDirection === 'asc' ? 1 : -1;
         if (sortSessions === 'lastname') {
-          const c = a.lastName.localeCompare(b.lastName);
-          return c !== 0 ? c : a.firstName.localeCompare(b.firstName);
+          const c = a.lastName.localeCompare(b.lastName, 'es') || a.firstName.localeCompare(b.firstName, 'es');
+          return dir * c;
         }
-        const c = a.firstName.localeCompare(b.firstName);
-        return c !== 0 ? c : a.lastName.localeCompare(b.lastName);
+        const c = a.firstName.localeCompare(b.firstName, 'es') || a.lastName.localeCompare(b.lastName, 'es');
+        return dir * c;
       });
-  }, [sessionsByFicha, searchSessions, sortSessions]);
+  }, [sessionsByFicha, searchSessions, sortSessions, sortSessionsDirection]);
 
   const sessionPages     = Math.ceil(sessionStatsForTable.length / ITEMS_PER_PAGE);
   const sessionPaginated = sessionStatsForTable.slice(
@@ -371,8 +388,27 @@ export const ReportsView: React.FC = () => {
     [lmsByFichaCharts]
   );
 
+  const handleSortLms = (column: 'lastname' | 'firstname') => {
+    if (sortLms === column) {
+      setSortLmsDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortLms(column);
+    setSortLmsDirection('asc');
+  };
+
+  const handleSortEvidencias = (column: 'lastname' | 'firstname') => {
+    if (sortEvidencias === column) {
+      setSortEvidenciasDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortEvidencias(column);
+    setSortEvidenciasDirection('asc');
+  };
+
   const lmsForTable = useMemo(() => {
     const q = searchLms.toLowerCase();
+    const dir = sortLmsDirection === 'asc' ? 1 : -1;
     return lmsByFicha
       .filter(s =>
         s.fullName.toLowerCase().includes(q) ||
@@ -380,11 +416,12 @@ export const ReportsView: React.FC = () => {
         s.email.toLowerCase().includes(q)
       )
       .sort((a, b) => {
-        const da = a.days ?? 9_999;
-        const db = b.days ?? 9_999;
-        return db - da;
+        const cmp = sortLms === 'lastname'
+          ? (a.lastName || '').localeCompare(b.lastName || '', 'es') || (a.firstName || '').localeCompare(b.firstName || '', 'es')
+          : (a.firstName || '').localeCompare(b.firstName || '', 'es') || (a.lastName || '').localeCompare(b.lastName || '', 'es');
+        return dir * cmp;
       });
-  }, [lmsByFicha, searchLms]);
+  }, [lmsByFicha, searchLms, sortLms, sortLmsDirection]);
 
   const lmsPages     = Math.ceil(lmsForTable.length / ITEMS_PER_PAGE);
   const lmsPaginated = lmsForTable.slice(
@@ -514,13 +551,19 @@ export const ReportsView: React.FC = () => {
 
   const evidenciasForTable = useMemo(() => {
     const q = searchEvidencias.toLowerCase();
+    const dir = sortEvidenciasDirection === 'asc' ? 1 : -1;
     return evidenciasByFicha
       .filter(s =>
         s.fullName.toLowerCase().includes(q) ||
         s.document.includes(q)
       )
-      .sort((a, b) => b.pendienteCount - a.pendienteCount);
-  }, [evidenciasByFicha, searchEvidencias]);
+      .sort((a, b) => {
+        const cmp = sortEvidencias === 'lastname'
+          ? (a.lastName || '').localeCompare(b.lastName || '', 'es') || (a.firstName || '').localeCompare(b.firstName || '', 'es')
+          : (a.firstName || '').localeCompare(b.firstName || '', 'es') || (a.lastName || '').localeCompare(b.lastName || '', 'es');
+        return dir * cmp;
+      });
+  }, [evidenciasByFicha, searchEvidencias, sortEvidencias, sortEvidenciasDirection]);
 
   const evPages     = Math.ceil(evidenciasForTable.length / ITEMS_PER_PAGE);
   const evPaginated = evidenciasForTable.slice(
@@ -701,13 +744,6 @@ export const ReportsView: React.FC = () => {
               </h3>
               <div className="flex items-center gap-2 flex-wrap">
                 <SearchBar value={searchSessions} onChange={setSearchSessions} />
-                <button
-                  onClick={() => setSortSessions(p => p === 'lastname' ? 'firstname' : 'lastname')}
-                  className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 shadow-sm"
-                  title={`Ordenar por ${sortSessions === 'lastname' ? 'nombre' : 'apellido'}`}
-                >
-                  <ArrowUpDown className="w-4 h-4 text-gray-500" />
-                </button>
                 <ExportBtn onClick={downloadSessionsCsv} />
               </div>
             </div>
@@ -715,11 +751,19 @@ export const ReportsView: React.FC = () => {
               <table className="w-full text-left min-w-[640px]">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                      Apellidos {sortSessions === 'lastname' && <span className="text-teal-500">↓</span>}
+                    <th
+                      className="px-6 py-4 text-sm font-semibold text-gray-600 cursor-pointer select-none hover:text-teal-700"
+                      onClick={() => handleSortSessions('firstname')}
+                      title="Ordenar por nombres"
+                    >
+                      Nombres {sortSessions === 'firstname' && <span className="text-teal-500">{sortSessionsDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                      Nombres {sortSessions === 'firstname' && <span className="text-teal-500">↓</span>}
+                    <th
+                      className="px-6 py-4 text-sm font-semibold text-gray-600 cursor-pointer select-none hover:text-teal-700"
+                      onClick={() => handleSortSessions('lastname')}
+                      title="Ordenar por apellidos"
+                    >
+                      Apellidos {sortSessions === 'lastname' && <span className="text-teal-500">{sortSessionsDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
@@ -738,11 +782,11 @@ export const ReportsView: React.FC = () => {
                     </tr>
                   ) : sessionPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
                       <td className="px-6 py-4 text-gray-700 text-xs">
                         {s.firstName}
                         <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
                       </td>
+                      <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{s.group}</td>
                       <td className="px-6 py-4">
                         <span
@@ -911,8 +955,20 @@ export const ReportsView: React.FC = () => {
               <table className="w-full text-left min-w-[620px]">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Apellidos</th>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Nombres</th>
+                    <th
+                      className="px-6 py-4 text-sm font-semibold text-gray-600 cursor-pointer select-none hover:text-teal-700"
+                      onClick={() => handleSortLms('firstname')}
+                      title="Ordenar por nombres"
+                    >
+                      Nombres {sortLms === 'firstname' && <span className="text-teal-500">{sortLmsDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
+                    </th>
+                    <th
+                      className="px-6 py-4 text-sm font-semibold text-gray-600 cursor-pointer select-none hover:text-teal-700"
+                      onClick={() => handleSortLms('lastname')}
+                      title="Ordenar por apellidos"
+                    >
+                      Apellidos {sortLms === 'lastname' && <span className="text-teal-500">{sortLmsDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
+                    </th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Último acceso</th>
@@ -927,11 +983,11 @@ export const ReportsView: React.FC = () => {
                     </tr>
                   ) : lmsPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
                       <td className="px-6 py-4 text-gray-700 text-xs">
                         {s.firstName}
                         <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
                       </td>
+                      <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{s.group || 'General'}</td>
                       <td className="px-6 py-4">
                         <span
@@ -1106,8 +1162,20 @@ export const ReportsView: React.FC = () => {
               <table className="w-full text-left min-w-[620px]">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Apellidos</th>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Nombres</th>
+                    <th
+                      className="px-6 py-4 text-sm font-semibold text-gray-600 cursor-pointer select-none hover:text-teal-700"
+                      onClick={() => handleSortEvidencias('firstname')}
+                      title="Ordenar por nombres"
+                    >
+                      Nombres {sortEvidencias === 'firstname' && <span className="text-teal-500">{sortEvidenciasDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
+                    </th>
+                    <th
+                      className="px-6 py-4 text-sm font-semibold text-gray-600 cursor-pointer select-none hover:text-teal-700"
+                      onClick={() => handleSortEvidencias('lastname')}
+                      title="Ordenar por apellidos"
+                    >
+                      Apellidos {sortEvidencias === 'lastname' && <span className="text-teal-500">{sortEvidenciasDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
+                    </th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">Total act.</th>
@@ -1122,11 +1190,11 @@ export const ReportsView: React.FC = () => {
                     </tr>
                   ) : evPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
                       <td className="px-6 py-4 text-gray-700 text-xs">
                         {s.firstName}
                         <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
                       </td>
+                      <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{s.group || 'General'}</td>
                       <td className="px-6 py-4">
                         <span
