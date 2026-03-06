@@ -748,15 +748,15 @@ export const AsistenciaLmsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 min-w-0">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0">
-        <div>
+    <div className="space-y-6 min-w-0 w-full max-w-full overflow-x-hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0 max-w-full">
+        <div className="min-w-0 flex-shrink-0">
           <h2 className="text-2xl font-bold text-gray-900">Asistencia LMS</h2>
           <p className="text-gray-500">Último acceso al LMS y días sin ingresar por aprendiz.</p>
         </div>
 
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-wrap">
-          <div className="relative">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-wrap min-w-0 max-w-full">
+          <div className="relative min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
@@ -859,8 +859,8 @@ export const AsistenciaLmsView: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-w-0 w-full">
-        <div className="overflow-x-auto min-w-0 w-full">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-w-0 w-full max-w-full">
+        <div className="overflow-x-auto min-w-0 w-full max-w-full">
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>

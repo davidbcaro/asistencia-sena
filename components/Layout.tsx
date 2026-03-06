@@ -209,7 +209,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       </aside>
 
       {/* ── Main content ─────────────────────────────────────────── */}
-      <main className="flex-1 overflow-auto flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 overflow-x-hidden overflow-y-auto">
 
         {/* Top header */}
         <header className="bg-white shadow-sm sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
@@ -243,8 +243,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
           )}
         </header>
 
-        {/* Page content — min-w-0 evita scroll horizontal por contenido ancho */}
-        <div className="p-4 md:p-6 flex-1 w-full min-w-0">
+        {/* Page content — min-w-0 y overflow-x-hidden evitan scroll horizontal */}
+        <div className="p-4 md:p-6 flex-1 w-full min-w-0 overflow-x-hidden">
           {children}
         </div>
 
