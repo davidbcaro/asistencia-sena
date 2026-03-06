@@ -176,6 +176,30 @@ export const ReportsView: React.FC = () => {
     activities: GradeActivity[];
   } | null>(null);
 
+  // Selección por checkbox (como StudentsView)
+  const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set());
+
+  const getCurrentPageIds = (): string[] => {
+    if (activeTab === 'sessions') return sessionPaginated.map((s) => s.id);
+    if (activeTab === 'lms') return lmsPaginated.map((s) => s.id);
+    return evPaginated.map((s) => s.id);
+  };
+
+  const handleSelectAllReports = (checked: boolean) => {
+    if (checked) {
+      setSelectedReportIds(new Set(getCurrentPageIds()));
+    } else {
+      setSelectedReportIds(new Set());
+    }
+  };
+
+  const handleSelectReportStudent = (id: string, checked: boolean) => {
+    const next = new Set(selectedReportIds);
+    if (checked) next.add(id);
+    else next.delete(id);
+    setSelectedReportIds(next);
+  };
+
   const handleSortSessions = (column: 'lastname' | 'firstname') => {
     if (sortSessions === column) {
       setSortSessionsDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -643,6 +667,22 @@ export const ReportsView: React.FC = () => {
         </nav>
       </div>
 
+      {/* Barra de selección (como StudentsView) */}
+      {selectedReportIds.size > 0 && (
+        <div className="flex items-center justify-between gap-4 bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
+          <span className="text-sm font-medium text-teal-800">
+            <strong className="text-teal-900">{selectedReportIds.size}</strong> aprendiz{selectedReportIds.size !== 1 ? 'es' : ''} seleccionado{selectedReportIds.size !== 1 ? 's' : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedReportIds(new Set())}
+            className="text-sm font-medium text-teal-700 hover:text-teal-900 underline"
+          >
+            Deseleccionar todos
+          </button>
+        </div>
+      )}
+
       {/* ════════════════════════════════════════════════════════════════════
           TAB 1 — SESIONES EN LÍNEA
       ═════════════════════════════════════════════════════════════════════ */}
@@ -758,6 +798,15 @@ export const ReportsView: React.FC = () => {
               <table className="w-full text-left min-w-[640px]">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
+                    <th className="px-4 py-4 text-sm font-semibold text-gray-600 w-12">
+                      <input
+                        type="checkbox"
+                        checked={sessionPaginated.length > 0 && sessionPaginated.every((s) => selectedReportIds.has(s.id))}
+                        onChange={(e) => handleSelectAllReports(e.target.checked)}
+                        className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                      />
+                    </th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Documento</th>
                     <th
                       className="px-6 py-4 text-sm font-semibold text-gray-600 cursor-pointer select-none hover:text-teal-700"
                       onClick={() => handleSortSessions('firstname')}
@@ -772,7 +821,6 @@ export const ReportsView: React.FC = () => {
                     >
                       Apellidos {sortSessions === 'lastname' && <span className="text-teal-500">{sortSessionsDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Documento</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">Clases</th>
@@ -784,15 +832,24 @@ export const ReportsView: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {sessionPaginated.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-center py-8 text-gray-500">
+                      <td colSpan={10} className="text-center py-8 text-gray-500">
                         {sessionsByFicha.length === 0 ? 'No hay datos para esta ficha.' : 'Sin coincidencias.'}
                       </td>
                     </tr>
                   ) : sessionPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedReportIds.has(s.id)}
+                          onChange={(e) => handleSelectReportStudent(s.id, e.target.checked)}
+                          className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 font-mono text-xs">{s.document || '—'}</td>
                       <td className="px-6 py-4 text-gray-700 text-xs">{s.firstName}</td>
                       <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
-                      <td className="px-6 py-4 text-gray-600 font-mono text-xs">{s.document || '—'}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{s.group}</td>
                       <td className="px-6 py-4">
                         <span
@@ -961,6 +1018,15 @@ export const ReportsView: React.FC = () => {
               <table className="w-full text-left min-w-[620px]">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
+                    <th className="px-4 py-4 text-sm font-semibold text-gray-600 w-12">
+                      <input
+                        type="checkbox"
+                        checked={lmsPaginated.length > 0 && lmsPaginated.every((s) => selectedReportIds.has(s.id))}
+                        onChange={(e) => handleSelectAllReports(e.target.checked)}
+                        className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                      />
+                    </th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Documento</th>
                     <th
                       className="px-6 py-4 text-sm font-semibold text-gray-600 cursor-pointer select-none hover:text-teal-700"
                       onClick={() => handleSortLms('firstname')}
@@ -975,7 +1041,6 @@ export const ReportsView: React.FC = () => {
                     >
                       Apellidos {sortLms === 'lastname' && <span className="text-teal-500">{sortLmsDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Documento</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Último acceso</th>
@@ -986,13 +1051,22 @@ export const ReportsView: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {lmsPaginated.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center py-8 text-gray-500">Sin datos.</td>
+                      <td colSpan={9} className="text-center py-8 text-gray-500">Sin datos.</td>
                     </tr>
                   ) : lmsPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedReportIds.has(s.id)}
+                          onChange={(e) => handleSelectReportStudent(s.id, e.target.checked)}
+                          className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 font-mono text-xs">{s.document || '—'}</td>
                       <td className="px-6 py-4 text-gray-700 text-xs">{s.firstName}</td>
                       <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
-                      <td className="px-6 py-4 text-gray-600 font-mono text-xs">{s.document || '—'}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{s.group || 'General'}</td>
                       <td className="px-6 py-4">
                         <span
@@ -1167,6 +1241,15 @@ export const ReportsView: React.FC = () => {
               <table className="w-full text-left min-w-[620px]">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
+                    <th className="px-4 py-4 text-sm font-semibold text-gray-600 w-12">
+                      <input
+                        type="checkbox"
+                        checked={evPaginated.length > 0 && evPaginated.every((s) => selectedReportIds.has(s.id))}
+                        onChange={(e) => handleSelectAllReports(e.target.checked)}
+                        className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                      />
+                    </th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Documento</th>
                     <th
                       className="px-6 py-4 text-sm font-semibold text-gray-600 cursor-pointer select-none hover:text-teal-700"
                       onClick={() => handleSortEvidencias('firstname')}
@@ -1181,7 +1264,6 @@ export const ReportsView: React.FC = () => {
                     >
                       Apellidos {sortEvidencias === 'lastname' && <span className="text-teal-500">{sortEvidenciasDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Documento</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">Total act.</th>
@@ -1192,13 +1274,22 @@ export const ReportsView: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {evPaginated.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center py-8 text-gray-500">Sin datos.</td>
+                      <td colSpan={9} className="text-center py-8 text-gray-500">Sin datos.</td>
                     </tr>
                   ) : evPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedReportIds.has(s.id)}
+                          onChange={(e) => handleSelectReportStudent(s.id, e.target.checked)}
+                          className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 font-mono text-xs">{s.document || '—'}</td>
                       <td className="px-6 py-4 text-gray-700 text-xs">{s.firstName}</td>
                       <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
-                      <td className="px-6 py-4 text-gray-600 font-mono text-xs">{s.document || '—'}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{s.group || 'General'}</td>
                       <td className="px-6 py-4">
                         <span
