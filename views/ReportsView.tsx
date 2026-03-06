@@ -176,6 +176,12 @@ export const ReportsView: React.FC = () => {
     activities: GradeActivity[];
   } | null>(null);
 
+  // Filtros desde encabezado en tab Evidencias pendientes
+  const [filterEvEstado, setFilterEvEstado] = useState<string>('Todos');
+  const [filterEvPendientes, setFilterEvPendientes] = useState<string>('Todos');
+  const [showFilterEvEstado, setShowFilterEvEstado] = useState(false);
+  const [showFilterEvPendientes, setShowFilterEvPendientes] = useState(false);
+
   // Selección por checkbox (como StudentsView)
   const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set());
 
@@ -229,13 +235,19 @@ export const ReportsView: React.FC = () => {
   // Reset pages on filter / tab change
   useEffect(() => { setPageSessions(1);   }, [selectedFicha, searchSessions, sortSessions, sortSessionsDirection, activeTab]);
   useEffect(() => { setPageLms(1);        }, [selectedFicha, searchLms, sortLms, sortLmsDirection, activeTab]);
-  useEffect(() => { setPageEvidencias(1); }, [selectedFicha, searchEvidencias, sortEvidencias, sortEvidenciasDirection, activeTab]);
+  useEffect(() => { setPageEvidencias(1); }, [selectedFicha, searchEvidencias, sortEvidencias, sortEvidenciasDirection, filterEvEstado, filterEvPendientes, activeTab]);
 
   // Reset search when switching tabs
   useEffect(() => {
     setSearchSessions('');
     setSearchLms('');
     setSearchEvidencias('');
+  }, [activeTab]);
+
+  // Cerrar dropdowns de filtros al cambiar de tab
+  useEffect(() => {
+    setShowFilterEvEstado(false);
+    setShowFilterEvPendientes(false);
   }, [activeTab]);
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -588,13 +600,19 @@ export const ReportsView: React.FC = () => {
         s.fullName.toLowerCase().includes(q) ||
         s.document.includes(q)
       )
+      .filter(s => {
+        if (filterEvEstado !== 'Todos' && (s.status || 'Formación') !== filterEvEstado) return false;
+        if (filterEvPendientes === 'Al día' && s.pendienteCount !== 0) return false;
+        if (filterEvPendientes === 'Con pendientes' && s.pendienteCount === 0) return false;
+        return true;
+      })
       .sort((a, b) => {
         const cmp = sortEvidencias === 'lastname'
           ? (a.lastName || '').localeCompare(b.lastName || '', 'es') || (a.firstName || '').localeCompare(b.firstName || '', 'es')
           : (a.firstName || '').localeCompare(b.firstName || '', 'es') || (a.lastName || '').localeCompare(b.lastName || '', 'es');
         return dir * cmp;
       });
-  }, [evidenciasByFicha, searchEvidencias, sortEvidencias, sortEvidenciasDirection]);
+  }, [evidenciasByFicha, searchEvidencias, sortEvidencias, sortEvidenciasDirection, filterEvEstado, filterEvPendientes]);
 
   const evPages     = Math.ceil(evidenciasForTable.length / ITEMS_PER_PAGE);
   const evPaginated = evidenciasForTable.slice(
@@ -1265,10 +1283,83 @@ export const ReportsView: React.FC = () => {
                       Apellidos {sortEvidencias === 'lastname' && <span className="text-teal-500">{sortEvidenciasDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">
+                      <div className="relative inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => { setShowFilterEvPendientes(false); setShowFilterEvEstado((p) => !p); }}
+                          className="inline-flex items-center gap-1 hover:text-teal-700 text-left"
+                        >
+                          Estado
+                          <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          {filterEvEstado !== 'Todos' && (
+                            <span className="text-teal-600 text-xs">({filterEvEstado})</span>
+                          )}
+                        </button>
+                        {showFilterEvEstado && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowFilterEvEstado(false)} />
+                            <div className="absolute left-0 top-full mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                              {['Todos', 'Formación', 'Cancelado', 'Retiro Voluntario', 'Deserción'].map((opt) => (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => { setFilterEvEstado(opt); setShowFilterEvEstado(false); }}
+                                  className={`w-full text-left px-3 py-2 text-sm ${filterEvEstado === opt ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                                >
+                                  {opt === 'Todos' ? 'Todos los estados' : opt}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">Total act.</th>
                     <th className="px-6 py-4 text-sm font-semibold text-amber-600 text-center">Pendientes</th>
-                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Actividades pendientes</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">
+                      <div className="relative inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => { setShowFilterEvEstado(false); setShowFilterEvPendientes((p) => !p); }}
+                          className="inline-flex items-center gap-1 hover:text-teal-700 text-left"
+                        >
+                          Actividades pendientes
+                          <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          {filterEvPendientes !== 'Todos' && (
+                            <span className="text-teal-600 text-xs">({filterEvPendientes})</span>
+                          )}
+                        </button>
+                        {showFilterEvPendientes && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowFilterEvPendientes(false)} />
+                            <div className="absolute left-0 top-full mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                              <button
+                                type="button"
+                                onClick={() => { setFilterEvPendientes('Todos'); setShowFilterEvPendientes(false); }}
+                                className={`w-full text-left px-3 py-2 text-sm ${filterEvPendientes === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                              >
+                                Todos
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setFilterEvPendientes('Al día'); setShowFilterEvPendientes(false); }}
+                                className={`w-full text-left px-3 py-2 text-sm ${filterEvPendientes === 'Al día' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                              >
+                                Al día (0 pendientes)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setFilterEvPendientes('Con pendientes'); setShowFilterEvPendientes(false); }}
+                                className={`w-full text-left px-3 py-2 text-sm ${filterEvPendientes === 'Con pendientes' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                              >
+                                Con pendientes (1+)
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
