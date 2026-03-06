@@ -748,8 +748,8 @@ export const AsistenciaLmsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 min-w-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Asistencia LMS</h2>
           <p className="text-gray-500">Último acceso al LMS y días sin ingresar por aprendiz.</p>
@@ -859,8 +859,8 @@ export const AsistenciaLmsView: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-w-0">
-        <div className="overflow-x-auto min-w-0">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-w-0 w-full">
+        <div className="overflow-x-auto min-w-0 w-full">
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>

@@ -243,8 +243,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
           )}
         </header>
 
-        {/* Page content */}
-        <div className="p-4 md:p-6 flex-1 w-full">
+        {/* Page content — min-w-0 evita scroll horizontal por contenido ancho */}
+        <div className="p-4 md:p-6 flex-1 w-full min-w-0">
           {children}
         </div>
 
