@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Calendar, Check, X, Save, Filter, Users, Upload, FileText, Download, CheckCircle, Search, ChevronLeft, ChevronRight, Settings, Plus, Trash2, RotateCcw, History, AlertTriangle, Lock } from 'lucide-react';
 import { Student, AttendanceRecord, ClassSession } from '../types';
-import { getStudents, getAttendanceForDate, bulkSaveAttendance, getSessions, addSession, deleteSession, getAttendance, syncFromCloud } from '../services/db';
+import { getStudents, getAttendanceForDate, bulkSaveAttendance, getSessions, addSession, deleteSession, getAttendance, syncFromCloud, updateStudent, getEstadoStepperTooltip } from '../services/db';
 
 export const AttendanceView: React.FC = () => {
   // Helper to get local date YYYY-MM-DD correctly
@@ -468,13 +468,14 @@ export const AttendanceView: React.FC = () => {
               <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Apellidos</th>
               <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Correo electrónico</th>
               <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Ficha</th>
+              <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Estado</th>
               <th className="px-4 py-4 font-semibold text-gray-600 text-sm text-center w-28">Asistencia</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {paginatedStudents.length === 0 ? (
                 <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                         {students.length === 0
                             ? "No hay aprendices en el grupo seleccionado."
                             : "No se encontraron aprendices con ese criterio de búsqueda."}
@@ -509,6 +510,30 @@ export const AttendanceView: React.FC = () => {
                             </td>
                             <td className="px-4 py-3 text-gray-500 text-sm">
                                 {student.group || 'General'}
+                            </td>
+                            <td className="px-4 py-3">
+                                <select
+                                  value={student.status || 'Formación'}
+                                  onChange={(e) => {
+                                    const value = e.target.value as Student['status'];
+                                    if (value) updateStudent({ ...student, status: value });
+                                    loadData();
+                                  }}
+                                  title={getEstadoStepperTooltip(student.id, student.status)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
+                                    student.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                                    student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                                    student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                                    student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
+                                  <option value="Formación">Formación</option>
+                                  <option value="Cancelado">Cancelado</option>
+                                  <option value="Retiro Voluntario">Retiro Voluntario</option>
+                                  <option value="Deserción">Deserción</option>
+                                </select>
                             </td>
                             <td className="px-4 py-3 text-center">
                                 <button

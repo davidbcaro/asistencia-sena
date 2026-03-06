@@ -10,8 +10,9 @@ import {
 import {
   getStudents, getAttendance, getFichas, getSessions,
   getLmsLastAccess, getGradeActivities, getGrades,
+  updateStudent, getEstadoStepperTooltip,
 } from '../services/db';
-import { Ficha, GradeActivity, GradeEntry } from '../types';
+import { Ficha, GradeActivity, GradeEntry, Student } from '../types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -215,6 +216,7 @@ export const ReportsView: React.FC = () => {
         email:     student.email || '',
         document:  student.documentNumber || '',
         group:     student.group || 'General',
+        status:    student.status || 'Formación',
         present:   presentCount,
         absent:    absentCount,
         total:     totalDays,
@@ -307,6 +309,7 @@ export const ReportsView: React.FC = () => {
         email:       student.email || '',
         document:    student.documentNumber || '',
         group:       student.group || 'General',
+        status:      student.status || 'Formación',
         lastAccess,
         days,
         category,
@@ -415,6 +418,7 @@ export const ReportsView: React.FC = () => {
         email:               student.email || '',
         document:            student.documentNumber || '',
         group,
+        status:              student.status || 'Formación',
         pendienteCount:      pending.length,
         pendienteActivities: pending,
         totalActivities:     fichaActs.length,
@@ -695,6 +699,7 @@ export const ReportsView: React.FC = () => {
                       Nombres {sortSessions === 'firstname' && <span className="text-teal-500">↓</span>}
                     </th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ficha</th>
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-center">Clases</th>
                     <th className="px-6 py-3 text-xs font-semibold text-green-600 uppercase text-center">Asistencias</th>
                     <th className="px-6 py-3 text-xs font-semibold text-red-600 uppercase text-center">Fallas</th>
@@ -704,11 +709,13 @@ export const ReportsView: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {sessionPaginated.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-8 text-gray-500">
+                      <td colSpan={8} className="text-center py-8 text-gray-500">
                         {sessionsByFicha.length === 0 ? 'No hay datos para esta ficha.' : 'Sin coincidencias.'}
                       </td>
                     </tr>
-                  ) : sessionPaginated.map(s => (
+                  ) : sessionPaginated.map(s => {
+                    const student = students.find(st => st.id === s.id);
+                    return (
                     <tr key={s.id} className="hover:bg-gray-50">
                       <td className="px-6 py-3 text-sm font-medium text-gray-900">{s.lastName}</td>
                       <td className="px-6 py-3 text-sm text-gray-700">
@@ -716,6 +723,33 @@ export const ReportsView: React.FC = () => {
                         <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-500">{s.group}</td>
+                      <td className="px-6 py-3 text-sm">
+                        {student ? (
+                          <select
+                            value={student.status || 'Formación'}
+                            onChange={(e) => {
+                              const value = e.target.value as Student['status'];
+                              if (value) updateStudent({ ...student, status: value });
+                              loadData();
+                            }}
+                            title={getEstadoStepperTooltip(student.id, student.status)}
+                            className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
+                              student.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                              student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                              student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                              student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            <option value="Formación">Formación</option>
+                            <option value="Cancelado">Cancelado</option>
+                            <option value="Retiro Voluntario">Retiro Voluntario</option>
+                            <option value="Deserción">Deserción</option>
+                          </select>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
                       <td className="px-6 py-3 text-sm text-center text-gray-600">{s.total}</td>
                       <td className="px-6 py-3 text-sm text-center text-green-600 font-semibold">{s.present}</td>
                       <td className="px-6 py-3 text-sm text-center text-red-600 font-semibold">{s.absent}</td>
@@ -729,7 +763,7 @@ export const ReportsView: React.FC = () => {
                         </span>
                       </td>
                     </tr>
-                  ))}
+                  ); })}
                 </tbody>
               </table>
             </div>
@@ -873,6 +907,7 @@ export const ReportsView: React.FC = () => {
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Apellidos</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Nombres</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ficha</th>
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Último acceso</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-center">Días inactivo</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado LMS</th>
@@ -881,9 +916,11 @@ export const ReportsView: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {lmsPaginated.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-500">Sin datos.</td>
+                      <td colSpan={7} className="text-center py-8 text-gray-500">Sin datos.</td>
                     </tr>
-                  ) : lmsPaginated.map(s => (
+                  ) : lmsPaginated.map(s => {
+                    const student = students.find(st => st.id === s.id);
+                    return (
                     <tr key={s.id} className="hover:bg-gray-50">
                       <td className="px-6 py-3 text-sm font-medium text-gray-900">{s.lastName}</td>
                       <td className="px-6 py-3 text-sm text-gray-700">
@@ -891,6 +928,33 @@ export const ReportsView: React.FC = () => {
                         <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-500">{s.group || 'General'}</td>
+                      <td className="px-6 py-3 text-sm">
+                        {student ? (
+                          <select
+                            value={student.status || 'Formación'}
+                            onChange={(e) => {
+                              const value = e.target.value as Student['status'];
+                              if (value) updateStudent({ ...student, status: value });
+                              loadData();
+                            }}
+                            title={getEstadoStepperTooltip(student.id, student.status)}
+                            className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
+                              student.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                              student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                              student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                              student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            <option value="Formación">Formación</option>
+                            <option value="Cancelado">Cancelado</option>
+                            <option value="Retiro Voluntario">Retiro Voluntario</option>
+                            <option value="Deserción">Deserción</option>
+                          </select>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
                       <td className="px-6 py-3 text-sm text-gray-600 font-mono text-xs">
                         {s.lastAccess ?? <span className="text-gray-400">—</span>}
                       </td>
@@ -916,7 +980,7 @@ export const ReportsView: React.FC = () => {
                         </span>
                       </td>
                     </tr>
-                  ))}
+                  ); })}
                 </tbody>
               </table>
             </div>
@@ -1054,6 +1118,7 @@ export const ReportsView: React.FC = () => {
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Apellidos</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Nombres</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ficha</th>
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-center">Total act.</th>
                     <th className="px-6 py-3 text-xs font-semibold text-amber-600 uppercase text-center">Pendientes</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actividades pendientes</th>
@@ -1062,9 +1127,11 @@ export const ReportsView: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {evPaginated.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-500">Sin datos.</td>
+                      <td colSpan={7} className="text-center py-8 text-gray-500">Sin datos.</td>
                     </tr>
-                  ) : evPaginated.map(s => (
+                  ) : evPaginated.map(s => {
+                    const student = students.find(st => st.id === s.id);
+                    return (
                     <tr key={s.id} className="hover:bg-gray-50">
                       <td className="px-6 py-3 text-sm font-medium text-gray-900">{s.lastName}</td>
                       <td className="px-6 py-3 text-sm text-gray-700">
@@ -1072,6 +1139,33 @@ export const ReportsView: React.FC = () => {
                         <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-500">{s.group || 'General'}</td>
+                      <td className="px-6 py-3 text-sm">
+                        {student ? (
+                          <select
+                            value={student.status || 'Formación'}
+                            onChange={(e) => {
+                              const value = e.target.value as Student['status'];
+                              if (value) updateStudent({ ...student, status: value });
+                              loadData();
+                            }}
+                            title={getEstadoStepperTooltip(student.id, student.status)}
+                            className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
+                              student.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                              student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                              student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                              student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            <option value="Formación">Formación</option>
+                            <option value="Cancelado">Cancelado</option>
+                            <option value="Retiro Voluntario">Retiro Voluntario</option>
+                            <option value="Deserción">Deserción</option>
+                          </select>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
                       <td className="px-6 py-3 text-sm text-center text-gray-600">{s.totalActivities}</td>
                       <td className="px-6 py-3 text-sm text-center">
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
@@ -1110,7 +1204,7 @@ export const ReportsView: React.FC = () => {
                         )}
                       </td>
                     </tr>
-                  ))}
+                  ); })}
                 </tbody>
               </table>
             </div>
