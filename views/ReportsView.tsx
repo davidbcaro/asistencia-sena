@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   FileDown, Search, Filter, ChevronLeft, ChevronRight,
-  ArrowUpDown, Monitor, BookOpen, CalendarCheck,
+  ArrowUpDown, Monitor, BookOpen, CalendarCheck, X,
 } from 'lucide-react';
 import {
   getStudents, getAttendance, getFichas, getSessions,
@@ -169,6 +169,12 @@ export const ReportsView: React.FC = () => {
   // ── sort (evidencias) ──
   const [sortEvidencias, setSortEvidencias] = useState<'lastname' | 'firstname'>('lastname');
   const [sortEvidenciasDirection, setSortEvidenciasDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Modal detalle actividades pendientes (evidencias tab)
+  const [evidenciasDetailModal, setEvidenciasDetailModal] = useState<{
+    studentName: string;
+    activities: GradeActivity[];
+  } | null>(null);
 
   const handleSortSessions = (column: 'lastname' | 'firstname') => {
     if (sortSessions === column) {
@@ -766,6 +772,7 @@ export const ReportsView: React.FC = () => {
                     >
                       Apellidos {sortSessions === 'lastname' && <span className="text-teal-500">{sortSessionsDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Documento</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">Clases</th>
@@ -777,17 +784,15 @@ export const ReportsView: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {sessionPaginated.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center py-8 text-gray-500">
+                      <td colSpan={9} className="text-center py-8 text-gray-500">
                         {sessionsByFicha.length === 0 ? 'No hay datos para esta ficha.' : 'Sin coincidencias.'}
                       </td>
                     </tr>
                   ) : sessionPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-gray-700 text-xs">
-                        {s.firstName}
-                        <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
-                      </td>
+                      <td className="px-6 py-4 text-gray-700 text-xs">{s.firstName}</td>
                       <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
+                      <td className="px-6 py-4 text-gray-600 font-mono text-xs">{s.document || '—'}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{s.group}</td>
                       <td className="px-6 py-4">
                         <span
@@ -970,6 +975,7 @@ export const ReportsView: React.FC = () => {
                     >
                       Apellidos {sortLms === 'lastname' && <span className="text-teal-500">{sortLmsDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Documento</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Último acceso</th>
@@ -980,15 +986,13 @@ export const ReportsView: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {lmsPaginated.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-8 text-gray-500">Sin datos.</td>
+                      <td colSpan={8} className="text-center py-8 text-gray-500">Sin datos.</td>
                     </tr>
                   ) : lmsPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-gray-700 text-xs">
-                        {s.firstName}
-                        <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
-                      </td>
+                      <td className="px-6 py-4 text-gray-700 text-xs">{s.firstName}</td>
                       <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
+                      <td className="px-6 py-4 text-gray-600 font-mono text-xs">{s.document || '—'}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{s.group || 'General'}</td>
                       <td className="px-6 py-4">
                         <span
@@ -1177,6 +1181,7 @@ export const ReportsView: React.FC = () => {
                     >
                       Apellidos {sortEvidencias === 'lastname' && <span className="text-teal-500">{sortEvidenciasDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Documento</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">Total act.</th>
@@ -1187,15 +1192,13 @@ export const ReportsView: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {evPaginated.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-8 text-gray-500">Sin datos.</td>
+                      <td colSpan={8} className="text-center py-8 text-gray-500">Sin datos.</td>
                     </tr>
                   ) : evPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-gray-700 text-xs">
-                        {s.firstName}
-                        <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
-                      </td>
+                      <td className="px-6 py-4 text-gray-700 text-xs">{s.firstName}</td>
                       <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
+                      <td className="px-6 py-4 text-gray-600 font-mono text-xs">{s.document || '—'}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{s.group || 'General'}</td>
                       <td className="px-6 py-4">
                         <span
@@ -1225,7 +1228,18 @@ export const ReportsView: React.FC = () => {
                         {s.pendienteActivities.length === 0 ? (
                           <span className="text-green-600 font-medium">✓ Al día</span>
                         ) : (
-                          <div className="flex flex-wrap gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEvidenciasDetailModal({
+                                studentName: `${s.firstName} ${s.lastName}`,
+                                activities: s.pendienteActivities,
+                              });
+                            }}
+                            className="text-left w-full flex flex-wrap gap-1 cursor-pointer hover:bg-gray-100 rounded p-1 -m-1 transition-colors"
+                            title="Clic para ver descripción de las evidencias"
+                          >
                             {s.pendienteActivities.slice(0, 6).map(a => {
                               const match = a.name.match(/EV\d+/i);
                               const short = match ? match[0].toUpperCase() : a.name.slice(0, 8);
@@ -1244,7 +1258,7 @@ export const ReportsView: React.FC = () => {
                                 +{s.pendienteActivities.length - 6} más
                               </span>
                             )}
-                          </div>
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -1258,6 +1272,46 @@ export const ReportsView: React.FC = () => {
               total={evidenciasForTable.length}
               onPageChange={setPageEvidencias}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Modal detalle descripción de evidencias pendientes */}
+      {evidenciasDetailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setEvidenciasDetailModal(null)}>
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Actividades pendientes — {evidenciasDetailModal.studentName}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEvidenciasDetailModal(null)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-4 overflow-y-auto flex-1 space-y-4">
+              {evidenciasDetailModal.activities.length === 0 ? (
+                <p className="text-gray-500 text-sm">No hay actividades pendientes.</p>
+              ) : (
+                evidenciasDetailModal.activities.map((a) => (
+                  <div key={a.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50/50">
+                    <p className="font-medium text-gray-900 text-sm mb-1">{a.name}</p>
+                    {a.detail ? (
+                      <p className="text-gray-600 text-xs whitespace-pre-wrap">{a.detail}</p>
+                    ) : (
+                      <p className="text-gray-400 text-xs italic">Sin descripción.</p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
