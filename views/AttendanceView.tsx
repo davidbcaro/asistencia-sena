@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Calendar, Check, X, Save, Filter, Users, Upload, FileText, Download, CheckCircle, Search, ChevronLeft, ChevronRight, Settings, Plus, Trash2, RotateCcw, History, AlertTriangle, Lock } from 'lucide-react';
 import { Student, AttendanceRecord, ClassSession } from '../types';
-import { getStudents, getAttendanceForDate, bulkSaveAttendance, getSessions, addSession, deleteSession, getAttendance, syncFromCloud, updateStudent, getEstadoStepperTooltip } from '../services/db';
+import { getStudents, getAttendanceForDate, bulkSaveAttendance, getSessions, addSession, deleteSession, getAttendance, syncFromCloud } from '../services/db';
 
 export const AttendanceView: React.FC = () => {
   // Helper to get local date YYYY-MM-DD correctly
@@ -464,12 +464,12 @@ export const AttendanceView: React.FC = () => {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-32">Documento</th>
-              <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Nombres</th>
-              <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Apellidos</th>
-              <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Correo electrónico</th>
-              <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Ficha</th>
-              <th className="px-4 py-4 font-semibold text-gray-600 text-sm">Estado</th>
-              <th className="px-4 py-4 font-semibold text-gray-600 text-sm text-center w-28">Asistencia</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Nombres</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Apellidos</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Correo electrónico</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Ficha</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm">Estado</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center w-28">Asistencia</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -492,36 +492,28 @@ export const AttendanceView: React.FC = () => {
                                 isPresent ? 'hover:bg-gray-50' : 'bg-red-50 hover:bg-red-100'
                             }`}
                         >
-                            <td className="px-4 py-3 text-sm text-gray-500">
+                            <td className="px-4 py-4 text-gray-600 font-mono text-xs">
                                 {student.documentNumber || <span className="text-gray-300">—</span>}
                             </td>
-                            <td className="px-4 py-3 text-sm">
+                            <td className="px-4 py-4 text-xs">
                                 <span className={`font-medium ${isPresent ? 'text-gray-900' : 'text-red-900'}`}>
                                     {student.firstName}
                                 </span>
                             </td>
-                            <td className="px-4 py-3 text-sm">
+                            <td className="px-4 py-4 text-xs">
                                 <span className={`font-medium ${isPresent ? 'text-gray-900' : 'text-red-900'}`}>
                                     {student.lastName}
                                 </span>
                             </td>
-                            <td className="px-4 py-3 text-gray-500 text-sm">
+                            <td className="px-4 py-4 text-gray-600 text-sm">
                                 {student.email}
                             </td>
-                            <td className="px-4 py-3 text-gray-500 text-sm">
+                            <td className="px-4 py-4 text-gray-500 text-xs">
                                 {student.group || 'General'}
                             </td>
-                            <td className="px-4 py-3">
-                                <select
-                                  value={student.status || 'Formación'}
-                                  onChange={(e) => {
-                                    const value = e.target.value as Student['status'];
-                                    if (value) updateStudent({ ...student, status: value });
-                                    loadData();
-                                  }}
-                                  title={getEstadoStepperTooltip(student.id, student.status)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
+                            <td className="px-4 py-4">
+                                <span
+                                  className={`inline-block rounded border-0 px-2 py-0.5 text-xs font-medium ${
                                     student.status === 'Formación' ? 'bg-green-100 text-green-800' :
                                     student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
                                     student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
@@ -529,13 +521,10 @@ export const AttendanceView: React.FC = () => {
                                     'bg-gray-100 text-gray-800'
                                   }`}
                                 >
-                                  <option value="Formación">Formación</option>
-                                  <option value="Cancelado">Cancelado</option>
-                                  <option value="Retiro Voluntario">Retiro Voluntario</option>
-                                  <option value="Deserción">Deserción</option>
-                                </select>
+                                  {student.status || 'Formación'}
+                                </span>
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-4 py-4 text-center">
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();

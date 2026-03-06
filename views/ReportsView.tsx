@@ -10,9 +10,8 @@ import {
 import {
   getStudents, getAttendance, getFichas, getSessions,
   getLmsLastAccess, getGradeActivities, getGrades,
-  updateStudent, getEstadoStepperTooltip,
 } from '../services/db';
-import { Ficha, GradeActivity, GradeEntry, Student } from '../types';
+import { Ficha, GradeActivity, GradeEntry } from '../types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -98,7 +97,7 @@ const KpiCard: React.FC<{
   sub?: string;
 }> = ({ label, value, valueColor = 'text-gray-800', sub }) => (
   <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+    <p className="text-sm font-semibold text-gray-600 tracking-wide">{label}</p>
     <p className={`text-3xl font-bold mt-1 ${valueColor}`}>{value}</p>
     {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
   </div>
@@ -692,18 +691,18 @@ export const ReportsView: React.FC = () => {
               <table className="w-full text-left min-w-[640px]">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">
                       Apellidos {sortSessions === 'lastname' && <span className="text-teal-500">↓</span>}
                     </th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">
                       Nombres {sortSessions === 'firstname' && <span className="text-teal-500">↓</span>}
                     </th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ficha</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-center">Clases</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-green-600 uppercase text-center">Asistencias</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-red-600 uppercase text-center">Fallas</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-center">% Asist.</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">Clases</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-green-600 text-center">Asistencias</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-red-600 text-center">Fallas</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">% Asist.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -713,47 +712,31 @@ export const ReportsView: React.FC = () => {
                         {sessionsByFicha.length === 0 ? 'No hay datos para esta ficha.' : 'Sin coincidencias.'}
                       </td>
                     </tr>
-                  ) : sessionPaginated.map(s => {
-                    const student = students.find(st => st.id === s.id);
-                    return (
+                  ) : sessionPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{s.lastName}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">
+                      <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
+                      <td className="px-6 py-4 text-gray-700 text-xs">
                         {s.firstName}
                         <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
                       </td>
-                      <td className="px-6 py-3 text-sm text-gray-500">{s.group}</td>
-                      <td className="px-6 py-3 text-sm">
-                        {student ? (
-                          <select
-                            value={student.status || 'Formación'}
-                            onChange={(e) => {
-                              const value = e.target.value as Student['status'];
-                              if (value) updateStudent({ ...student, status: value });
-                              loadData();
-                            }}
-                            title={getEstadoStepperTooltip(student.id, student.status)}
-                            className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
-                              student.status === 'Formación' ? 'bg-green-100 text-green-800' :
-                              student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
-                              student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
-                              student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            <option value="Formación">Formación</option>
-                            <option value="Cancelado">Cancelado</option>
-                            <option value="Retiro Voluntario">Retiro Voluntario</option>
-                            <option value="Deserción">Deserción</option>
-                          </select>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
+                      <td className="px-6 py-4 text-gray-500 text-xs">{s.group}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-block rounded border-0 px-2 py-0.5 text-xs font-medium ${
+                            s.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                            s.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                            s.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                            s.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {s.status || 'Formación'}
+                        </span>
                       </td>
-                      <td className="px-6 py-3 text-sm text-center text-gray-600">{s.total}</td>
-                      <td className="px-6 py-3 text-sm text-center text-green-600 font-semibold">{s.present}</td>
-                      <td className="px-6 py-3 text-sm text-center text-red-600 font-semibold">{s.absent}</td>
-                      <td className="px-6 py-3 text-sm text-center">
+                      <td className="px-6 py-4 text-center text-gray-600 text-xs">{s.total}</td>
+                      <td className="px-6 py-4 text-sm text-center text-green-600 font-semibold">{s.present}</td>
+                      <td className="px-6 py-4 text-sm text-center text-red-600 font-semibold">{s.absent}</td>
+                      <td className="px-6 py-4 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                           s.rate >= 80 ? 'bg-green-100 text-green-700' :
                           s.rate >= 60 ? 'bg-yellow-100 text-yellow-700' :
@@ -763,7 +746,7 @@ export const ReportsView: React.FC = () => {
                         </span>
                       </td>
                     </tr>
-                  ); })}
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -904,13 +887,13 @@ export const ReportsView: React.FC = () => {
               <table className="w-full text-left min-w-[620px]">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Apellidos</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Nombres</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ficha</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Último acceso</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-center">Días inactivo</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado LMS</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Apellidos</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Nombres</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Último acceso</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">Días inactivo</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado LMS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -918,47 +901,31 @@ export const ReportsView: React.FC = () => {
                     <tr>
                       <td colSpan={7} className="text-center py-8 text-gray-500">Sin datos.</td>
                     </tr>
-                  ) : lmsPaginated.map(s => {
-                    const student = students.find(st => st.id === s.id);
-                    return (
+                  ) : lmsPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{s.lastName}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">
+                      <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
+                      <td className="px-6 py-4 text-gray-700 text-xs">
                         {s.firstName}
                         <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
                       </td>
-                      <td className="px-6 py-3 text-sm text-gray-500">{s.group || 'General'}</td>
-                      <td className="px-6 py-3 text-sm">
-                        {student ? (
-                          <select
-                            value={student.status || 'Formación'}
-                            onChange={(e) => {
-                              const value = e.target.value as Student['status'];
-                              if (value) updateStudent({ ...student, status: value });
-                              loadData();
-                            }}
-                            title={getEstadoStepperTooltip(student.id, student.status)}
-                            className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
-                              student.status === 'Formación' ? 'bg-green-100 text-green-800' :
-                              student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
-                              student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
-                              student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            <option value="Formación">Formación</option>
-                            <option value="Cancelado">Cancelado</option>
-                            <option value="Retiro Voluntario">Retiro Voluntario</option>
-                            <option value="Deserción">Deserción</option>
-                          </select>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
+                      <td className="px-6 py-4 text-gray-500 text-xs">{s.group || 'General'}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-block rounded border-0 px-2 py-0.5 text-xs font-medium ${
+                            s.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                            s.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                            s.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                            s.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {s.status || 'Formación'}
+                        </span>
                       </td>
-                      <td className="px-6 py-3 text-sm text-gray-600 font-mono text-xs">
+                      <td className="px-6 py-4 text-gray-600 text-sm font-mono">
                         {s.lastAccess ?? <span className="text-gray-400">—</span>}
                       </td>
-                      <td className="px-6 py-3 text-sm text-center">
+                      <td className="px-6 py-4 text-center text-xs">
                         {s.days !== null && s.days >= 0 ? (
                           <span className={`font-bold tabular-nums ${
                             s.days > 20 ? 'text-red-600' : s.days > 7 ? 'text-amber-600' : 'text-green-600'
@@ -969,7 +936,7 @@ export const ReportsView: React.FC = () => {
                           <span className="text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-3 text-sm">
+                      <td className="px-6 py-4">
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                           s.category === 'Activo (≤7d)'     ? 'bg-green-100 text-green-700' :
                           s.category === 'Moderado (8–20d)' ? 'bg-amber-100 text-amber-700' :
@@ -980,7 +947,7 @@ export const ReportsView: React.FC = () => {
                         </span>
                       </td>
                     </tr>
-                  ); })}
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -1115,13 +1082,13 @@ export const ReportsView: React.FC = () => {
               <table className="w-full text-left min-w-[620px]">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Apellidos</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Nombres</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ficha</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-center">Total act.</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-amber-600 uppercase text-center">Pendientes</th>
-                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Actividades pendientes</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Apellidos</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Nombres</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">Total act.</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-amber-600 text-center">Pendientes</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Actividades pendientes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1129,45 +1096,29 @@ export const ReportsView: React.FC = () => {
                     <tr>
                       <td colSpan={7} className="text-center py-8 text-gray-500">Sin datos.</td>
                     </tr>
-                  ) : evPaginated.map(s => {
-                    const student = students.find(st => st.id === s.id);
-                    return (
+                  ) : evPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{s.lastName}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">
+                      <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
+                      <td className="px-6 py-4 text-gray-700 text-xs">
                         {s.firstName}
                         <span className="block text-xs text-gray-400 font-mono">{s.document}</span>
                       </td>
-                      <td className="px-6 py-3 text-sm text-gray-500">{s.group || 'General'}</td>
-                      <td className="px-6 py-3 text-sm">
-                        {student ? (
-                          <select
-                            value={student.status || 'Formación'}
-                            onChange={(e) => {
-                              const value = e.target.value as Student['status'];
-                              if (value) updateStudent({ ...student, status: value });
-                              loadData();
-                            }}
-                            title={getEstadoStepperTooltip(student.id, student.status)}
-                            className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
-                              student.status === 'Formación' ? 'bg-green-100 text-green-800' :
-                              student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
-                              student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
-                              student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            <option value="Formación">Formación</option>
-                            <option value="Cancelado">Cancelado</option>
-                            <option value="Retiro Voluntario">Retiro Voluntario</option>
-                            <option value="Deserción">Deserción</option>
-                          </select>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
+                      <td className="px-6 py-4 text-gray-500 text-xs">{s.group || 'General'}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-block rounded border-0 px-2 py-0.5 text-xs font-medium ${
+                            s.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                            s.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                            s.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                            s.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {s.status || 'Formación'}
+                        </span>
                       </td>
-                      <td className="px-6 py-3 text-sm text-center text-gray-600">{s.totalActivities}</td>
-                      <td className="px-6 py-3 text-sm text-center">
+                      <td className="px-6 py-4 text-center text-gray-600 text-xs">{s.totalActivities}</td>
+                      <td className="px-6 py-4 text-center">
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
                           s.pendienteCount === 0 ? 'bg-green-100 text-green-700' :
                           s.pendienteCount <= 2   ? 'bg-amber-100 text-amber-700' :
@@ -1177,7 +1128,7 @@ export const ReportsView: React.FC = () => {
                           {s.pendienteCount}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-xs text-gray-500 max-w-xs">
+                      <td className="px-6 py-4 text-xs text-gray-500 max-w-xs">
                         {s.pendienteActivities.length === 0 ? (
                           <span className="text-green-600 font-medium">✓ Al día</span>
                         ) : (
@@ -1204,7 +1155,7 @@ export const ReportsView: React.FC = () => {
                         )}
                       </td>
                     </tr>
-                  ); })}
+                  ))}
                 </tbody>
               </table>
             </div>

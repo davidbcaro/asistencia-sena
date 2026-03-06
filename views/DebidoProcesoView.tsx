@@ -187,13 +187,13 @@ export const DebidoProcesoView: React.FC = () => {
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-gray-700 font-medium">
-                <th className="px-4 py-3 whitespace-nowrap">No</th>
-                <th className="px-4 py-3 whitespace-nowrap">Documento</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">No</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Documento</th>
                 <th
-                  className="px-4 py-3 whitespace-nowrap cursor-pointer select-none hover:text-teal-700"
+                  className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap cursor-pointer select-none hover:text-teal-700"
                   onClick={() => handleSort('firstname')}
                   title="Ordenar por nombres"
                 >
@@ -205,7 +205,7 @@ export const DebidoProcesoView: React.FC = () => {
                   </span>
                 </th>
                 <th
-                  className="px-4 py-3 whitespace-nowrap cursor-pointer select-none hover:text-teal-700"
+                  className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap cursor-pointer select-none hover:text-teal-700"
                   onClick={() => handleSort('lastname')}
                   title="Ordenar por apellidos"
                 >
@@ -216,12 +216,12 @@ export const DebidoProcesoView: React.FC = () => {
                     )}
                   </span>
                 </th>
-                <th className="px-4 py-3 whitespace-nowrap">Correo</th>
-                <th className="px-4 py-3 whitespace-nowrap">Ficha</th>
-                <th className="px-4 py-3 whitespace-nowrap">Estado</th>
-                <th className="px-4 py-3 whitespace-nowrap">Cancelación</th>
-                <th className="px-4 py-3 whitespace-nowrap">Retiro voluntario</th>
-                <th className="px-4 py-3 min-w-[140px]">Plan de mejoramiento</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Correo</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Ficha</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Estado</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Cancelación</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Retiro voluntario</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm min-w-[140px]">Plan de mejoramiento</th>
               </tr>
             </thead>
             <tbody>
@@ -230,15 +230,15 @@ export const DebidoProcesoView: React.FC = () => {
                   key={student.id}
                   className="border-b border-gray-100 hover:bg-gray-50/80"
                 >
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-4 text-gray-500 text-xs tabular-nums text-center">
                     {showAll ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                   </td>
-                  <td className="px-4 py-3">{student.documentNumber || '—'}</td>
-                  <td className="px-4 py-3">{student.firstName}</td>
-                  <td className="px-4 py-3">{student.lastName}</td>
-                  <td className="px-4 py-3 text-gray-600">{student.email || '—'}</td>
-                  <td className="px-4 py-3">{student.group || '—'}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-4 text-gray-600 font-mono text-xs">{student.documentNumber || '—'}</td>
+                  <td className="px-4 py-4 text-gray-800 text-xs">{student.firstName}</td>
+                  <td className="px-4 py-4 font-medium text-gray-900 text-xs">{student.lastName}</td>
+                  <td className="px-4 py-4 text-gray-600 text-sm">{student.email || '—'}</td>
+                  <td className="px-4 py-4 text-gray-600 text-xs">{student.group || '—'}</td>
+                  <td className="px-4 py-4">
                     <select
                       value={student.status || 'Formación'}
                       onChange={(e) => {
@@ -261,7 +261,7 @@ export const DebidoProcesoView: React.FC = () => {
                       <option value="Deserción">Deserción</option>
                     </select>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-4">
                     <DebidoProcesoStepper
                       currentStep={stateMap[student.id] ?? 0}
                       onStepClick={(step) => saveState(student.id, step)}
@@ -269,7 +269,7 @@ export const DebidoProcesoView: React.FC = () => {
                       defaultStep={0}
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-4">
                     <DebidoProcesoStepper
                       currentStep={retiroMap[student.id] ?? 1}
                       onStepClick={(step) => saveRetiroState(student.id, step)}
@@ -277,7 +277,7 @@ export const DebidoProcesoView: React.FC = () => {
                       defaultStep={1}
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-4">
                     <DebidoProcesoStepper
                       currentStep={pmaMap[student.id] ?? 0}
                       onStepClick={(step) => savePmaState(student.id, step)}
