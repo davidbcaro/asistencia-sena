@@ -859,8 +859,9 @@ export const AsistenciaLmsView: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
-        <table className="w-full text-left min-w-[1000px]">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-w-0">
+        <div className="overflow-x-auto min-w-0">
+        <table className="w-full text-left">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-14 text-center">No.</th>
@@ -1177,6 +1178,7 @@ export const AsistenciaLmsView: React.FC = () => {
             )}
           </tbody>
         </table>
+        </div>
 
         <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50 flex-wrap gap-2">
           <span className="text-sm text-gray-500">
