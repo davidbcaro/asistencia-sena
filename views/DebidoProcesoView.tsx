@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Student, Ficha } from '../types';
 import { getStudents, getFichas, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep, updateStudent, getEstadoStepperTooltip } from '../services/db';
@@ -42,7 +43,30 @@ export const DebidoProcesoView: React.FC = () => {
   const [showFilterCancelacion, setShowFilterCancelacion] = useState(false);
   const [showFilterRetiro, setShowFilterRetiro] = useState(false);
   const [showFilterPma, setShowFilterPma] = useState(false);
+  const [filterAnchor, setFilterAnchor] = useState<{ left: number; bottom: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const openFilter = (e: React.MouseEvent, setter: (v: boolean) => void) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setFilterAnchor({ left: rect.left, bottom: rect.bottom });
+    setShowFilterFicha(false);
+    setShowFilterEstado(false);
+    setShowFilterCancelacion(false);
+    setShowFilterRetiro(false);
+    setShowFilterPma(false);
+    setter(true);
+  };
+
+  const closeAllFilters = () => {
+    setShowFilterFicha(false);
+    setShowFilterEstado(false);
+    setShowFilterCancelacion(false);
+    setShowFilterRetiro(false);
+    setShowFilterPma(false);
+    setFilterAnchor(null);
+  };
+
+  const filterDropdownClass = 'flex flex-col min-w-[12rem] max-h-[min(20rem,70vh)] overflow-y-auto overflow-x-visible rounded-lg border border-gray-200 bg-white shadow-xl py-1 z-50';
   const [currentPage, setCurrentPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
   const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname'>('lastname');
@@ -212,106 +236,48 @@ export const DebidoProcesoView: React.FC = () => {
                 </th>
                 <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Correo</th>
                 <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap min-w-[100px]">
-                  <div className="relative inline-flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => { setShowFilterEstado(false); setShowFilterCancelacion(false); setShowFilterRetiro(false); setShowFilterPma(false); setShowFilterFicha((p) => !p); }}
-                      className="inline-flex items-center gap-1 hover:text-teal-700 text-left"
-                    >
+                  <div className="inline-flex items-center gap-1">
+                    <button type="button" onClick={(e) => openFilter(e, setShowFilterFicha)} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
                       Ficha
                       <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                       {filterFicha !== 'Todas' && <span className="text-teal-600 text-xs">({filterFicha})</span>}
                     </button>
-                    {showFilterFicha && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowFilterFicha(false)} />
-                        <div className="absolute left-0 top-full mt-1 w-48 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                          <button type="button" onClick={() => { setFilterFicha('Todas'); setShowFilterFicha(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterFicha === 'Todas' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todas las Fichas</button>
-                          {fichas.map((f) => (
-                            <button key={f.id} type="button" onClick={() => { setFilterFicha(f.code); setShowFilterFicha(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterFicha === f.code ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{f.code}</button>
-                          ))}
-                        </div>
-                      </>
-                    )}
                   </div>
                 </th>
                 <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap min-w-[100px]">
-                  <div className="relative inline-flex items-center gap-1">
-                    <button type="button" onClick={() => { setShowFilterFicha(false); setShowFilterCancelacion(false); setShowFilterRetiro(false); setShowFilterPma(false); setShowFilterEstado((p) => !p); }} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
+                  <div className="inline-flex items-center gap-1">
+                    <button type="button" onClick={(e) => openFilter(e, setShowFilterEstado)} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
                       Estado
                       <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                       {filterEstadoStudent !== 'Todos' && <span className="text-teal-600 text-xs">({filterEstadoStudent})</span>}
                     </button>
-                    {showFilterEstado && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowFilterEstado(false)} />
-                        <div className="absolute left-0 top-full mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                          {['Todos', 'Formación', 'Cancelado', 'Retiro Voluntario', 'Deserción'].map((opt) => (
-                            <button key={opt} type="button" onClick={() => { setFilterEstadoStudent(opt); setShowFilterEstado(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterEstadoStudent === opt ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{opt === 'Todos' ? 'Todos los estados' : opt}</button>
-                          ))}
-                        </div>
-                      </>
-                    )}
                   </div>
                 </th>
                 <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap min-w-[120px]">
-                  <div className="relative inline-flex items-center gap-1">
-                    <button type="button" onClick={() => { setShowFilterFicha(false); setShowFilterEstado(false); setShowFilterRetiro(false); setShowFilterPma(false); setShowFilterCancelacion((p) => !p); }} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
+                  <div className="inline-flex items-center gap-1">
+                    <button type="button" onClick={(e) => openFilter(e, setShowFilterCancelacion)} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
                       Cancelación
                       <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                       {filterEstado !== 'Todos' && <span className="text-teal-600 text-xs">(Paso {filterEstado})</span>}
                     </button>
-                    {showFilterCancelacion && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowFilterCancelacion(false)} />
-                        <div className="absolute left-0 top-full mt-1 w-56 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                          <button type="button" onClick={() => { setFilterEstado('Todos'); setShowFilterCancelacion(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterEstado === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
-                          {STEPS.map(({ step, tooltip }) => (
-                            <button key={step} type="button" onClick={() => { setFilterEstado(String(step)); setShowFilterCancelacion(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterEstado === String(step) ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{step === 0 ? tooltip : `Paso ${step}: ${tooltip}`}</button>
-                          ))}
-                        </div>
-                      </>
-                    )}
                   </div>
                 </th>
                 <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap min-w-[120px]">
-                  <div className="relative inline-flex items-center gap-1">
-                    <button type="button" onClick={() => { setShowFilterFicha(false); setShowFilterEstado(false); setShowFilterCancelacion(false); setShowFilterPma(false); setShowFilterRetiro((p) => !p); }} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
+                  <div className="inline-flex items-center gap-1">
+                    <button type="button" onClick={(e) => openFilter(e, setShowFilterRetiro)} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
                       Retiro voluntario
                       <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                       {filterRetiro !== 'Todos' && <span className="text-teal-600 text-xs">(Paso {filterRetiro})</span>}
                     </button>
-                    {showFilterRetiro && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowFilterRetiro(false)} />
-                        <div className="absolute left-0 top-full mt-1 w-56 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                          <button type="button" onClick={() => { setFilterRetiro('Todos'); setShowFilterRetiro(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterRetiro === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
-                          {RETIRO_STEPS.map(({ step, tooltip }) => (
-                            <button key={step} type="button" onClick={() => { setFilterRetiro(String(step)); setShowFilterRetiro(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterRetiro === String(step) ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{step === 1 ? tooltip : `Paso ${step}: ${tooltip}`}</button>
-                          ))}
-                        </div>
-                      </>
-                    )}
                   </div>
                 </th>
                 <th className="px-4 py-4 font-semibold text-gray-600 text-sm min-w-[140px]">
-                  <div className="relative inline-flex items-center gap-1">
-                    <button type="button" onClick={() => { setShowFilterFicha(false); setShowFilterEstado(false); setShowFilterCancelacion(false); setShowFilterRetiro(false); setShowFilterPma((p) => !p); }} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
+                  <div className="inline-flex items-center gap-1">
+                    <button type="button" onClick={(e) => openFilter(e, setShowFilterPma)} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
                       Plan de mejoramiento
                       <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                       {filterPma !== 'Todos' && <span className="text-teal-600 text-xs">(Paso {filterPma})</span>}
                     </button>
-                    {showFilterPma && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowFilterPma(false)} />
-                        <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                          <button type="button" onClick={() => { setFilterPma('Todos'); setShowFilterPma(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterPma === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
-                          {PMA_STEPS.map(({ step, tooltip }) => (
-                            <button key={step} type="button" onClick={() => { setFilterPma(String(step)); setShowFilterPma(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterPma === String(step) ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{step === 0 ? tooltip : `Paso ${step}: ${tooltip}`}</button>
-                          ))}
-                        </div>
-                      </>
-                    )}
                   </div>
                 </th>
               </tr>
@@ -382,6 +348,61 @@ export const DebidoProcesoView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Filtros en portal (posición fija, opciones en vertical, sin scroll horizontal) */}
+        {(showFilterFicha || showFilterEstado || showFilterCancelacion || showFilterRetiro || showFilterPma) && filterAnchor &&
+          createPortal(
+            <>
+              <div className="fixed inset-0 z-40" onClick={closeAllFilters} aria-hidden />
+              <div
+                className={filterDropdownClass}
+                style={{ position: 'fixed', left: filterAnchor.left, top: filterAnchor.bottom + 4, zIndex: 50 }}
+                role="menu"
+              >
+                {showFilterFicha && (
+                  <>
+                    <button type="button" onClick={() => { setFilterFicha('Todas'); closeAllFilters(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterFicha === 'Todas' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todas las Fichas</button>
+                    {fichas.map((f) => (
+                      <button key={f.id} type="button" onClick={() => { setFilterFicha(f.code); closeAllFilters(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterFicha === f.code ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{f.code}</button>
+                    ))}
+                  </>
+                )}
+                {showFilterEstado && (
+                  <>
+                    {['Todos', 'Formación', 'Cancelado', 'Retiro Voluntario', 'Deserción'].map((opt) => (
+                      <button key={opt} type="button" onClick={() => { setFilterEstadoStudent(opt); closeAllFilters(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterEstadoStudent === opt ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{opt === 'Todos' ? 'Todos los estados' : opt}</button>
+                    ))}
+                  </>
+                )}
+                {showFilterCancelacion && (
+                  <>
+                    <button type="button" onClick={() => { setFilterEstado('Todos'); closeAllFilters(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterEstado === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                    {STEPS.map(({ step, tooltip }) => (
+                      <button key={step} type="button" onClick={() => { setFilterEstado(String(step)); closeAllFilters(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterEstado === String(step) ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{step === 0 ? tooltip : `Paso ${step}: ${tooltip}`}</button>
+                    ))}
+                  </>
+                )}
+                {showFilterRetiro && (
+                  <>
+                    <button type="button" onClick={() => { setFilterRetiro('Todos'); closeAllFilters(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterRetiro === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                    {RETIRO_STEPS.map(({ step, tooltip }) => (
+                      <button key={step} type="button" onClick={() => { setFilterRetiro(String(step)); closeAllFilters(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterRetiro === String(step) ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{step === 1 ? tooltip : `Paso ${step}: ${tooltip}`}</button>
+                    ))}
+                  </>
+                )}
+                {showFilterPma && (
+                  <>
+                    <button type="button" onClick={() => { setFilterPma('Todos'); closeAllFilters(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterPma === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                    {PMA_STEPS.map(({ step, tooltip }) => (
+                      <button key={step} type="button" onClick={() => { setFilterPma(String(step)); closeAllFilters(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterPma === String(step) ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{step === 0 ? tooltip : `Paso ${step}: ${tooltip}`}</button>
+                    ))}
+                  </>
+                )}
+              </div>
+            </>,
+            document.body
+          )}
+
         {filteredList.length === 0 ? (
           <div className="p-12 text-center text-gray-500">
             No hay aprendices que coincidan con los filtros.

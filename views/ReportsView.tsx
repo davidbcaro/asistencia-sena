@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -181,6 +182,21 @@ export const ReportsView: React.FC = () => {
   const [filterEvPendientes, setFilterEvPendientes] = useState<string>('Todos');
   const [showFilterEvEstado, setShowFilterEvEstado] = useState(false);
   const [showFilterEvPendientes, setShowFilterEvPendientes] = useState(false);
+  const [filterEvAnchor, setFilterEvAnchor] = useState<{ left: number; bottom: number } | null>(null);
+
+  const openFilterEv = (e: React.MouseEvent, setter: (v: boolean) => void) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setFilterEvAnchor({ left: rect.left, bottom: rect.bottom });
+    setShowFilterEvEstado(false);
+    setShowFilterEvPendientes(false);
+    setter(true);
+  };
+
+  const closeAllFiltersEv = () => {
+    setShowFilterEvEstado(false);
+    setShowFilterEvPendientes(false);
+    setFilterEvAnchor(null);
+  };
 
   // Selección por checkbox (como StudentsView)
   const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set());
@@ -248,6 +264,7 @@ export const ReportsView: React.FC = () => {
   useEffect(() => {
     setShowFilterEvEstado(false);
     setShowFilterEvPendientes(false);
+    setFilterEvAnchor(null);
   }, [activeTab]);
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1284,10 +1301,10 @@ export const ReportsView: React.FC = () => {
                     </th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                      <div className="relative inline-flex items-center gap-1">
+                      <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => { setShowFilterEvPendientes(false); setShowFilterEvEstado((p) => !p); }}
+                          onClick={(e) => openFilterEv(e, setShowFilterEvEstado)}
                           className="inline-flex items-center gap-1 hover:text-teal-700 text-left"
                         >
                           Estado
@@ -1296,32 +1313,15 @@ export const ReportsView: React.FC = () => {
                             <span className="text-teal-600 text-xs">({filterEvEstado})</span>
                           )}
                         </button>
-                        {showFilterEvEstado && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setShowFilterEvEstado(false)} />
-                            <div className="absolute left-0 top-full mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                              {['Todos', 'Formación', 'Cancelado', 'Retiro Voluntario', 'Deserción'].map((opt) => (
-                                <button
-                                  key={opt}
-                                  type="button"
-                                  onClick={() => { setFilterEvEstado(opt); setShowFilterEvEstado(false); }}
-                                  className={`w-full text-left px-3 py-2 text-sm ${filterEvEstado === opt ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
-                                >
-                                  {opt === 'Todos' ? 'Todos los estados' : opt}
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
                       </div>
                     </th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600 text-center">Total act.</th>
                     <th className="px-6 py-4 text-sm font-semibold text-amber-600 text-center">Pendientes</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                      <div className="relative inline-flex items-center gap-1">
+                      <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => { setShowFilterEvEstado(false); setShowFilterEvPendientes((p) => !p); }}
+                          onClick={(e) => openFilterEv(e, setShowFilterEvPendientes)}
                           className="inline-flex items-center gap-1 hover:text-teal-700 text-left"
                         >
                           Actividades pendientes
@@ -1330,34 +1330,6 @@ export const ReportsView: React.FC = () => {
                             <span className="text-teal-600 text-xs">({filterEvPendientes})</span>
                           )}
                         </button>
-                        {showFilterEvPendientes && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setShowFilterEvPendientes(false)} />
-                            <div className="absolute left-0 top-full mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                              <button
-                                type="button"
-                                onClick={() => { setFilterEvPendientes('Todos'); setShowFilterEvPendientes(false); }}
-                                className={`w-full text-left px-3 py-2 text-sm ${filterEvPendientes === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
-                              >
-                                Todos
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { setFilterEvPendientes('Al día'); setShowFilterEvPendientes(false); }}
-                                className={`w-full text-left px-3 py-2 text-sm ${filterEvPendientes === 'Al día' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
-                              >
-                                Al día (0 pendientes)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { setFilterEvPendientes('Con pendientes'); setShowFilterEvPendientes(false); }}
-                                className={`w-full text-left px-3 py-2 text-sm ${filterEvPendientes === 'Con pendientes' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
-                              >
-                                Con pendientes (1+)
-                              </button>
-                            </div>
-                          </>
-                        )}
                       </div>
                     </th>
                   </tr>
@@ -1457,6 +1429,42 @@ export const ReportsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Filtros Evidencias en portal (posición fija, opciones en vertical) */}
+      {(showFilterEvEstado || showFilterEvPendientes) && filterEvAnchor &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-40" onClick={closeAllFiltersEv} aria-hidden />
+            <div
+              className="flex flex-col min-w-[12rem] max-h-[min(20rem,70vh)] overflow-y-auto overflow-x-visible rounded-lg border border-gray-200 bg-white shadow-xl py-1 z-50"
+              style={{ position: 'fixed', left: filterEvAnchor.left, top: filterEvAnchor.bottom + 4, zIndex: 50 }}
+              role="menu"
+            >
+              {showFilterEvEstado && (
+                <>
+                  {['Todos', 'Formación', 'Cancelado', 'Retiro Voluntario', 'Deserción'].map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => { setFilterEvEstado(opt); closeAllFiltersEv(); }}
+                      className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterEvEstado === opt ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                    >
+                      {opt === 'Todos' ? 'Todos los estados' : opt}
+                    </button>
+                  ))}
+                </>
+              )}
+              {showFilterEvPendientes && (
+                <>
+                  <button type="button" onClick={() => { setFilterEvPendientes('Todos'); closeAllFiltersEv(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterEvPendientes === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                  <button type="button" onClick={() => { setFilterEvPendientes('Al día'); closeAllFiltersEv(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterEvPendientes === 'Al día' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Al día (0 pendientes)</button>
+                  <button type="button" onClick={() => { setFilterEvPendientes('Con pendientes'); closeAllFiltersEv(); }} className={`w-full text-left px-3 py-2 text-sm whitespace-nowrap ${filterEvPendientes === 'Con pendientes' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Con pendientes (1+)</button>
+                </>
+              )}
+            </div>
+          </>,
+          document.body
+        )}
 
       {/* Modal detalle descripción de evidencias pendientes */}
       {evidenciasDetailModal && (
