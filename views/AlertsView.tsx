@@ -251,12 +251,16 @@ Atentamente,`
     return { score: avg, letter };
   };
 
+  // Solo aprendices en Estado = Formación (misma regla que gráficas en Reportes)
+  const studentsFormacion = useMemo(
+    () => students.filter((s) => (s.status || 'Formación') === 'Formación'),
+    [students]
+  );
+
   // Aprendices con novedad "Riesgo de deserción" o "Plan de mejoramiento"
   const apprenticesWithNovedad = useMemo((): ApprenticeWithNovedad[] => {
-    return students
+    return studentsFormacion
       .filter((s) => {
-        const status = s.status || 'Formación';
-        if (status !== 'Formación') return false;
         const lastAccess = lmsLastAccess[s.id];
         const days = lastAccess != null ? daysSince(lastAccess) : null;
         const final = getFinalForStudent(s);
@@ -270,7 +274,7 @@ Atentamente,`
         const novedad = getNovedad(student, daysInactive, final.letter);
         return { student, novedad, daysInactive, finalLetter: final.letter };
       });
-  }, [students, lmsLastAccess, gradeActivities, grades, gradeMap]);
+  }, [studentsFormacion, lmsLastAccess, gradeActivities, grades, gradeMap]);
 
   const filteredList = useMemo(() => {
     let list =

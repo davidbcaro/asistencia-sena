@@ -231,9 +231,17 @@ export const ReportsView: React.FC = () => {
     [baseSessionStats, selectedFicha]
   );
 
+  // Solo aprendices en Formación para gráficas y KPIs
+  const sessionsByFichaCharts = useMemo(() => {
+    const formacion = baseSessionStats.filter(s => s.status === 'Formación');
+    return selectedFicha === 'Todas'
+      ? formacion
+      : formacion.filter(s => s.group === selectedFicha);
+  }, [baseSessionStats, selectedFicha]);
+
   const sessionKpis = useMemo(() => {
-    const totalPresent = sessionsByFicha.reduce((a, c) => a + c.present, 0);
-    const totalAbsent  = sessionsByFicha.reduce((a, c) => a + c.absent,  0);
+    const totalPresent = sessionsByFichaCharts.reduce((a, c) => a + c.present, 0);
+    const totalAbsent  = sessionsByFichaCharts.reduce((a, c) => a + c.absent,  0);
     const total        = totalPresent + totalAbsent;
     const totalSessions =
       selectedFicha === 'Todas'
@@ -244,15 +252,15 @@ export const ReportsView: React.FC = () => {
     return {
       rate:          total > 0 ? (totalPresent / total) * 100 : 0,
       totalAbsent,
-      atRisk:        sessionsByFicha.filter(s => s.absent >= 3).length,
+      atRisk:        sessionsByFichaCharts.filter(s => s.absent >= 3).length,
       totalSessions,
     };
-  }, [sessionsByFicha, sessions, selectedFicha]);
+  }, [sessionsByFichaCharts, sessions, selectedFicha]);
 
   const sessionPieData = useMemo(() => [
-    { name: 'Asistencias', value: sessionsByFicha.reduce((a, c) => a + c.present, 0) },
-    { name: 'Fallas',      value: sessionsByFicha.reduce((a, c) => a + c.absent,  0) },
-  ], [sessionsByFicha]);
+    { name: 'Asistencias', value: sessionsByFichaCharts.reduce((a, c) => a + c.present, 0) },
+    { name: 'Fallas',      value: sessionsByFichaCharts.reduce((a, c) => a + c.absent,  0) },
+  ], [sessionsByFichaCharts]);
 
   const sessionStatsForTable = useMemo(() => {
     const q = searchSessions.toLowerCase();
@@ -324,35 +332,43 @@ export const ReportsView: React.FC = () => {
     [lmsStatsFull, selectedFicha]
   );
 
+  // Solo aprendices en Formación para gráficas y KPIs
+  const lmsByFichaCharts = useMemo(() => {
+    const formacion = lmsStatsFull.filter(s => s.status === 'Formación');
+    return selectedFicha === 'Todas'
+      ? formacion
+      : formacion.filter(s => s.group === selectedFicha);
+  }, [lmsStatsFull, selectedFicha]);
+
   const lmsKpis = useMemo(() => {
-    const withAccess = lmsByFicha.filter(s => s.days !== null && s.days >= 0);
+    const withAccess = lmsByFichaCharts.filter(s => s.days !== null && s.days >= 0);
     const avgDays    =
       withAccess.length > 0
         ? Math.round(withAccess.reduce((a, c) => a + (c.days ?? 0), 0) / withAccess.length)
         : null;
     return {
-      active:   lmsByFicha.filter(s => s.days !== null && s.days <= 7).length,
-      moderate: lmsByFicha.filter(s => s.days !== null && s.days > 7 && s.days <= 20).length,
-      atRisk:   lmsByFicha.filter(s => s.days !== null && s.days > 20).length,
-      noAccess: lmsByFicha.filter(s => s.days === null).length,
+      active:   lmsByFichaCharts.filter(s => s.days !== null && s.days <= 7).length,
+      moderate: lmsByFichaCharts.filter(s => s.days !== null && s.days > 7 && s.days <= 20).length,
+      atRisk:   lmsByFichaCharts.filter(s => s.days !== null && s.days > 20).length,
+      noAccess: lmsByFichaCharts.filter(s => s.days === null).length,
       avgDays,
     };
-  }, [lmsByFicha]);
+  }, [lmsByFichaCharts]);
 
   const lmsPieData = useMemo(() => {
     const cats = ['Activo (≤7d)', 'Moderado (8–20d)', 'En riesgo (>20d)', 'Sin acceso'];
     return cats
-      .map(cat => ({ name: cat, value: lmsByFicha.filter(s => s.category === cat).length }))
+      .map(cat => ({ name: cat, value: lmsByFichaCharts.filter(s => s.category === cat).length }))
       .filter(d => d.value > 0);
-  }, [lmsByFicha]);
+  }, [lmsByFichaCharts]);
 
   const lmsBarData = useMemo(() =>
-    lmsByFicha
+    lmsByFichaCharts
       .filter(s => s.days !== null && s.days > 0)
       .sort((a, b) => (b.days ?? 0) - (a.days ?? 0))
       .slice(0, 20)
       .map(s => ({ name: s.lastName, days: s.days ?? 0, fullName: s.fullName })),
-    [lmsByFicha]
+    [lmsByFichaCharts]
   );
 
   const lmsForTable = useMemo(() => {
@@ -433,13 +449,21 @@ export const ReportsView: React.FC = () => {
     [evidenciasStatsFull, selectedFicha]
   );
 
+  // Solo aprendices en Formación para gráficas y KPIs
+  const evidenciasByFichaCharts = useMemo(() => {
+    const formacion = evidenciasStatsFull.filter(s => s.status === 'Formación');
+    return selectedFicha === 'Todas'
+      ? formacion
+      : formacion.filter(s => s.group === selectedFicha);
+  }, [evidenciasStatsFull, selectedFicha]);
+
   const evidenciasKpis = useMemo(() => {
-    const total        = evidenciasByFicha.length;
-    const alDia        = evidenciasByFicha.filter(s => s.pendienteCount === 0).length;
-    const totalPending = evidenciasByFicha.reduce((a, c) => a + c.pendienteCount, 0);
+    const total        = evidenciasByFichaCharts.length;
+    const alDia        = evidenciasByFichaCharts.filter(s => s.pendienteCount === 0).length;
+    const totalPending = evidenciasByFichaCharts.reduce((a, c) => a + c.pendienteCount, 0);
     // Activity with most pending
     const actMap = new Map<string, { name: string; count: number }>();
-    evidenciasByFicha.forEach(s =>
+    evidenciasByFichaCharts.forEach(s =>
       s.pendienteActivities.forEach(a => {
         const match = a.name.match(/EV\d+/i);
         const short = match ? match[0].toUpperCase() : a.name.slice(0, 12);
@@ -456,11 +480,11 @@ export const ReportsView: React.FC = () => {
       avg:           total > 0 ? (totalPending / total).toFixed(1) : '0.0',
       worstActivity: worst?.name ?? '—',
     };
-  }, [evidenciasByFicha]);
+  }, [evidenciasByFichaCharts]);
 
   const activityBarData = useMemo(() => {
     const actMap = new Map<string, { name: string; fullName: string; count: number }>();
-    evidenciasByFicha.forEach(s =>
+    evidenciasByFichaCharts.forEach(s =>
       s.pendienteActivities.forEach(a => {
         const match = a.name.match(/EV\d+/i);
         const short = match ? match[0].toUpperCase() : a.name.slice(0, 10);
@@ -470,7 +494,7 @@ export const ReportsView: React.FC = () => {
       })
     );
     return Array.from(actMap.values()).sort((a, b) => b.count - a.count).slice(0, 15);
-  }, [evidenciasByFicha]);
+  }, [evidenciasByFichaCharts]);
 
   const evidenciasPieData = useMemo(() => {
     const buckets = [
@@ -479,14 +503,14 @@ export const ReportsView: React.FC = () => {
       { name: 'Medio (3–5)',   count: 0 },
       { name: 'Alto (6+)',     count: 0 },
     ];
-    evidenciasByFicha.forEach(s => {
+    evidenciasByFichaCharts.forEach(s => {
       if      (s.pendienteCount === 0)  buckets[0].count++;
       else if (s.pendienteCount <= 2)   buckets[1].count++;
       else if (s.pendienteCount <= 5)   buckets[2].count++;
       else                              buckets[3].count++;
     });
     return buckets.filter(b => b.count > 0);
-  }, [evidenciasByFicha]);
+  }, [evidenciasByFichaCharts]);
 
   const evidenciasForTable = useMemo(() => {
     const q = searchEvidencias.toLowerCase();
@@ -591,7 +615,7 @@ export const ReportsView: React.FC = () => {
               label="En riesgo (≥3 fallas)"
               value={sessionKpis.atRisk}
               valueColor="text-orange-500"
-              sub={`de ${sessionsByFicha.length} aprendices`}
+              sub={`de ${sessionsByFichaCharts.length} aprendices (Formación)`}
             />
             <KpiCard
               label="Clases registradas"
@@ -608,14 +632,14 @@ export const ReportsView: React.FC = () => {
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-base font-semibold text-gray-800">Ranking de fallas</h3>
                 <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-500">
-                  Top {Math.min(sessionsByFicha.length, 20)}
+                  Top {Math.min(sessionsByFichaCharts.length, 20)}
                 </span>
               </div>
               <div className="flex-1 overflow-y-auto">
-                <div style={{ height: barChartHeight(Math.min(sessionsByFicha.length, 20)), minWidth: 280 }}>
+                <div style={{ height: barChartHeight(Math.min(sessionsByFichaCharts.length, 20)), minWidth: 280 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={sessionsByFicha.slice(0, 20)}
+                      data={sessionsByFichaCharts.slice(0, 20)}
                       layout="vertical"
                       margin={{ left: 0, right: 34, top: 4, bottom: 4 }}
                     >
@@ -633,7 +657,7 @@ export const ReportsView: React.FC = () => {
                         contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: 12 }}
                       />
                       <Bar dataKey="absent" name="Fallas" radius={[0, 4, 4, 0]} barSize={18}>
-                        {sessionsByFicha.slice(0, 20).map((e, i) => (
+                        {sessionsByFichaCharts.slice(0, 20).map((e, i) => (
                           <Cell key={i} fill={e.absent >= 5 ? '#dc2626' : e.absent >= 3 ? '#f97316' : '#4f46e5'} />
                         ))}
                       </Bar>
@@ -772,7 +796,7 @@ export const ReportsView: React.FC = () => {
               label="Acceso reciente (≤7d)"
               value={lmsKpis.active}
               valueColor="text-green-600"
-              sub={`de ${lmsByFicha.length} aprendices`}
+              sub={`de ${lmsByFichaCharts.length} aprendices (Formación)`}
             />
             <KpiCard
               label="Moderados (8–20d)"
@@ -973,7 +997,7 @@ export const ReportsView: React.FC = () => {
               label="Al día (0 pendientes)"
               value={evidenciasKpis.alDia}
               valueColor="text-green-600"
-              sub={`de ${evidenciasByFicha.length} aprendices`}
+              sub={`de ${evidenciasByFichaCharts.length} aprendices (Formación)`}
             />
             <KpiCard
               label="Con pendientes"
