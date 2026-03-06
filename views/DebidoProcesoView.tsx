@@ -33,7 +33,15 @@ export const DebidoProcesoView: React.FC = () => {
   const [retiroMap, setRetiroMap] = useState<Record<string, number>>({});
   const [pmaMap, setPmaMap] = useState<Record<string, number>>({});
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
-  const [filterEstado, setFilterEstado] = useState<string>('Todos');
+  const [filterEstado, setFilterEstado] = useState<string>('Todos'); // Cancelación (stateMap)
+  const [filterEstadoStudent, setFilterEstadoStudent] = useState<string>('Todos'); // Estado del aprendiz
+  const [filterRetiro, setFilterRetiro] = useState<string>('Todos');
+  const [filterPma, setFilterPma] = useState<string>('Todos');
+  const [showFilterFicha, setShowFilterFicha] = useState(false);
+  const [showFilterEstado, setShowFilterEstado] = useState(false);
+  const [showFilterCancelacion, setShowFilterCancelacion] = useState(false);
+  const [showFilterRetiro, setShowFilterRetiro] = useState(false);
+  const [showFilterPma, setShowFilterPma] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
@@ -69,10 +77,25 @@ export const DebidoProcesoView: React.FC = () => {
     if (filterFicha !== 'Todas') {
       list = list.filter((s) => (s.group || '') === filterFicha);
     }
+    if (filterEstadoStudent !== 'Todos') {
+      list = list.filter((s) => (s.status || 'Formación') === filterEstadoStudent);
+    }
     if (filterEstado !== 'Todos') {
       const step = parseInt(filterEstado, 10);
       if (!Number.isNaN(step)) {
         list = list.filter((s) => (stateMap[s.id] ?? 0) === step);
+      }
+    }
+    if (filterRetiro !== 'Todos') {
+      const step = parseInt(filterRetiro, 10);
+      if (!Number.isNaN(step)) {
+        list = list.filter((s) => (retiroMap[s.id] ?? 1) === step);
+      }
+    }
+    if (filterPma !== 'Todos') {
+      const step = parseInt(filterPma, 10);
+      if (!Number.isNaN(step)) {
+        list = list.filter((s) => (pmaMap[s.id] ?? 0) === step);
       }
     }
     const term = searchTerm.toLowerCase().trim();
@@ -96,7 +119,7 @@ export const DebidoProcesoView: React.FC = () => {
       return direction * cmp;
     });
     return list;
-  }, [students, stateMap, filterFicha, filterEstado, searchTerm, sortOrder, sortDirection]);
+  }, [students, stateMap, retiroMap, pmaMap, filterFicha, filterEstado, filterEstadoStudent, filterRetiro, filterPma, searchTerm, sortOrder, sortDirection]);
 
   const totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE);
   const paginatedList = showAll
@@ -108,7 +131,7 @@ export const DebidoProcesoView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterFicha, filterEstado, searchTerm, sortOrder, sortDirection]);
+  }, [filterFicha, filterEstado, filterEstadoStudent, filterRetiro, filterPma, searchTerm, sortOrder, sortDirection]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -150,35 +173,6 @@ export const DebidoProcesoView: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <select
-                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700"
-                value={filterFicha}
-                onChange={(e) => setFilterFicha(e.target.value)}
-              >
-                <option value="Todas">Todas las Fichas</option>
-                {fichas.map((f) => (
-                  <option key={f.id} value={f.code}>
-                    {f.code}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <select
-              className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700"
-              value={filterEstado}
-              onChange={(e) => setFilterEstado(e.target.value)}
-            >
-              <option value="Todos">Todos los estados</option>
-              {STEPS.map(({ step, tooltip }) => (
-                <option key={step} value={step}>
-                  {step === 0 ? tooltip : `Paso ${step}: ${tooltip}`}
-                </option>
-              ))}
-            </select>
-          </div>
           <div className="text-sm text-gray-500">
             <strong className="text-gray-900">{filteredList.length}</strong> aprendices
           </div>
@@ -217,11 +211,109 @@ export const DebidoProcesoView: React.FC = () => {
                   </span>
                 </th>
                 <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Correo</th>
-                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Ficha</th>
-                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Estado</th>
-                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Cancelación</th>
-                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Retiro voluntario</th>
-                <th className="px-4 py-4 font-semibold text-gray-600 text-sm min-w-[140px]">Plan de mejoramiento</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap min-w-[100px]">
+                  <div className="relative inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => { setShowFilterEstado(false); setShowFilterCancelacion(false); setShowFilterRetiro(false); setShowFilterPma(false); setShowFilterFicha((p) => !p); }}
+                      className="inline-flex items-center gap-1 hover:text-teal-700 text-left"
+                    >
+                      Ficha
+                      <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      {filterFicha !== 'Todas' && <span className="text-teal-600 text-xs">({filterFicha})</span>}
+                    </button>
+                    {showFilterFicha && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowFilterFicha(false)} />
+                        <div className="absolute left-0 top-full mt-1 w-48 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                          <button type="button" onClick={() => { setFilterFicha('Todas'); setShowFilterFicha(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterFicha === 'Todas' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todas las Fichas</button>
+                          {fichas.map((f) => (
+                            <button key={f.id} type="button" onClick={() => { setFilterFicha(f.code); setShowFilterFicha(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterFicha === f.code ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{f.code}</button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap min-w-[100px]">
+                  <div className="relative inline-flex items-center gap-1">
+                    <button type="button" onClick={() => { setShowFilterFicha(false); setShowFilterCancelacion(false); setShowFilterRetiro(false); setShowFilterPma(false); setShowFilterEstado((p) => !p); }} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
+                      Estado
+                      <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      {filterEstadoStudent !== 'Todos' && <span className="text-teal-600 text-xs">({filterEstadoStudent})</span>}
+                    </button>
+                    {showFilterEstado && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowFilterEstado(false)} />
+                        <div className="absolute left-0 top-full mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                          {['Todos', 'Formación', 'Cancelado', 'Retiro Voluntario', 'Deserción'].map((opt) => (
+                            <button key={opt} type="button" onClick={() => { setFilterEstadoStudent(opt); setShowFilterEstado(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterEstadoStudent === opt ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{opt === 'Todos' ? 'Todos los estados' : opt}</button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap min-w-[120px]">
+                  <div className="relative inline-flex items-center gap-1">
+                    <button type="button" onClick={() => { setShowFilterFicha(false); setShowFilterEstado(false); setShowFilterRetiro(false); setShowFilterPma(false); setShowFilterCancelacion((p) => !p); }} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
+                      Cancelación
+                      <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      {filterEstado !== 'Todos' && <span className="text-teal-600 text-xs">(Paso {filterEstado})</span>}
+                    </button>
+                    {showFilterCancelacion && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowFilterCancelacion(false)} />
+                        <div className="absolute left-0 top-full mt-1 w-56 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                          <button type="button" onClick={() => { setFilterEstado('Todos'); setShowFilterCancelacion(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterEstado === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                          {STEPS.map(({ step, tooltip }) => (
+                            <button key={step} type="button" onClick={() => { setFilterEstado(String(step)); setShowFilterCancelacion(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterEstado === String(step) ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{step === 0 ? tooltip : `Paso ${step}: ${tooltip}`}</button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap min-w-[120px]">
+                  <div className="relative inline-flex items-center gap-1">
+                    <button type="button" onClick={() => { setShowFilterFicha(false); setShowFilterEstado(false); setShowFilterCancelacion(false); setShowFilterPma(false); setShowFilterRetiro((p) => !p); }} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
+                      Retiro voluntario
+                      <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      {filterRetiro !== 'Todos' && <span className="text-teal-600 text-xs">(Paso {filterRetiro})</span>}
+                    </button>
+                    {showFilterRetiro && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowFilterRetiro(false)} />
+                        <div className="absolute left-0 top-full mt-1 w-56 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                          <button type="button" onClick={() => { setFilterRetiro('Todos'); setShowFilterRetiro(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterRetiro === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                          {RETIRO_STEPS.map(({ step, tooltip }) => (
+                            <button key={step} type="button" onClick={() => { setFilterRetiro(String(step)); setShowFilterRetiro(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterRetiro === String(step) ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{step === 1 ? tooltip : `Paso ${step}: ${tooltip}`}</button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm min-w-[140px]">
+                  <div className="relative inline-flex items-center gap-1">
+                    <button type="button" onClick={() => { setShowFilterFicha(false); setShowFilterEstado(false); setShowFilterCancelacion(false); setShowFilterRetiro(false); setShowFilterPma((p) => !p); }} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
+                      Plan de mejoramiento
+                      <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      {filterPma !== 'Todos' && <span className="text-teal-600 text-xs">(Paso {filterPma})</span>}
+                    </button>
+                    {showFilterPma && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowFilterPma(false)} />
+                        <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
+                          <button type="button" onClick={() => { setFilterPma('Todos'); setShowFilterPma(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterPma === 'Todos' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>Todos</button>
+                          {PMA_STEPS.map(({ step, tooltip }) => (
+                            <button key={step} type="button" onClick={() => { setFilterPma(String(step)); setShowFilterPma(false); }} className={`w-full text-left px-3 py-2 text-sm ${filterPma === String(step) ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}>{step === 0 ? tooltip : `Paso ${step}: ${tooltip}`}</button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
