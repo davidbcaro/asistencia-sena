@@ -748,9 +748,9 @@ export const AsistenciaLmsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 min-w-0 w-full max-w-full overflow-x-hidden">
+    <div className="space-y-6 min-w-0 w-full">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0 max-w-full">
-        <div className="min-w-0 flex-shrink-0">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold text-gray-900">Asistencia LMS</h2>
           <p className="text-gray-500">Último acceso al LMS y días sin ingresar por aprendiz.</p>
         </div>
