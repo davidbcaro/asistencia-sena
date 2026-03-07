@@ -868,6 +868,7 @@ export const CalificacionesView: React.FC = () => {
       'Documento',
       'Nombres',
       'Apellidos',
+      'Correo electrónico',
       'Estado',
       'Ficha',
       'Juicios Evaluativos',
@@ -898,6 +899,7 @@ export const CalificacionesView: React.FC = () => {
         student.documentNumber || '',
         student.firstName || '',
         student.lastName || '',
+        student.email || '',
         student.status || 'Formación',
         student.group || '',
         juicioLabel,
@@ -1561,7 +1563,8 @@ export const CalificacionesView: React.FC = () => {
                     Apellidos{sortOrder === 'lastname' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                   </button>
                 </th>
-                <th rowSpan={2} className={`px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[592px] bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`}>
+                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[592px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Correo electrónico</th>
+                <th rowSpan={2} className={`px-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[752px] bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`}>
                   <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
                     <button type="button" onClick={() => setShowStatusFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none whitespace-nowrap" title="Filtrar por estado">
                       Estado<Filter className="w-3.5 h-3.5 text-gray-400" />{filterStatus !== 'Todos' && <span className="text-teal-600 text-xs">({filterStatus})</span>}
@@ -1580,8 +1583,8 @@ export const CalificacionesView: React.FC = () => {
                     )}
                   </div>
                 </th>
-                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-28 min-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Ficha</th>
-                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para marcar como evaluado">Juicios Evaluativos</th>
+                <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-28 min-w-28 sticky left-[864px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Ficha</th>
+                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para marcar como evaluado">Juicios Evaluativos</th>
 
                 {/* Evidence section in Row 1:
                     - if compGroups: show competencia group headers (colSpan per group)
@@ -1693,7 +1696,8 @@ export const CalificacionesView: React.FC = () => {
                       Apellidos{sortOrder === 'lastname' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                     </button>
                   </th>
-                  <th className={`px-4 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[592px] bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[592px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Correo electrónico</th>
+                  <th className={`px-4 py-4 font-semibold text-gray-600 text-sm w-40 min-w-40 sticky left-[752px] bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-visible align-middle ${showStatusFilter ? 'z-[100]' : 'z-30'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <div className="relative inline-flex items-center gap-1" ref={statusFilterRef}>
                       <button type="button" onClick={() => setShowStatusFilter(prev => !prev)} className="inline-flex items-center gap-1 hover:text-gray-900 focus:outline-none whitespace-nowrap" title="Filtrar por estado">
                         Estado<Filter className="w-3.5 h-3.5 text-gray-400" />{filterStatus !== 'Todos' && <span className="text-teal-600 text-xs">({filterStatus})</span>}
@@ -1712,8 +1716,8 @@ export const CalificacionesView: React.FC = () => {
                       )}
                     </div>
                   </th>
-                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 sticky left-[752px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
-                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[864px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para marcar como evaluado">Juicios Evaluativos</th>
+                  <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 sticky left-[864px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para marcar como evaluado">Juicios Evaluativos</th>
                 </>
               )}
 
@@ -1778,13 +1782,13 @@ export const CalificacionesView: React.FC = () => {
           <tbody className="divide-y divide-gray-100">
             {studentsForFicha.length === 0 ? (
               <tr>
-                <td colSpan={8 + visibleActivities.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={9 + visibleActivities.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
                   {filterStatus !== 'Todos' ? 'Ningún aprendiz coincide con el filtro de estado seleccionado.' : hasSearchTerm ? 'No se encontraron aprendices con la búsqueda.' : selectedFicha === 'Todas' ? 'No hay aprendices.' : 'No hay aprendices en esta ficha.'}
                 </td>
               </tr>
             ) : studentsFilteredByFinal.length === 0 ? (
               <tr>
-                <td colSpan={8 + visibleActivities.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={9 + visibleActivities.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
                   Ningún aprendiz coincide con el filtro FINAL seleccionado.
                 </td>
               </tr>
@@ -1798,7 +1802,8 @@ export const CalificacionesView: React.FC = () => {
                   <td className="px-6 py-4 w-32 min-w-32 text-gray-600 font-mono text-xs sticky left-20 z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.documentNumber || '-'}</td>
                   <td className="px-6 py-4 w-48 min-w-48 text-xs font-medium text-gray-900 sticky left-[208px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-teal-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.firstName}</td>
                   <td className="px-6 py-4 w-48 min-w-48 text-xs font-medium text-gray-900 sticky left-[400px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors cursor-pointer hover:text-teal-600 hover:underline" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={`Ver detalle de ${student.lastName} ${student.firstName}`} onClick={() => setStudentDetailModal(student)}>{student.lastName}</td>
-                  <td className="px-4 py-4 w-40 min-w-40 text-sm sticky left-[592px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                  <td className="px-6 py-4 w-40 min-w-40 text-sm text-gray-600 sticky left-[592px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.email || '—'}</td>
+                  <td className="px-4 py-4 w-40 min-w-40 text-sm sticky left-[752px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <span
                       title={getEstadoStepperTooltip(student.id, student.status)}
                       className={`inline-block text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${
@@ -1812,9 +1817,9 @@ export const CalificacionesView: React.FC = () => {
                       {student.status || 'Formación'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 w-28 min-w-28 text-sm text-gray-700 sticky left-[752px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.group || <span className="text-gray-400">-</span>}</td>
+                  <td className="px-6 py-4 w-28 min-w-28 text-sm text-gray-700 sticky left-[864px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.group || <span className="text-gray-400">-</span>}</td>
                   <td
-                    className="px-4 py-4 w-24 min-w-24 sticky left-[864px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] align-middle transition-colors cursor-pointer text-center overflow-hidden"
+                    className="px-4 py-4 w-24 min-w-24 sticky left-[976px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] align-middle transition-colors cursor-pointer text-center overflow-hidden"
                     style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX }}
                     onClick={() => toggleJuicioEvaluativo(student.id, student.group)}
                     title={

@@ -638,12 +638,23 @@ export const ReportsView: React.FC = () => {
 
   const downloadEvidenciasCsv = () =>
     downloadCsv(
-      ['Documento', 'Nombres', 'Apellidos', 'Ficha', 'Total Actividades', 'Pendientes', 'Actividades Pendientes'],
-      evidenciasForTable.map(s => [
-        `"${s.document}"`, `"${s.firstName}"`, `"${s.lastName}"`, `"${s.group}"`,
-        s.totalActivities, s.pendienteCount,
-        `"${s.pendienteActivities.map(a => a.name).join('; ')}"`,
-      ]),
+      ['Documento', 'Nombres', 'Apellidos', 'Correo electrónico', 'Ficha', 'Estado', 'Total Actividades', 'Pendientes', 'Actividades pendientes (descripción)'],
+      evidenciasForTable.map(s => {
+        const actividadesDesc = s.pendienteActivities.length === 0
+          ? 'Al día'
+          : s.pendienteActivities.map(a => (a.detail || a.name).replace(/"/g, '""')).join(' | ');
+        return [
+          `"${(s.document || '').replace(/"/g, '""')}"`,
+          `"${(s.firstName || '').replace(/"/g, '""')}"`,
+          `"${(s.lastName || '').replace(/"/g, '""')}"`,
+          `"${(s.email || '').replace(/"/g, '""')}"`,
+          `"${(s.group || '').replace(/"/g, '""')}"`,
+          `"${(s.status || 'Formación').replace(/"/g, '""')}"`,
+          s.totalActivities,
+          s.pendienteCount,
+          `"${actividadesDesc}"`,
+        ];
+      }),
       `reporte_evidencias_${selectedFicha}_${TODAY_ISO}.csv`
     );
 
@@ -1299,6 +1310,7 @@ export const ReportsView: React.FC = () => {
                     >
                       Apellidos {sortEvidencias === 'lastname' && <span className="text-teal-500">{sortEvidenciasDirection === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
+                    <th className="px-6 py-4 text-sm font-semibold text-gray-600">Correo electrónico</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">Ficha</th>
                     <th className="px-6 py-4 text-sm font-semibold text-gray-600">
                       <div className="inline-flex items-center gap-1">
@@ -1337,7 +1349,7 @@ export const ReportsView: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {evPaginated.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-center py-8 text-gray-500">Sin datos.</td>
+                      <td colSpan={10} className="text-center py-8 text-gray-500">Sin datos.</td>
                     </tr>
                   ) : evPaginated.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
@@ -1353,6 +1365,7 @@ export const ReportsView: React.FC = () => {
                       <td className="px-6 py-4 text-gray-600 font-mono text-xs">{s.document || '—'}</td>
                       <td className="px-6 py-4 text-gray-700 text-xs">{s.firstName}</td>
                       <td className="px-6 py-4 font-medium text-gray-900 text-xs">{s.lastName}</td>
+                      <td className="px-6 py-4 text-gray-600 text-sm">{s.email || '—'}</td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{s.group || 'General'}</td>
                       <td className="px-6 py-4">
                         <span
