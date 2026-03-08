@@ -501,7 +501,7 @@ const DebidoProcesoStepper: React.FC<DebidoProcesoStepperProps> = ({
               type="button"
               title={tooltip}
               onClick={() => onStepClick(step)}
-              className={`flex-shrink-0 rounded-full p-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 ${
+              className={`relative flex-shrink-0 rounded-full p-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 ${
                 isDone
                   ? 'bg-teal-500 text-white hover:bg-teal-600'
                   : isCurrent

@@ -57,7 +57,7 @@ function AsistenciaLmsStepper(props: {
               type="button"
               title={tooltip}
               onClick={() => onStepClick(step)}
-              className={`flex-shrink-0 rounded-full p-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 ${
+              className={`relative flex-shrink-0 rounded-full p-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 ${
                 isDone
                   ? 'bg-teal-500 text-white hover:bg-teal-600'
                   : isCurrent
@@ -748,14 +748,14 @@ export const AsistenciaLmsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 min-w-0 w-full">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0 max-w-full">
+    <div className="space-y-6 w-full">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="min-w-0">
           <h2 className="text-2xl font-bold text-gray-900">Asistencia LMS</h2>
           <p className="text-gray-500">Último acceso al LMS y días sin ingresar por aprendiz.</p>
         </div>
 
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-wrap min-w-0 max-w-full">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-wrap">
           <div className="relative min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -859,8 +859,8 @@ export const AsistenciaLmsView: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-w-0 w-full max-w-full">
-        <div className="overflow-x-auto min-w-0 w-full max-w-full">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -901,7 +901,7 @@ export const AsistenciaLmsView: React.FC = () => {
                   )}
                 </button>
               </th>
-              <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-80 min-w-[20rem]">Correo electrónico</th>
+              <th className="px-6 py-4 font-semibold text-gray-600 text-sm min-w-[12rem]">Correo electrónico</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
                 <button
                   type="button"
@@ -1061,8 +1061,10 @@ export const AsistenciaLmsView: React.FC = () => {
                     <td className="px-6 py-4 text-gray-800 text-xs min-w-[11rem]">
                       {student.lastName}
                     </td>
-                    <td className="px-6 py-4 text-gray-600 text-sm w-80 min-w-[20rem] whitespace-nowrap" title={student.email || undefined}>
-                      {student.email || <span className="text-gray-400">-</span>}
+                    <td className="px-6 py-4 text-gray-600 text-sm" title={student.email || undefined}>
+                      <div className="max-w-[16rem] truncate">
+                        {student.email || <span className="text-gray-400">-</span>}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
