@@ -137,7 +137,10 @@ export const sendStudentsToCloud = async (students: Student[]): Promise<void> =>
             active: s.active,
             group: s.group,
             status: s.status || 'Formación',
-            description: s.description || null
+            description: s.description || null,
+            username: s.username || null,
+            is_vocero: s.isVocero ?? false,
+            is_vocero_suplente: s.isVoceroSuplente ?? false
         }));
 
         const url = `${edgeUrl}/save-students`;
@@ -1198,7 +1201,10 @@ export const syncFromCloud = async () => {
                 active: x.active, 
                 group: x.group,
                 status: x.status || 'Formación',
-                description: x.description || undefined
+                description: x.description || undefined,
+                username: x.username || undefined,
+                isVocero: x.is_vocero ?? false,
+                isVoceroSuplente: x.is_vocero_suplente ?? false
             }));
             saveStudents(mappedStudents);
         }
