@@ -940,15 +940,15 @@ export const StudentsView: React.FC = () => {
 
       {/* Edit Modal */}
       {editingStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full my-auto max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center flex-shrink-0 px-6 pt-6 pb-2 border-b border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900">Editar Aprendiz</h3>
-                    <button onClick={() => setEditingStudent(null)} className="text-gray-400 hover:text-gray-600">
+                    <button onClick={() => setEditingStudent(null)} className="text-gray-400 hover:text-gray-600 p-1">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-                <div className="space-y-4">
+                <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Documento</label>
                         <input 
@@ -1040,20 +1040,20 @@ export const StudentsView: React.FC = () => {
                             onChange={(e) => setEditForm({...editForm, description: e.target.value})}
                         />
                     </div>
-                    <div className="pt-2 flex space-x-3">
-                        <button 
-                            onClick={() => setEditingStudent(null)}
-                            className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200"
-                        >
-                            Cancelar
-                        </button>
-                        <button 
-                            onClick={handleUpdate}
-                            className="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700"
-                        >
-                            Guardar Cambios
-                        </button>
-                    </div>
+                </div>
+                <div className="flex-shrink-0 px-6 py-4 pt-2 border-t border-gray-100 flex gap-3">
+                    <button 
+                        onClick={() => setEditingStudent(null)}
+                        className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        onClick={handleUpdate}
+                        className="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700"
+                    >
+                        Guardar Cambios
+                    </button>
                 </div>
             </div>
         </div>
