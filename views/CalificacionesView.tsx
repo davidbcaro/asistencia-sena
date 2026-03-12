@@ -669,45 +669,43 @@ export const CalificacionesView: React.FC = () => {
     saveRapColumns({ ...current, [key]: rapCodes });
   }, [selectedFicha, selectedPhase]);
 
-  // Auto-seed evidence columns from cronograma when none exist for the selected phase
+  // Seed default evidence columns for ALL phases on mount (runs once)
   useEffect(() => {
-    if (selectedFicha === 'Todas') return;
-    const faseEvs = FASE_EVIDENCES[selectedPhase];
-    if (!faseEvs || faseEvs.length === 0) return;
-
     const existing = getGradeActivities();
-    const phaseActivities = existing.filter(a => (a.phase || phases[1]) === selectedPhase);
-    if (phaseActivities.length > 0) return;
-
+    const toAdd: GradeActivity[] = [];
+    const byEvKey: Record<string, import('../services/db').EvCompEntry> = {};
+    const compOrder: string[] = [];
     const now = new Date().toISOString();
-    const toAdd = faseEvs
-      .filter(ev => !existing.some(a => a.id === `seed-${ev.code}`))
-      .map(ev => ({
-        id: `seed-${ev.code}`,
-        name: ev.code,
-        detail: ev.code,
-        group: '',
-        phase: selectedPhase,
-        maxScore: 100,
-        createdAt: now,
-      }));
+
+    Object.entries(FASE_EVIDENCES).forEach(([phase, faseEvs]) => {
+      // Only seed a phase if it has no activities at all
+      const phaseActivities = existing.filter(a => (a.phase || phases[1]) === phase);
+      if (phaseActivities.length > 0) return;
+
+      faseEvs.forEach(ev => {
+        if (existing.some(a => a.id === `seed-${ev.code}`)) return;
+        toAdd.push({
+          id: `seed-${ev.code}`,
+          name: ev.code,
+          detail: ev.code,
+          group: '',
+          phase,
+          maxScore: 100,
+          createdAt: now,
+        });
+        const canonicalKey = getCanonicalEvidenceKey(ev.code);
+        byEvKey[canonicalKey] = {
+          competenciaCode: ev.compCode,
+          competenciaName: COMPETENCIA_NAMES[ev.compCode] || ev.compCode,
+          aaKey: ev.aaKey,
+          aaName: FASE_RAPS[phase]?.find(r => r.compCode === ev.compCode && r.aaKey === ev.aaKey)?.rapName || ev.aaKey,
+        };
+        if (!compOrder.includes(ev.compCode)) compOrder.push(ev.compCode);
+      });
+    });
 
     if (toAdd.length === 0) return;
     saveGradeActivities([...existing, ...toAdd]);
-
-    // Seed the evidence → competencia mapping (global key '')
-    const byEvKey: Record<string, import('../services/db').EvCompEntry> = {};
-    const compOrder: string[] = [];
-    faseEvs.forEach(ev => {
-      const canonicalKey = getCanonicalEvidenceKey(ev.code);
-      byEvKey[canonicalKey] = {
-        competenciaCode: ev.compCode,
-        competenciaName: COMPETENCIA_NAMES[ev.compCode] || ev.compCode,
-        aaKey: ev.aaKey,
-        aaName: FASE_RAPS[selectedPhase]?.find(r => r.compCode === ev.compCode && r.aaKey === ev.aaKey)?.rapName || ev.aaKey,
-      };
-      if (!compOrder.includes(ev.compCode)) compOrder.push(ev.compCode);
-    });
 
     const existingMap = getEvidenceCompMap();
     const existingGlobal = existingMap[''] || { byEvKey: {}, compOrder: [] };
@@ -718,7 +716,7 @@ export const CalificacionesView: React.FC = () => {
         compOrder: [...new Set([...compOrder, ...existingGlobal.compOrder])],
       },
     });
-  }, [selectedFicha, selectedPhase]);
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
