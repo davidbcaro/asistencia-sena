@@ -152,131 +152,132 @@ const FASE_RAPS: Record<string, CronogramaRap[]> = {
 };
 
 interface CronogramaEvidence {
-  code: string;      // e.g., "GA1-220501014-AA1-EV01"
-  compCode: string;  // e.g., "220501014"
-  aaKey: string;     // e.g., "AA1"
+  code: string;         // e.g., "GA1-220501014-AA1-EV01"
+  compCode: string;     // e.g., "220501014"
+  aaKey: string;        // e.g., "AA1"
+  description: string;  // full evidence name from cronograma
 }
 
 /** Evidencias por fase, extraídas de los cronogramas pedagógicos */
 const FASE_EVIDENCES: Record<string, CronogramaEvidence[]> = {
   'Fase 1: Análisis': [
-    { code: 'GA1-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1' },
-    { code: 'GA1-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1' },
-    { code: 'GA1-220501046-AA1-EV01', compCode: '220501046', aaKey: 'AA1' },
-    { code: 'GA1-220501046-AA2-EV01', compCode: '220501046', aaKey: 'AA2' },
-    { code: 'GA1-220501046-AA3-EV01', compCode: '220501046', aaKey: 'AA3' },
-    { code: 'GA1-220501046-AA4-EV01', compCode: '220501046', aaKey: 'AA4' },
-    { code: 'GA1-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA1-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA1-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA1-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario sobre técnicas de levantamiento de información, plan de seguridad y continuidad del servicio.' },
+    { code: 'GA1-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de producto: Informe de inventario y dispositivos de la red.' },
+    { code: 'GA1-220501046-AA1-EV01', compCode: '220501046', aaKey: 'AA1', description: 'Evidencia de conocimiento: Mapa mental - Software y servicios de Internet.' },
+    { code: 'GA1-220501046-AA2-EV01', compCode: '220501046', aaKey: 'AA2', description: 'Evidencia de conocimiento: Taller. Utilización de las herramientas de ofimática.' },
+    { code: 'GA1-220501046-AA3-EV01', compCode: '220501046', aaKey: 'AA3', description: 'Evidencia de producto: Informe. Pertinencia y efectividad de los recursos utilizados según requerimientos.' },
+    { code: 'GA1-220501046-AA4-EV01', compCode: '220501046', aaKey: 'AA4', description: 'Evidencia de desempeño: Plan de mejora de productos y procesos con la incorporación de TIC.' },
+    { code: 'GA1-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario.' },
+    { code: 'GA1-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de desempeño: Video presentación.' },
+    { code: 'GA1-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de producto: Folleto.' },
   ],
   'Fase 2: Planeación': [
-    { code: 'GA2-220501104-AA1-EV01', compCode: '220501104', aaKey: 'AA1' },
-    { code: 'GA2-220501104-AA1-EV02', compCode: '220501104', aaKey: 'AA1' },
-    { code: 'GA2-220501107-AA1-EV01', compCode: '220501107', aaKey: 'AA1' },
-    { code: 'GA2-220501107-AA1-EV02', compCode: '220501107', aaKey: 'AA1' },
-    { code: 'GA2-240201528-AA1-EV01', compCode: '240201528', aaKey: 'AA1' },
-    { code: 'GA2-240201528-AA2-EV01', compCode: '240201528', aaKey: 'AA2' },
-    { code: 'GA2-240201528-AA3-EV01', compCode: '240201528', aaKey: 'AA3' },
-    { code: 'GA2-240201528-AA4-EV01', compCode: '240201528', aaKey: 'AA4' },
-    { code: 'GA2-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA2-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA2-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA2-240202501-AA2-EV01', compCode: '240202501', aaKey: 'AA2' },
-    { code: 'GA2-240202501-AA2-EV02', compCode: '240202501', aaKey: 'AA2' },
-    { code: 'GA2-240202501-AA2-EV03', compCode: '240202501', aaKey: 'AA2' },
-    { code: 'GA3-220501091-AA1-EV01', compCode: '220501091', aaKey: 'AA1' },
-    { code: 'GA3-220501091-AA1-EV02', compCode: '220501091', aaKey: 'AA1' },
-    { code: 'GA3-220501105-AA1-EV01', compCode: '220501105', aaKey: 'AA1' },
-    { code: 'GA3-220201501-AA1-EV01', compCode: '220201501', aaKey: 'AA1' },
-    { code: 'GA3-220201501-AA2-EV01', compCode: '220201501', aaKey: 'AA2' },
-    { code: 'GA3-220201501-AA3-EV01', compCode: '220201501', aaKey: 'AA3' },
-    { code: 'GA3-220201501-AA4-EV01', compCode: '220201501', aaKey: 'AA4' },
-    { code: 'GA3-220201501-AA4-EV02', compCode: '220201501', aaKey: 'AA4' },
+    { code: 'GA2-220501104-AA1-EV01', compCode: '220501104', aaKey: 'AA1', description: 'Evidencia de conocimiento: Taller con interpretación de planos.' },
+    { code: 'GA2-220501104-AA1-EV02', compCode: '220501104', aaKey: 'AA1', description: 'Evidencia de producto: Video expositivo sobre las topologías estudiadas.' },
+    { code: 'GA2-220501107-AA1-EV01', compCode: '220501107', aaKey: 'AA1', description: 'Evidencia de producto: Lista de chequeo para inspección de infraestructura física.' },
+    { code: 'GA2-220501107-AA1-EV02', compCode: '220501107', aaKey: 'AA1', description: 'Evidencia de producto: Informe de planeación de implementación de red inalámbrica.' },
+    { code: 'GA2-240201528-AA1-EV01', compCode: '240201528', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario: procedimientos aritméticos.' },
+    { code: 'GA2-240201528-AA2-EV01', compCode: '240201528', aaKey: 'AA2', description: 'Evidencia de desempeño: Informe: planteamiento de ecuación.' },
+    { code: 'GA2-240201528-AA3-EV01', compCode: '240201528', aaKey: 'AA3', description: 'Evidencia de producto: Video: sustentación.' },
+    { code: 'GA2-240201528-AA4-EV01', compCode: '240201528', aaKey: 'AA4', description: 'Evidencia de desempeño: Algoritmo para el cálculo de áreas y volúmenes.' },
+    { code: 'GA2-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario.' },
+    { code: 'GA2-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de desempeño: Vídeo entrevista virtual.' },
+    { code: 'GA2-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de producto: Crónica.' },
+    { code: 'GA2-240202501-AA2-EV01', compCode: '240202501', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario.' },
+    { code: 'GA2-240202501-AA2-EV02', compCode: '240202501', aaKey: 'AA2', description: 'Evidencia de desempeño: Video presentación de un lugar turístico.' },
+    { code: 'GA2-240202501-AA2-EV03', compCode: '240202501', aaKey: 'AA2', description: 'Evidencia de producto: Documento escrito.' },
+    { code: 'GA3-220501091-AA1-EV01', compCode: '220501091', aaKey: 'AA1', description: 'Evidencia de producto: Listado de dispositivos y recursos de VoIP con sus características.' },
+    { code: 'GA3-220501091-AA1-EV02', compCode: '220501091', aaKey: 'AA1', description: 'Evidencia de producto: Informe con las posibles soluciones (ventajas y desventajas) de VoIP.' },
+    { code: 'GA3-220501105-AA1-EV01', compCode: '220501105', aaKey: 'AA1', description: 'Evidencia de desempeño: Lista de chequeo de los elementos mínimos necesarios para la implementación de la plataforma de monitoreo.' },
+    { code: 'GA3-220201501-AA1-EV01', compCode: '220201501', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario.' },
+    { code: 'GA3-220201501-AA2-EV01', compCode: '220201501', aaKey: 'AA2', description: 'Evidencia de producto: Video expositivo sobre experimento de aplicación.' },
+    { code: 'GA3-220201501-AA3-EV01', compCode: '220201501', aaKey: 'AA3', description: 'Evidencia de producto: Informe de laboratorio.' },
+    { code: 'GA3-220201501-AA4-EV01', compCode: '220201501', aaKey: 'AA4', description: 'Evidencia de producto: Video expositivo sobre experimento de aplicación.' },
+    { code: 'GA3-220201501-AA4-EV02', compCode: '220201501', aaKey: 'AA4', description: 'Evidencia de producto: Bitácora de procesos desarrollados en la competencia.' },
   ],
   'Fase 3: Ejecución': [
-    { code: 'GA4-220501104-AA1-EV01', compCode: '220501104', aaKey: 'AA1' },
-    { code: 'GA4-220501104-AA1-EV02', compCode: '220501104', aaKey: 'AA1' },
-    { code: 'GA4-220501104-AA2-EV01', compCode: '220501104', aaKey: 'AA2' },
-    { code: 'GA4-220501104-AA2-EV02', compCode: '220501104', aaKey: 'AA2' },
-    { code: 'GA4-220501107-AA1-EV01', compCode: '220501107', aaKey: 'AA1' },
-    { code: 'GA4-220501107-AA1-EV02', compCode: '220501107', aaKey: 'AA1' },
-    { code: 'GA4-220501107-AA1-EV03', compCode: '220501107', aaKey: 'AA1' },
-    { code: 'GA4-220501107-AA1-EV04', compCode: '220501107', aaKey: 'AA1' },
-    { code: 'GA4-240201524-AA1-EV01', compCode: '240201524', aaKey: 'AA1' },
-    { code: 'GA4-240201524-AA2-EV01', compCode: '240201524', aaKey: 'AA2' },
-    { code: 'GA4-240201524-AA3-EV01', compCode: '240201524', aaKey: 'AA3' },
-    { code: 'GA4-240201524-AA4-EV01', compCode: '240201524', aaKey: 'AA4' },
-    { code: 'GA4-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA4-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA4-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA4-240202501-AA2-EV01', compCode: '240202501', aaKey: 'AA2' },
-    { code: 'GA4-240202501-AA2-EV02', compCode: '240202501', aaKey: 'AA2' },
-    { code: 'GA4-240202501-AA2-EV03', compCode: '240202501', aaKey: 'AA2' },
-    { code: 'GA5-220501106-AA1-EV01', compCode: '220501106', aaKey: 'AA1' },
-    { code: 'GA5-220501106-AA1-EV02', compCode: '220501106', aaKey: 'AA1' },
-    { code: 'GA5-240201064-AA1-EV01', compCode: '240201064', aaKey: 'AA1' },
-    { code: 'GA5-240201064-AA2-EV01', compCode: '240201064', aaKey: 'AA2' },
-    { code: 'GA5-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA5-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA5-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA6-220501106-AA1-EV01', compCode: '220501106', aaKey: 'AA1' },
-    { code: 'GA6-220501091-AA1-EV01', compCode: '220501091', aaKey: 'AA1' },
-    { code: 'GA6-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA6-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA6-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA7-220501105-AA1-EV01', compCode: '220501105', aaKey: 'AA1' },
-    { code: 'GA7-220501105-AA1-EV02', compCode: '220501105', aaKey: 'AA1' },
-    { code: 'GA7-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1' },
-    { code: 'GA7-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1' },
-    { code: 'GA7-230101507-AA1-EV01', compCode: '230101507', aaKey: 'AA1' },
-    { code: 'GA7-230101507-AA2-EV01', compCode: '230101507', aaKey: 'AA2' },
-    { code: 'GA7-230101507-AA3-EV01', compCode: '230101507', aaKey: 'AA3' },
-    { code: 'GA7-230101507-AA4-EV01', compCode: '230101507', aaKey: 'AA4' },
-    { code: 'GA7-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA7-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
-    { code: 'GA7-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA4-220501104-AA1-EV01', compCode: '220501104', aaKey: 'AA1', description: 'Evidencia de desempeño: Archivo de simulación de la implementación de esquema de subredes y direccionamiento IPv4 e IPv6.' },
+    { code: 'GA4-220501104-AA1-EV02', compCode: '220501104', aaKey: 'AA1', description: 'Evidencia de producto: Informe práctica de laboratorio sobre dispositivos activos de subredes y direccionamiento IPv4 o IPv6.' },
+    { code: 'GA4-220501104-AA2-EV01', compCode: '220501104', aaKey: 'AA2', description: 'Evidencia de producto: Archivo de simulación de configuración de dispositivos activos con tecnologías WAN, VLAN y enrutamientos.' },
+    { code: 'GA4-220501104-AA2-EV02', compCode: '220501104', aaKey: 'AA2', description: 'Evidencia de producto: Informe práctica de laboratorio sobre configuración de dispositivos activos para tecnologías WAN, VLAN y enrutamientos.' },
+    { code: 'GA4-220501107-AA1-EV01', compCode: '220501107', aaKey: 'AA1', description: 'Evidencia de producto: Video expositivo sobre configuración de componentes inalámbricos.' },
+    { code: 'GA4-220501107-AA1-EV02', compCode: '220501107', aaKey: 'AA1', description: 'Evidencia de producto: Video expositivo sobre configuración de parámetros de integración en red cableada.' },
+    { code: 'GA4-220501107-AA1-EV03', compCode: '220501107', aaKey: 'AA1', description: 'Evidencia de producto: Lista de verificación para canales de comunicación inalámbrica.' },
+    { code: 'GA4-220501107-AA1-EV04', compCode: '220501107', aaKey: 'AA1', description: 'Evidencia de producto: Video expositivo del funcionamiento de la red inalámbrica implementada (práctica de laboratorio).' },
+    { code: 'GA4-240201524-AA1-EV01', compCode: '240201524', aaKey: 'AA1', description: 'Evidencia de conocimiento: Video. ¿Cómo nos comunicamos a través del discurso?' },
+    { code: 'GA4-240201524-AA2-EV01', compCode: '240201524', aaKey: 'AA2', description: 'Evidencia de desempeño: Video. La comunicación como expresión humana.' },
+    { code: 'GA4-240201524-AA3-EV01', compCode: '240201524', aaKey: 'AA3', description: 'Evidencia de desempeño: Infografía. Comunicación de la interpretación del entorno.' },
+    { code: 'GA4-240201524-AA4-EV01', compCode: '240201524', aaKey: 'AA4', description: 'Evidencia de producto: Informe. Creación de contenidos comunicativos.' },
+    { code: 'GA4-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario.' },
+    { code: 'GA4-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de producto: Audio.' },
+    { code: 'GA4-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de desempeño: Foro.' },
+    { code: 'GA4-240202501-AA2-EV01', compCode: '240202501', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario.' },
+    { code: 'GA4-240202501-AA2-EV02', compCode: '240202501', aaKey: 'AA2', description: 'Evidencia de producto: Audio.' },
+    { code: 'GA4-240202501-AA2-EV03', compCode: '240202501', aaKey: 'AA2', description: 'Evidencia de desempeño: Foro.' },
+    { code: 'GA5-220501106-AA1-EV01', compCode: '220501106', aaKey: 'AA1', description: 'Evidencia de producto: Video expositivo sobre la configuración e instalación de sistemas operativos en equipos de cómputo.' },
+    { code: 'GA5-220501106-AA1-EV02', compCode: '220501106', aaKey: 'AA1', description: 'Evidencia de producto: Informe técnico sobre equipos de cómputo y sistemas operativos.' },
+    { code: 'GA5-240201064-AA1-EV01', compCode: '240201064', aaKey: 'AA1', description: 'Evidencia de producto: Mapa mental.' },
+    { code: 'GA5-240201064-AA2-EV01', compCode: '240201064', aaKey: 'AA2', description: 'Evidencia de desempeño, conocimiento y producto: Propuesta de investigación.' },
+    { code: 'GA5-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario.' },
+    { code: 'GA5-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de producto: Mapa mental.' },
+    { code: 'GA5-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de desempeño: Blog.' },
+    { code: 'GA6-220501106-AA1-EV01', compCode: '220501106', aaKey: 'AA1', description: 'Evidencia de producto: Video expositivo de la implementación de mecanismos de comunicación e interconexión.' },
+    { code: 'GA6-220501091-AA1-EV01', compCode: '220501091', aaKey: 'AA1', description: 'Evidencia de producto: Video expositivo de la configuración de equipos y software de VoIP.' },
+    { code: 'GA6-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de conocimiento: Diagrama de flujo.' },
+    { code: 'GA6-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de producto: Ensayo.' },
+    { code: 'GA6-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de producto: Vídeo.' },
+    { code: 'GA7-220501105-AA1-EV01', compCode: '220501105', aaKey: 'AA1', description: 'Evidencia de producto: Video expositivo sobre configuración de equipos y software, involucrados en la plataforma de gestión y monitoreo.' },
+    { code: 'GA7-220501105-AA1-EV02', compCode: '220501105', aaKey: 'AA1', description: 'Evidencia de producto: Informe práctica de laboratorio sobre la configuración de la plataforma implementada, configurada y funcional.' },
+    { code: 'GA7-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de producto: Informe práctica sobre componentes de hardware y software de seguridad de la red.' },
+    { code: 'GA7-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de producto: Informe de implementación de políticas, controles y procedimientos.' },
+    { code: 'GA7-230101507-AA1-EV01', compCode: '230101507', aaKey: 'AA1', description: 'Evidencia de desempeño: Foro temático - Identificar y establecer las técnicas de coordinación motriz.' },
+    { code: 'GA7-230101507-AA2-EV01', compCode: '230101507', aaKey: 'AA2', description: 'Evidencia de producto: Infografía – Estilos de vida saludable.' },
+    { code: 'GA7-230101507-AA3-EV01', compCode: '230101507', aaKey: 'AA3', description: 'Evidencia de producto: Ficha antropométrica de valoración de la condición física.' },
+    { code: 'GA7-230101507-AA4-EV01', compCode: '230101507', aaKey: 'AA4', description: 'Evidencia de producto: Folleto de lesiones más comunes en el trabajo o vida cotidiana, y la importancia de las pausas activas.' },
+    { code: 'GA7-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de conocimiento: Documento escrito.' },
+    { code: 'GA7-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de producto: Video.' },
+    { code: 'GA7-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1', description: 'Evidencia de desempeño: Foro.' },
   ],
   'Fase 4: Evaluación': [
-    { code: 'GA8-220501104-AA1-EV01', compCode: '220501104', aaKey: 'AA1' },
-    { code: 'GA8-220501104-AA1-EV02', compCode: '220501104', aaKey: 'AA1' },
-    { code: 'GA8-220501104-AA2-EV01', compCode: '220501104', aaKey: 'AA2' },
-    { code: 'GA8-220501107-AA1-EV01', compCode: '220501107', aaKey: 'AA1' },
-    { code: 'GA8-220601501-AA1-EV01', compCode: '220601501', aaKey: 'AA1' },
-    { code: 'GA8-220601501-AA2-EV01', compCode: '220601501', aaKey: 'AA2' },
-    { code: 'GA8-220601501-AA3-EV01', compCode: '220601501', aaKey: 'AA3' },
-    { code: 'GA8-220601501-AA4-EV01', compCode: '220601501', aaKey: 'AA4' },
-    { code: 'GA9-220501106-AA1-EV01', compCode: '220501106', aaKey: 'AA1' },
-    { code: 'GA9-220501106-AA2-EV01', compCode: '220501106', aaKey: 'AA2' },
-    { code: 'GA9-220501106-AA2-EV02', compCode: '220501106', aaKey: 'AA2' },
-    { code: 'GA10-220501091-AA1-EV01', compCode: '220501091', aaKey: 'AA1' },
-    { code: 'GA10-220501091-AA2-EV01', compCode: '220501091', aaKey: 'AA2' },
-    { code: 'GA10-240201529-AA1-EV01', compCode: '240201529', aaKey: 'AA1' },
-    { code: 'GA10-240201529-AA2-EV01', compCode: '240201529', aaKey: 'AA2' },
-    { code: 'GA10-240201529-AA3-EV01', compCode: '240201529', aaKey: 'AA3' },
-    { code: 'GA10-240201529-AA3-EV02', compCode: '240201529', aaKey: 'AA3' },
-    { code: 'GA10-240201529-AA4-EV01', compCode: '240201529', aaKey: 'AA4' },
-    { code: 'GA11-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1' },
-    { code: 'GA11-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1' },
-    { code: 'GA11-220501014-AA2-EV01', compCode: '220501014', aaKey: 'AA2' },
-    { code: 'GA11-220501014-AA2-EV02', compCode: '220501014', aaKey: 'AA2' },
-    { code: 'GA11-210201501-AA1-EV01', compCode: '210201501', aaKey: 'AA1' },
-    { code: 'GA11-210201501-AA1-EV02', compCode: '210201501', aaKey: 'AA1' },
-    { code: 'GA11-210201501-AA2-EV01', compCode: '210201501', aaKey: 'AA2' },
-    { code: 'GA11-210201501-AA2-EV02', compCode: '210201501', aaKey: 'AA2' },
-    { code: 'GA11-210201501-AA2-EV03', compCode: '210201501', aaKey: 'AA2' },
-    { code: 'GA11-210201501-AA2-EV04', compCode: '210201501', aaKey: 'AA2' },
-    { code: 'GA11-210201501-AA3-EV01', compCode: '210201501', aaKey: 'AA3' },
-    { code: 'GA11-210201501-AA3-EV02', compCode: '210201501', aaKey: 'AA3' },
-    { code: 'GA11-210201501-AA3-EV03', compCode: '210201501', aaKey: 'AA3' },
-    { code: 'GA11-210201501-AA3-EV04', compCode: '210201501', aaKey: 'AA3' },
-    { code: 'GA11-210201501-AA4-EV01', compCode: '210201501', aaKey: 'AA4' },
-    { code: 'GA11-210201501-AA4-EV02', compCode: '210201501', aaKey: 'AA4' },
-    { code: 'GA12-220501105-AA1-EV01', compCode: '220501105', aaKey: 'AA1' },
-    { code: 'GA12-240201526-AA1-EV01', compCode: '240201526', aaKey: 'AA1' },
-    { code: 'GA12-240201526-AA2-EV01', compCode: '240201526', aaKey: 'AA2' },
-    { code: 'GA12-240201526-AA3-EV01', compCode: '240201526', aaKey: 'AA3' },
-    { code: 'GA12-240201526-AA4-EV01', compCode: '240201526', aaKey: 'AA4' },
+    { code: 'GA8-220501104-AA1-EV01', compCode: '220501104', aaKey: 'AA1', description: 'Evidencia de conocimiento: Taller sobre indicadores y medidas de desempeño de la red.' },
+    { code: 'GA8-220501104-AA1-EV02', compCode: '220501104', aaKey: 'AA1', description: 'Evidencia de producto: Informe sobre las pruebas de conectividad, disponibilidad, rendimiento y calidad de la red.' },
+    { code: 'GA8-220501104-AA2-EV01', compCode: '220501104', aaKey: 'AA2', description: 'Evidencia de producto: Informe sobre detección de fallas en el funcionamiento de la red.' },
+    { code: 'GA8-220501107-AA1-EV01', compCode: '220501107', aaKey: 'AA1', description: 'Evidencia de producto: Lista de verificación para validar parámetros de calidad, velocidad de transmisión, ancho de banda, uso de canales y frecuencias de transmisión.' },
+    { code: 'GA8-220601501-AA1-EV01', compCode: '220601501', aaKey: 'AA1', description: 'Evidencia de conocimiento: Análisis de caso de situaciones que se presentan en el contexto ambiental y del SST.' },
+    { code: 'GA8-220601501-AA2-EV01', compCode: '220601501', aaKey: 'AA2', description: 'Evidencia de producto: Diagrama de Ishikawa o Espina de pescado, sobre las estrategias para la prevención y control de los impactos ambientales, accidentes y enfermedades laborales (ATEL).' },
+    { code: 'GA8-220601501-AA3-EV01', compCode: '220601501', aaKey: 'AA3', description: 'Evidencia de conocimiento: Mapa mental respecto a los planes y acciones establecidos en medio ambiente y SST.' },
+    { code: 'GA8-220601501-AA4-EV01', compCode: '220601501', aaKey: 'AA4', description: 'Evidencia de producto: Video expositivo sobre oportunidades de mejora en medio ambiente y SST.' },
+    { code: 'GA9-220501106-AA1-EV01', compCode: '220501106', aaKey: 'AA1', description: 'Evidencia de producto: Informe sobre detección de fallos en el rendimiento y operación de la solución.' },
+    { code: 'GA9-220501106-AA2-EV01', compCode: '220501106', aaKey: 'AA2', description: 'Evidencia de producto: Bitácora de eventos de infraestructura y plataformas.' },
+    { code: 'GA9-220501106-AA2-EV02', compCode: '220501106', aaKey: 'AA2', description: 'Evidencia de producto: Informe de actualización de componentes de hardware y software de los equipos de cómputo.' },
+    { code: 'GA10-220501091-AA1-EV01', compCode: '220501091', aaKey: 'AA1', description: 'Evidencia de producto: Lista de chequeo para verificación de pruebas de funcionamiento de infraestructura de voz y datos.' },
+    { code: 'GA10-220501091-AA2-EV01', compCode: '220501091', aaKey: 'AA2', description: 'Evidencia de producto: Bitácora de actividades y eventos del sistema de tecnología de VoIP.' },
+    { code: 'GA10-240201529-AA1-EV01', compCode: '240201529', aaKey: 'AA1', description: 'Evidencia de conocimiento: Conociendo mi visión.' },
+    { code: 'GA10-240201529-AA2-EV01', compCode: '240201529', aaKey: 'AA2', description: 'Evidencia de desempeño: Taller identificación del problema.' },
+    { code: 'GA10-240201529-AA3-EV01', compCode: '240201529', aaKey: 'AA3', description: 'Evidencia de producto: Prototipo de la solución.' },
+    { code: 'GA10-240201529-AA3-EV02', compCode: '240201529', aaKey: 'AA3', description: 'Evidencia de desempeño: Plan de acción.' },
+    { code: 'GA10-240201529-AA4-EV01', compCode: '240201529', aaKey: 'AA4', description: 'Evidencia de producto: Taller de negociación y modelo de negocio básico.' },
+    { code: 'GA11-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de producto: Informe de análisis de alertas y mensajes emitidos por los sistemas de detección de intrusos.' },
+    { code: 'GA11-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de producto: Lista de chequeo para supervisar la infraestructura y los servicios de red de una organización.' },
+    { code: 'GA11-220501014-AA2-EV01', compCode: '220501014', aaKey: 'AA2', description: 'Evidencia de producto: Informe de hallazgos del análisis de vulnerabilidades y amenazas.' },
+    { code: 'GA11-220501014-AA2-EV02', compCode: '220501014', aaKey: 'AA2', description: 'Evidencia de producto: Informe de monitoreo del estado de la red.' },
+    { code: 'GA11-210201501-AA1-EV01', compCode: '210201501', aaKey: 'AA1', description: 'Evidencia de conocimiento: Taller.' },
+    { code: 'GA11-210201501-AA1-EV02', compCode: '210201501', aaKey: 'AA1', description: 'Evidencia de desempeño: Foro sobre características del trabajo en contexto local.' },
+    { code: 'GA11-210201501-AA2-EV01', compCode: '210201501', aaKey: 'AA2', description: 'Evidencia de producto: Informe sobre trabajo decente, ciudadanía laboral, derechos individuales y colectivos en el trabajo.' },
+    { code: 'GA11-210201501-AA2-EV02', compCode: '210201501', aaKey: 'AA2', description: 'Evidencia de desempeño: Foro sobre el convenio colectivo del trabajo y la libertad sindical.' },
+    { code: 'GA11-210201501-AA2-EV03', compCode: '210201501', aaKey: 'AA2', description: 'Evidencia de conocimiento: Gráfico sobre la negociación colectiva.' },
+    { code: 'GA11-210201501-AA2-EV04', compCode: '210201501', aaKey: 'AA2', description: 'Evidencia de conocimiento: Infografía sobre la huelga.' },
+    { code: 'GA11-210201501-AA3-EV01', compCode: '210201501', aaKey: 'AA3', description: 'Evidencia de conocimiento: Mapa mental violación de derechos del trabajo.' },
+    { code: 'GA11-210201501-AA3-EV02', compCode: '210201501', aaKey: 'AA3', description: 'Evidencia de desempeño: Foro estudio de caso.' },
+    { code: 'GA11-210201501-AA3-EV03', compCode: '210201501', aaKey: 'AA3', description: 'Evidencia de conocimiento: Cuadro comparativo sobre el derecho de petición y la acción de tutela.' },
+    { code: 'GA11-210201501-AA3-EV04', compCode: '210201501', aaKey: 'AA3', description: 'Evidencia de conocimiento: Texto argumentativo.' },
+    { code: 'GA11-210201501-AA4-EV01', compCode: '210201501', aaKey: 'AA4', description: 'Evidencia de desempeño: Foro Estado social de derecho.' },
+    { code: 'GA11-210201501-AA4-EV02', compCode: '210201501', aaKey: 'AA4', description: 'Evidencia de producto: Presentación.' },
+    { code: 'GA12-220501105-AA1-EV01', compCode: '220501105', aaKey: 'AA1', description: 'Evidencia de producto: Lista de verificación del alistamiento y configuración de la plataforma de gestión y monitoreo.' },
+    { code: 'GA12-240201526-AA1-EV01', compCode: '240201526', aaKey: 'AA1', description: 'Evidencia de producto: Presentación del proyecto de vida.' },
+    { code: 'GA12-240201526-AA2-EV01', compCode: '240201526', aaKey: 'AA2', description: 'Evidencia de desempeño: Diagrama de sistemas.' },
+    { code: 'GA12-240201526-AA3-EV01', compCode: '240201526', aaKey: 'AA3', description: 'Evidencia de producto: Estrategia para el uso racional de los recursos naturales.' },
+    { code: 'GA12-240201526-AA4-EV01', compCode: '240201526', aaKey: 'AA4', description: 'Evidencia de producto: Solución del caso.' },
   ],
 };
 
@@ -671,23 +672,37 @@ export const CalificacionesView: React.FC = () => {
 
   // Seed default evidence columns for ALL phases on mount (runs once)
   useEffect(() => {
+    // Build a lookup from code → description for migration
+    const descByCode: Record<string, string> = {};
+    Object.values(FASE_EVIDENCES).forEach(evs => evs.forEach(ev => { descByCode[ev.code] = ev.description; }));
+
     const existing = getGradeActivities();
     const toAdd: GradeActivity[] = [];
     const byEvKey: Record<string, import('../services/db').EvCompEntry> = {};
     const compOrder: string[] = [];
     const now = new Date().toISOString();
 
+    // Migrate already-seeded activities that still have code as detail
+    let needsMigration = false;
+    const migrated = existing.map(a => {
+      if (a.id.startsWith('seed-') && descByCode[a.name] && a.detail === a.name) {
+        needsMigration = true;
+        return { ...a, detail: descByCode[a.name] };
+      }
+      return a;
+    });
+
     Object.entries(FASE_EVIDENCES).forEach(([phase, faseEvs]) => {
       // Only seed a phase if it has no activities at all
-      const phaseActivities = existing.filter(a => (a.phase || phases[1]) === phase);
+      const phaseActivities = migrated.filter(a => (a.phase || phases[1]) === phase);
       if (phaseActivities.length > 0) return;
 
       faseEvs.forEach(ev => {
-        if (existing.some(a => a.id === `seed-${ev.code}`)) return;
+        if (migrated.some(a => a.id === `seed-${ev.code}`)) return;
         toAdd.push({
           id: `seed-${ev.code}`,
           name: ev.code,
-          detail: ev.code,
+          detail: ev.description,
           group: '',
           phase,
           maxScore: 100,
@@ -704,8 +719,8 @@ export const CalificacionesView: React.FC = () => {
       });
     });
 
-    if (toAdd.length === 0) return;
-    saveGradeActivities([...existing, ...toAdd]);
+    if (toAdd.length === 0 && !needsMigration) return;
+    saveGradeActivities([...migrated, ...toAdd]);
 
     const existingMap = getEvidenceCompMap();
     const existingGlobal = existingMap[''] || { byEvKey: {}, compOrder: [] };
