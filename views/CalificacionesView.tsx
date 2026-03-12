@@ -151,6 +151,135 @@ const FASE_RAPS: Record<string, CronogramaRap[]> = {
   ],
 };
 
+interface CronogramaEvidence {
+  code: string;      // e.g., "GA1-220501014-AA1-EV01"
+  compCode: string;  // e.g., "220501014"
+  aaKey: string;     // e.g., "AA1"
+}
+
+/** Evidencias por fase, extraídas de los cronogramas pedagógicos */
+const FASE_EVIDENCES: Record<string, CronogramaEvidence[]> = {
+  'Fase 1: Análisis': [
+    { code: 'GA1-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1' },
+    { code: 'GA1-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1' },
+    { code: 'GA1-220501046-AA1-EV01', compCode: '220501046', aaKey: 'AA1' },
+    { code: 'GA1-220501046-AA2-EV01', compCode: '220501046', aaKey: 'AA2' },
+    { code: 'GA1-220501046-AA3-EV01', compCode: '220501046', aaKey: 'AA3' },
+    { code: 'GA1-220501046-AA4-EV01', compCode: '220501046', aaKey: 'AA4' },
+    { code: 'GA1-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA1-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA1-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
+  ],
+  'Fase 2: Planeación': [
+    { code: 'GA2-220501104-AA1-EV01', compCode: '220501104', aaKey: 'AA1' },
+    { code: 'GA2-220501104-AA1-EV02', compCode: '220501104', aaKey: 'AA1' },
+    { code: 'GA2-220501107-AA1-EV01', compCode: '220501107', aaKey: 'AA1' },
+    { code: 'GA2-220501107-AA1-EV02', compCode: '220501107', aaKey: 'AA1' },
+    { code: 'GA2-240201528-AA1-EV01', compCode: '240201528', aaKey: 'AA1' },
+    { code: 'GA2-240201528-AA2-EV01', compCode: '240201528', aaKey: 'AA2' },
+    { code: 'GA2-240201528-AA3-EV01', compCode: '240201528', aaKey: 'AA3' },
+    { code: 'GA2-240201528-AA4-EV01', compCode: '240201528', aaKey: 'AA4' },
+    { code: 'GA2-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA2-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA2-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA2-240202501-AA2-EV01', compCode: '240202501', aaKey: 'AA2' },
+    { code: 'GA2-240202501-AA2-EV02', compCode: '240202501', aaKey: 'AA2' },
+    { code: 'GA2-240202501-AA2-EV03', compCode: '240202501', aaKey: 'AA2' },
+    { code: 'GA3-220501091-AA1-EV01', compCode: '220501091', aaKey: 'AA1' },
+    { code: 'GA3-220501091-AA1-EV02', compCode: '220501091', aaKey: 'AA1' },
+    { code: 'GA3-220501105-AA1-EV01', compCode: '220501105', aaKey: 'AA1' },
+    { code: 'GA3-220201501-AA1-EV01', compCode: '220201501', aaKey: 'AA1' },
+    { code: 'GA3-220201501-AA2-EV01', compCode: '220201501', aaKey: 'AA2' },
+    { code: 'GA3-220201501-AA3-EV01', compCode: '220201501', aaKey: 'AA3' },
+    { code: 'GA3-220201501-AA4-EV01', compCode: '220201501', aaKey: 'AA4' },
+    { code: 'GA3-220201501-AA4-EV02', compCode: '220201501', aaKey: 'AA4' },
+  ],
+  'Fase 3: Ejecución': [
+    { code: 'GA4-220501104-AA1-EV01', compCode: '220501104', aaKey: 'AA1' },
+    { code: 'GA4-220501104-AA1-EV02', compCode: '220501104', aaKey: 'AA1' },
+    { code: 'GA4-220501104-AA2-EV01', compCode: '220501104', aaKey: 'AA2' },
+    { code: 'GA4-220501104-AA2-EV02', compCode: '220501104', aaKey: 'AA2' },
+    { code: 'GA4-220501107-AA1-EV01', compCode: '220501107', aaKey: 'AA1' },
+    { code: 'GA4-220501107-AA1-EV02', compCode: '220501107', aaKey: 'AA1' },
+    { code: 'GA4-220501107-AA1-EV03', compCode: '220501107', aaKey: 'AA1' },
+    { code: 'GA4-220501107-AA1-EV04', compCode: '220501107', aaKey: 'AA1' },
+    { code: 'GA4-240201524-AA1-EV01', compCode: '240201524', aaKey: 'AA1' },
+    { code: 'GA4-240201524-AA2-EV01', compCode: '240201524', aaKey: 'AA2' },
+    { code: 'GA4-240201524-AA3-EV01', compCode: '240201524', aaKey: 'AA3' },
+    { code: 'GA4-240201524-AA4-EV01', compCode: '240201524', aaKey: 'AA4' },
+    { code: 'GA4-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA4-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA4-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA4-240202501-AA2-EV01', compCode: '240202501', aaKey: 'AA2' },
+    { code: 'GA4-240202501-AA2-EV02', compCode: '240202501', aaKey: 'AA2' },
+    { code: 'GA4-240202501-AA2-EV03', compCode: '240202501', aaKey: 'AA2' },
+    { code: 'GA5-220501106-AA1-EV01', compCode: '220501106', aaKey: 'AA1' },
+    { code: 'GA5-220501106-AA1-EV02', compCode: '220501106', aaKey: 'AA1' },
+    { code: 'GA5-240201064-AA1-EV01', compCode: '240201064', aaKey: 'AA1' },
+    { code: 'GA5-240201064-AA2-EV01', compCode: '240201064', aaKey: 'AA2' },
+    { code: 'GA5-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA5-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA5-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA6-220501106-AA1-EV01', compCode: '220501106', aaKey: 'AA1' },
+    { code: 'GA6-220501091-AA1-EV01', compCode: '220501091', aaKey: 'AA1' },
+    { code: 'GA6-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA6-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA6-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA7-220501105-AA1-EV01', compCode: '220501105', aaKey: 'AA1' },
+    { code: 'GA7-220501105-AA1-EV02', compCode: '220501105', aaKey: 'AA1' },
+    { code: 'GA7-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1' },
+    { code: 'GA7-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1' },
+    { code: 'GA7-230101507-AA1-EV01', compCode: '230101507', aaKey: 'AA1' },
+    { code: 'GA7-230101507-AA2-EV01', compCode: '230101507', aaKey: 'AA2' },
+    { code: 'GA7-230101507-AA3-EV01', compCode: '230101507', aaKey: 'AA3' },
+    { code: 'GA7-230101507-AA4-EV01', compCode: '230101507', aaKey: 'AA4' },
+    { code: 'GA7-240202501-AA1-EV01', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA7-240202501-AA1-EV02', compCode: '240202501', aaKey: 'AA1' },
+    { code: 'GA7-240202501-AA1-EV03', compCode: '240202501', aaKey: 'AA1' },
+  ],
+  'Fase 4: Evaluación': [
+    { code: 'GA8-220501104-AA1-EV01', compCode: '220501104', aaKey: 'AA1' },
+    { code: 'GA8-220501104-AA1-EV02', compCode: '220501104', aaKey: 'AA1' },
+    { code: 'GA8-220501104-AA2-EV01', compCode: '220501104', aaKey: 'AA2' },
+    { code: 'GA8-220501107-AA1-EV01', compCode: '220501107', aaKey: 'AA1' },
+    { code: 'GA8-220601501-AA1-EV01', compCode: '220601501', aaKey: 'AA1' },
+    { code: 'GA8-220601501-AA2-EV01', compCode: '220601501', aaKey: 'AA2' },
+    { code: 'GA8-220601501-AA3-EV01', compCode: '220601501', aaKey: 'AA3' },
+    { code: 'GA8-220601501-AA4-EV01', compCode: '220601501', aaKey: 'AA4' },
+    { code: 'GA9-220501106-AA1-EV01', compCode: '220501106', aaKey: 'AA1' },
+    { code: 'GA9-220501106-AA2-EV01', compCode: '220501106', aaKey: 'AA2' },
+    { code: 'GA9-220501106-AA2-EV02', compCode: '220501106', aaKey: 'AA2' },
+    { code: 'GA10-220501091-AA1-EV01', compCode: '220501091', aaKey: 'AA1' },
+    { code: 'GA10-220501091-AA2-EV01', compCode: '220501091', aaKey: 'AA2' },
+    { code: 'GA10-240201529-AA1-EV01', compCode: '240201529', aaKey: 'AA1' },
+    { code: 'GA10-240201529-AA2-EV01', compCode: '240201529', aaKey: 'AA2' },
+    { code: 'GA10-240201529-AA3-EV01', compCode: '240201529', aaKey: 'AA3' },
+    { code: 'GA10-240201529-AA3-EV02', compCode: '240201529', aaKey: 'AA3' },
+    { code: 'GA10-240201529-AA4-EV01', compCode: '240201529', aaKey: 'AA4' },
+    { code: 'GA11-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1' },
+    { code: 'GA11-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1' },
+    { code: 'GA11-220501014-AA2-EV01', compCode: '220501014', aaKey: 'AA2' },
+    { code: 'GA11-220501014-AA2-EV02', compCode: '220501014', aaKey: 'AA2' },
+    { code: 'GA11-210201501-AA1-EV01', compCode: '210201501', aaKey: 'AA1' },
+    { code: 'GA11-210201501-AA1-EV02', compCode: '210201501', aaKey: 'AA1' },
+    { code: 'GA11-210201501-AA2-EV01', compCode: '210201501', aaKey: 'AA2' },
+    { code: 'GA11-210201501-AA2-EV02', compCode: '210201501', aaKey: 'AA2' },
+    { code: 'GA11-210201501-AA2-EV03', compCode: '210201501', aaKey: 'AA2' },
+    { code: 'GA11-210201501-AA2-EV04', compCode: '210201501', aaKey: 'AA2' },
+    { code: 'GA11-210201501-AA3-EV01', compCode: '210201501', aaKey: 'AA3' },
+    { code: 'GA11-210201501-AA3-EV02', compCode: '210201501', aaKey: 'AA3' },
+    { code: 'GA11-210201501-AA3-EV03', compCode: '210201501', aaKey: 'AA3' },
+    { code: 'GA11-210201501-AA3-EV04', compCode: '210201501', aaKey: 'AA3' },
+    { code: 'GA11-210201501-AA4-EV01', compCode: '210201501', aaKey: 'AA4' },
+    { code: 'GA11-210201501-AA4-EV02', compCode: '210201501', aaKey: 'AA4' },
+    { code: 'GA12-220501105-AA1-EV01', compCode: '220501105', aaKey: 'AA1' },
+    { code: 'GA12-240201526-AA1-EV01', compCode: '240201526', aaKey: 'AA1' },
+    { code: 'GA12-240201526-AA2-EV01', compCode: '240201526', aaKey: 'AA2' },
+    { code: 'GA12-240201526-AA3-EV01', compCode: '240201526', aaKey: 'AA3' },
+    { code: 'GA12-240201526-AA4-EV01', compCode: '240201526', aaKey: 'AA4' },
+  ],
+};
+
 /** Mapa de rapCode → info para búsqueda rápida */
 const RAP_LOOKUP = new Map<string, CronogramaRap>();
 Object.values(FASE_RAPS).forEach(raps => raps.forEach(r => RAP_LOOKUP.set(r.rapCode, r)));
@@ -538,6 +667,57 @@ export const CalificacionesView: React.FC = () => {
     const rapCodes = phaseRaps.map(r => r.rapCode);
     const current = getRapColumns();
     saveRapColumns({ ...current, [key]: rapCodes });
+  }, [selectedFicha, selectedPhase]);
+
+  // Auto-seed evidence columns from cronograma when none exist for the selected phase
+  useEffect(() => {
+    if (selectedFicha === 'Todas') return;
+    const faseEvs = FASE_EVIDENCES[selectedPhase];
+    if (!faseEvs || faseEvs.length === 0) return;
+
+    const existing = getGradeActivities();
+    const phaseActivities = existing.filter(a => (a.phase || phases[1]) === selectedPhase);
+    if (phaseActivities.length > 0) return;
+
+    const now = new Date().toISOString();
+    const toAdd = faseEvs
+      .filter(ev => !existing.some(a => a.id === `seed-${ev.code}`))
+      .map(ev => ({
+        id: `seed-${ev.code}`,
+        name: ev.code,
+        detail: ev.code,
+        group: '',
+        phase: selectedPhase,
+        maxScore: 100,
+        createdAt: now,
+      }));
+
+    if (toAdd.length === 0) return;
+    saveGradeActivities([...existing, ...toAdd]);
+
+    // Seed the evidence → competencia mapping (global key '')
+    const byEvKey: Record<string, import('../services/db').EvCompEntry> = {};
+    const compOrder: string[] = [];
+    faseEvs.forEach(ev => {
+      const canonicalKey = getCanonicalEvidenceKey(ev.code);
+      byEvKey[canonicalKey] = {
+        competenciaCode: ev.compCode,
+        competenciaName: COMPETENCIA_NAMES[ev.compCode] || ev.compCode,
+        aaKey: ev.aaKey,
+        aaName: FASE_RAPS[selectedPhase]?.find(r => r.compCode === ev.compCode && r.aaKey === ev.aaKey)?.rapName || ev.aaKey,
+      };
+      if (!compOrder.includes(ev.compCode)) compOrder.push(ev.compCode);
+    });
+
+    const existingMap = getEvidenceCompMap();
+    const existingGlobal = existingMap[''] || { byEvKey: {}, compOrder: [] };
+    saveEvidenceCompMap({
+      ...existingMap,
+      '': {
+        byEvKey: { ...byEvKey, ...existingGlobal.byEvKey },
+        compOrder: [...new Set([...compOrder, ...existingGlobal.compOrder])],
+      },
+    });
   }, [selectedFicha, selectedPhase]);
 
   useEffect(() => {
