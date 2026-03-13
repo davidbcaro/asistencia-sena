@@ -44,6 +44,12 @@ const TABLE_ROW_HEIGHT_PX = 52;
 /** Sentinel value para vista que agrupa todas las fases */
 const ALL_PHASES_VIEW = 'Todas las fases';
 
+/** Convierte hex (#RRGGBB) a tripla RGB para jsPDF / ExcelJS */
+const hexToRgb = (hex: string): [number, number, number] => {
+  const h = hex.replace('#', '');
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+};
+
 /** Colores de fondo por fase para la cabecera de la vista general */
 const PHASE_HEADER_COLORS: Record<string, { bg: string; text: string }> = {
   'Fase Inducción':    { bg: '#f59e0b', text: '#ffffff' },
@@ -1118,7 +1124,7 @@ export const CalificacionesView: React.FC = () => {
       'Estado',
       'Ficha',
       'Juicios Evaluativos',
-      ...visibleActivities.map(a => a.name),
+      ...visibleActivities.map(a => a.detail || a.name),
       ...rapColumnsForFicha,
       ...(hasActivities ? ['Pendientes', 'Promedio', 'FINAL'] : []),
     ];
@@ -1130,7 +1136,7 @@ export const CalificacionesView: React.FC = () => {
     const rows = studentsToExport.map((student) => {
       const activityScores = visibleActivities.map(activity => {
         const grade = gradeMap.get(`${student.id}-${activity.id}`);
-        return grade ? grade.score : '';
+        return grade ? grade.letter : '';
       });
       const final = getFinalForStudent(student.id, student.group);
       const rapLetter = final.letter === 'A' ? 'A' : '';
@@ -1163,19 +1169,77 @@ export const CalificacionesView: React.FC = () => {
     if (!data) return;
 
     const { headers, rows } = data;
+
+    // ── Column layout metadata ─────────────────────────────────────────────
+    const INFO_COLS = 7; // Documento…Juicios Evaluativos
+    const ACT_COUNT = visibleActivities.length;
+    const TOTAL_COLS = headers.length;
+
+    // ── Build phase groups ─────────────────────────────────────────────────
+    type PhaseGroup = { phase: string; count: number; color: { bg: string; text: string } };
+    const phaseGroups: PhaseGroup[] = [];
+    if (selectedPhase === ALL_PHASES_VIEW) {
+      visibleActivities.forEach(a => {
+        const ph = a.phase || 'Sin fase';
+        const last = phaseGroups[phaseGroups.length - 1];
+        if (last && last.phase === ph) { last.count++; }
+        else { phaseGroups.push({ phase: ph, count: 1, color: PHASE_HEADER_COLORS[ph] ?? { bg: '#6b7280', text: '#ffffff' } }); }
+      });
+    } else {
+      phaseGroups.push({ phase: selectedPhase, count: ACT_COUNT, color: PHASE_HEADER_COLORS[selectedPhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
+    }
+
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Calificaciones');
-    sheet.addRow(headers);
-    rows.forEach(row => sheet.addRow(row));
 
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } };
+    // ── Row 1: Phase grouping row ──────────────────────────────────────────
+    const phaseRow = sheet.addRow(new Array(TOTAL_COLS).fill(''));
+    phaseRow.height = 22;
+
+    // Info cols: dark header color, blank text
+    for (let c = 1; c <= INFO_COLS; c++) {
+      const cell = phaseRow.getCell(c);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF374151' } };
+    }
+
+    // Phase group cells with per-phase color + merge
+    let colOffset = INFO_COLS + 1;
+    phaseGroups.forEach(group => {
+      if (group.count <= 0) return;
+      const startCol = colOffset;
+      const endCol = colOffset + group.count - 1;
+      if (group.count > 1) sheet.mergeCells(1, startCol, 1, endCol);
+      const cell = phaseRow.getCell(startCol);
+      cell.value = group.phase;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + group.color.bg.replace('#', '') } };
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
+      colOffset += group.count;
+    });
+
+    // RAP + Final cols: dark color
+    for (let c = colOffset; c <= TOTAL_COLS; c++) {
+      phaseRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF374151' } };
+    }
+
+    // ── Row 2: Column headers ──────────────────────────────────────────────
+    const headerRow = sheet.addRow(headers);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF374151' } };
     headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    headerRow.height = 72; // tall enough for truncated descriptions
 
-    sheet.eachRow((row, rowNumber) => {
-      row.alignment = { vertical: 'middle', horizontal: rowNumber === 1 ? 'center' : 'left', wrapText: true };
-      row.eachCell(cell => {
+    // ── Data rows (start at row 3) ─────────────────────────────────────────
+    const DATA_START = 3;
+    rows.forEach(rowData => {
+      const r = sheet.addRow(rowData);
+      r.alignment = { vertical: 'middle', wrapText: false };
+      r.height = 18;
+    });
+
+    // ── Borders ───────────────────────────────────────────────────────────
+    sheet.eachRow(row => {
+      row.eachCell({ includeEmpty: true }, cell => {
         cell.border = {
           top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
           left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
@@ -1185,7 +1249,35 @@ export const CalificacionesView: React.FC = () => {
       });
     });
 
-    sheet.columns = headers.map(() => ({ width: 20 }));
+    // ── Evidence cell coloring (A = green, D = light red) ────────────────
+    const ACT_START_COL = INFO_COLS + 1;
+    const ACT_END_COL   = INFO_COLS + ACT_COUNT;
+    for (let rowIdx = DATA_START; rowIdx < DATA_START + rows.length; rowIdx++) {
+      for (let colIdx = ACT_START_COL; colIdx <= ACT_END_COL; colIdx++) {
+        const cell = sheet.getRow(rowIdx).getCell(colIdx);
+        if (cell.value === 'A') {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF22C55E' } };
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        } else if (cell.value === 'D') {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+          cell.font = { color: { argb: 'FFEF4444' }, size: 10 };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        } else {
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        }
+      }
+    }
+
+    // ── Column widths: evidence = 50 px (≈7.1 units), others = auto-fit ──
+    const EVIDENCE_W = 7.1; // 50 px ÷ ~7 px/unit
+    sheet.columns = headers.map((header, colIdx) => {
+      const isActivity = colIdx >= INFO_COLS && colIdx < INFO_COLS + ACT_COUNT;
+      if (isActivity) return { width: EVIDENCE_W };
+      let maxLen = String(header ?? '').length;
+      rows.forEach(row => { const v = String(row[colIdx] ?? ''); if (v.length > maxLen) maxLen = v.length; });
+      return { width: Math.min(Math.max(maxLen * 1.2, 10), 55) };
+    });
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -1206,17 +1298,87 @@ export const CalificacionesView: React.FC = () => {
     if (!data) return;
 
     const { headers, rows } = data;
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-    doc.setFontSize(12);
-    doc.text(`Calificaciones - ${selectedFicha} - ${selectedPhase}`, 40, 30);
-    autoTable(doc, {
-      head: [headers],
-      body: rows,
-      startY: 45,
-      theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
-      headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+
+    // ── Column layout metadata ─────────────────────────────────────────────
+    const INFO_COLS = 7;
+    const ACT_COUNT = visibleActivities.length;
+
+    // ── Build phase groups ─────────────────────────────────────────────────
+    type PhaseGroup = { phase: string; count: number; color: { bg: string; text: string } };
+    const phaseGroups: PhaseGroup[] = [];
+    if (selectedPhase === ALL_PHASES_VIEW) {
+      visibleActivities.forEach(a => {
+        const ph = a.phase || 'Sin fase';
+        const last = phaseGroups[phaseGroups.length - 1];
+        if (last && last.phase === ph) { last.count++; }
+        else { phaseGroups.push({ phase: ph, count: 1, color: PHASE_HEADER_COLORS[ph] ?? { bg: '#6b7280', text: '#ffffff' } }); }
+      });
+    } else {
+      phaseGroups.push({ phase: selectedPhase, count: ACT_COUNT, color: PHASE_HEADER_COLORS[selectedPhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
+    }
+
+    // ── Phase header row (Row 0 of head) ───────────────────────────────────
+    const darkFill = [55, 65, 81] as [number, number, number];
+    // Info columns: blank cells with dark fill
+    const phaseHeaderRow: any[] = Array.from({ length: INFO_COLS }, () => ({
+      content: '',
+      styles: { fillColor: darkFill, textColor: [255, 255, 255] as [number, number, number] },
+    }));
+    phaseGroups.forEach(group => {
+      if (group.count <= 0) return;
+      const rgb = hexToRgb(group.color.bg);
+      phaseHeaderRow.push({
+        content: group.phase,
+        colSpan: group.count,
+        styles: { fillColor: rgb, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold', halign: 'center', fontSize: 7 },
+      });
     });
+    // RAP + Final cols
+    const rapFinalCount = headers.length - INFO_COLS - ACT_COUNT;
+    for (let i = 0; i < rapFinalCount; i++) {
+      phaseHeaderRow.push({ content: '', styles: { fillColor: darkFill, textColor: [255, 255, 255] as [number, number, number] } });
+    }
+
+    // ── Column styles: evidence columns narrow (≈50 pt) ────────────────────
+    const columnStyles: Record<number, { cellWidth: number }> = {};
+    for (let i = INFO_COLS; i < INFO_COLS + ACT_COUNT; i++) {
+      columnStyles[i] = { cellWidth: 14 }; // ~50 px in PDF pts
+    }
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    doc.setFontSize(11);
+    doc.text(`Calificaciones — ${selectedFicha} — ${selectedPhase}`, 40, 26);
+
+    autoTable(doc, {
+      head: [phaseHeaderRow, headers],
+      body: rows,
+      startY: 38,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2, valign: 'middle', overflow: 'ellipsize' },
+      headStyles: { fillColor: darkFill, textColor: [255, 255, 255], halign: 'center', fontStyle: 'bold', fontSize: 7 },
+      columnStyles,
+      didParseCell: (hookData: any) => {
+        if (hookData.section === 'body') {
+          const ci = hookData.column.index;
+          if (ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT) {
+            const val = hookData.cell.raw;
+            if (val === 'A') {
+              hookData.cell.styles.fillColor = [34, 197, 94];
+              hookData.cell.styles.textColor = [255, 255, 255];
+              hookData.cell.styles.fontStyle = 'bold';
+              hookData.cell.styles.halign = 'center';
+            } else if (val === 'D') {
+              hookData.cell.styles.fillColor = [254, 226, 226];
+              hookData.cell.styles.textColor = [239, 68, 68];
+              hookData.cell.styles.halign = 'center';
+            } else {
+              hookData.cell.styles.halign = 'center';
+            }
+          }
+        }
+      },
+    });
+
     doc.save(
       `reporte_calificaciones_${selectedFicha}_${selectedPhase.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
     );
@@ -1595,16 +1757,16 @@ export const CalificacionesView: React.FC = () => {
   const hasActivities = visibleActivities.length > 0;
 
   return (
-    <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-3 sm:space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Calificaciones</h2>
-          <p className="text-gray-500">Gestiona actividades y notas por ficha.</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Calificaciones</h2>
+          <p className="text-gray-500 text-xs sm:text-sm">Gestiona actividades y notas por ficha.</p>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-            <div className="flex flex-col sm:flex-row items-stretch gap-3 flex-1">
+        <div className="flex flex-col gap-2 sm:gap-3">
+          <div className="flex flex-col xl:flex-row xl:items-center gap-2 sm:gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch gap-2 sm:gap-3 flex-1">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -1620,11 +1782,11 @@ export const CalificacionesView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => { setShowFichaFilter(prev => !prev); setShowPhaseFilter(false); }}
-                    className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="flex items-center space-x-1.5 bg-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 shadow-sm text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    <Filter className="w-4 h-4 text-gray-500" />
+                    <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
                     <span>Ficha</span>
-                    {selectedFicha !== 'Todas' && <span className="text-teal-600 text-xs">({selectedFicha})</span>}
+                    {selectedFicha !== 'Todas' && <span className="text-teal-600 text-xs hidden sm:inline">({selectedFicha})</span>}
                   </button>
                   {showFichaFilter && (
                     <>
@@ -1648,11 +1810,11 @@ export const CalificacionesView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => { setShowPhaseFilter(prev => !prev); setShowFichaFilter(false); }}
-                    className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="flex items-center space-x-1.5 bg-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 shadow-sm text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    <Filter className="w-4 h-4 text-gray-500" />
+                    <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
                     <span>Fase</span>
-                    <span className="text-teal-600 text-xs max-w-[120px] truncate" title={selectedPhase}>{selectedPhase === ALL_PHASES_VIEW ? 'Todas' : selectedPhase.replace(/^Fase \d+:?\s*/, '')}</span>
+                    <span className="text-teal-600 text-xs max-w-[80px] sm:max-w-[120px] truncate hidden sm:inline" title={selectedPhase}>{selectedPhase === ALL_PHASES_VIEW ? 'Todas' : selectedPhase.replace(/^Fase \d+:?\s*/, '')}</span>
                   </button>
                   {showPhaseFilter && (
                     <>
@@ -1683,29 +1845,29 @@ export const CalificacionesView: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch gap-2">
+            <div className="flex flex-row flex-wrap items-stretch gap-1.5 sm:gap-2">
               <button
                 onClick={openAddActivity}
-                className="flex items-center justify-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+                className="flex items-center justify-center space-x-1.5 bg-teal-600 hover:bg-teal-700 text-white px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm"
               >
-                <Plus className="w-4 h-4" />
-                <span>Actividad</span>
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline sm:inline">Actividad</span>
               </button>
 
               <button
                 onClick={() => setRapManagerOpen(true)}
-                className="flex items-center justify-center space-x-2 bg-teal-50 hover:bg-teal-100 text-teal-700 px-4 py-2 rounded-lg transition-colors shadow-sm border border-teal-200"
+                className="flex items-center justify-center space-x-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm border border-teal-200 text-xs sm:text-sm"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>RAP</span>
               </button>
 
               <button
                 onClick={() => setCompVisibilityOpen(true)}
-                className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors shadow-sm border ${hiddenForFicha.size > 0 ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200' : 'bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200'}`}
+                className={`flex items-center justify-center space-x-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm border text-xs sm:text-sm ${hiddenForFicha.size > 0 ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200' : 'bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200'}`}
                 title="Mostrar / ocultar competencias"
               >
-                {hiddenForFicha.size > 0 ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {hiddenForFicha.size > 0 ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                 <span>CO</span>
                 {hiddenForFicha.size > 0 && (
                   <span className="text-xs font-bold bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 leading-none">{hiddenForFicha.size}</span>
@@ -1713,8 +1875,8 @@ export const CalificacionesView: React.FC = () => {
               </button>
 
 
-              <label className="cursor-pointer inline-flex items-center justify-center space-x-2 bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg transition-colors shadow-sm">
-                <Upload className="w-4 h-4" />
+              <label className="cursor-pointer inline-flex items-center justify-center space-x-1.5 bg-gray-900 hover:bg-black text-white px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm">
+                <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Cargar</span>
                 <input
                   type="file"
@@ -1733,9 +1895,9 @@ export const CalificacionesView: React.FC = () => {
               <div className="relative">
                 <button
                   onClick={() => setShowExport(prev => !prev)}
-                  className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+                  className="flex items-center justify-center space-x-1.5 bg-green-600 hover:bg-green-700 text-white px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm"
                 >
-                  <FileDown className="w-4 h-4" />
+                  <FileDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span>Exportar</span>
                 </button>
                 {showExport && (
