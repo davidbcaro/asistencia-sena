@@ -41,6 +41,18 @@ const TABLE_ROW_HEIGHT_PX = 52;
 // Fuente: docs/cronogramas/Cronograma_*.docx
 // ---------------------------------------------------------------------------
 
+/** Sentinel value para vista que agrupa todas las fases */
+const ALL_PHASES_VIEW = 'Todas las fases';
+
+/** Colores de fondo por fase para la cabecera de la vista general */
+const PHASE_HEADER_COLORS: Record<string, { bg: string; text: string }> = {
+  'Fase Inducción':    { bg: '#f59e0b', text: '#ffffff' },
+  'Fase 1: Análisis':  { bg: '#0d9488', text: '#ffffff' },
+  'Fase 2: Planeación':{ bg: '#3b82f6', text: '#ffffff' },
+  'Fase 3: Ejecución': { bg: '#8b5cf6', text: '#ffffff' },
+  'Fase 4: Evaluación':{ bg: '#ef4444', text: '#ffffff' },
+};
+
 /** Nombres oficiales de competencias por código SENA */
 const COMPETENCIA_NAMES: Record<string, string> = {
   '210201501': 'Promover la interacción idónea consigo mismo, con los demás y con la naturaleza en los contextos laboral y social',
@@ -769,7 +781,19 @@ export const CalificacionesView: React.FC = () => {
    * En vista de ficha específica: devuelve directamente las actividades de esa ficha.
    */
   const { activitiesForFicha, activitiesByCanonicalAndFicha } = useMemo(() => {
-    const phaseMatch = activities.filter(a => (a.phase || phases[1]) === selectedPhase);
+    const isAllPhases = selectedPhase === ALL_PHASES_VIEW;
+
+    // En vista "todas las fases": mezclar actividades de todas las fases en orden
+    const phaseOrder = (a: GradeActivity) => {
+      const idx = phases.indexOf(a.phase || phases[1]);
+      return idx >= 0 ? idx : 999;
+    };
+    const phaseMatch = isAllPhases
+      ? [...activities].sort((a, b) => {
+          const diff = phaseOrder(a) - phaseOrder(b);
+          return diff !== 0 ? diff : a.name.localeCompare(b.name, undefined, { numeric: true });
+        })
+      : activities.filter(a => (a.phase || phases[1]) === selectedPhase);
 
     if (selectedFicha !== 'Todas') {
       // Ficha específica: actividades de esa ficha, o globales si no hay
@@ -792,10 +816,13 @@ export const CalificacionesView: React.FC = () => {
       if (!representative.has(key)) representative.set(key, a);
     });
 
-    // Ordenar representativas por nombre (EV01, EV02…)
-    const unified = Array.from(representative.values()).sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { numeric: true })
-    );
+    // En vista de fases: preservar el orden por fase del phaseMatch (insertionOrder de Map)
+    // En vista de fase única: ordenar por nombre (EV01, EV02…)
+    const unified = isAllPhases
+      ? Array.from(representative.values())
+      : Array.from(representative.values()).sort((a, b) =>
+          a.name.localeCompare(b.name, undefined, { numeric: true })
+        );
 
     return { activitiesForFicha: unified, activitiesByCanonicalAndFicha: byCanonical };
   }, [activities, selectedFicha, selectedPhase]);
@@ -816,6 +843,8 @@ export const CalificacionesView: React.FC = () => {
     showAllFichasColumns && studentGroup ? `${studentGroup}::${selectedPhase}` : rapKey || `${studentGroup || ''}::${selectedPhase}`;
 
   const rapColumnsForFicha = useMemo(() => {
+    // In "Todas las fases" view, RAP columns per-phase don't apply
+    if (selectedPhase === ALL_PHASES_VIEW) return [];
     const staticFaseRaps = FASE_RAPS[selectedPhase]?.map(r => r.rapCode) ?? [];
     if (fichas.length === 0 && activitiesForFicha.length === 0) return [];
     if (showAllFichasColumns) {
@@ -860,8 +889,10 @@ export const CalificacionesView: React.FC = () => {
   };
 
   /** Competencia groups derived from visible activities + evidenceCompMap.
-   *  Returns null when no mapping exists (fall back to single-row header). */
+   *  Returns null when no mapping exists (fall back to single-row header).
+   *  Also returns null in "Todas las fases" view (phaseGroups takes Row 1 instead). */
   const compGroups = useMemo<Array<{ compCode: string; compName: string; aaKeys: string; activities: GradeActivity[] }> | null>(() => {
+    if (selectedPhase === ALL_PHASES_VIEW) return null;
     // Collect all mapping sources relevant to the current view
     const mappingSources: Array<Record<string, EvCompEntry>> = [];
     if (evidenceCompMap[evidenceMapKey]?.byEvKey) {
@@ -917,6 +948,22 @@ export const CalificacionesView: React.FC = () => {
 
     return groups.length > 0 ? groups : null;
   }, [evidenceCompMap, evidenceMapKey, visibleActivities, fichas, selectedPhase, showAllFichasColumns]);
+
+  /** Phase groups for "Todas las fases" view — groups visibleActivities by their phase, in phase order. */
+  const phaseGroups = useMemo<Array<{ phase: string; activities: GradeActivity[] }> | null>(() => {
+    if (selectedPhase !== ALL_PHASES_VIEW) return null;
+    const groups: Array<{ phase: string; activities: GradeActivity[] }> = [];
+    let currentPhase: string | null = null;
+    visibleActivities.forEach(a => {
+      const p = a.phase || phases[1];
+      if (p !== currentPhase) {
+        currentPhase = p;
+        groups.push({ phase: p, activities: [] });
+      }
+      groups[groups.length - 1].activities.push(a);
+    });
+    return groups.length > 0 ? groups : null;
+  }, [selectedPhase, visibleActivities]);
 
   /** Códigos de competencia ocultos para la ficha/fase actual */
   const hiddenForFicha = useMemo(() => {
@@ -1603,7 +1650,7 @@ export const CalificacionesView: React.FC = () => {
                   >
                     <Filter className="w-4 h-4 text-gray-500" />
                     <span>Fase</span>
-                    <span className="text-teal-600 text-xs max-w-[120px] truncate" title={selectedPhase}>{selectedPhase.replace(/^Fase \d+:?\s*/, '')}</span>
+                    <span className="text-teal-600 text-xs max-w-[120px] truncate" title={selectedPhase}>{selectedPhase === ALL_PHASES_VIEW ? 'Todas' : selectedPhase.replace(/^Fase \d+:?\s*/, '')}</span>
                   </button>
                   {showPhaseFilter && (
                     <>
@@ -1618,6 +1665,8 @@ export const CalificacionesView: React.FC = () => {
                           }}
                           className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
                         >
+                          <option value={ALL_PHASES_VIEW}>📋 {ALL_PHASES_VIEW}</option>
+                          <option disabled>──────────────</option>
                           {phases.map(phase => (
                             <option key={phase} value={phase}>{phase}</option>
                           ))}
@@ -1732,8 +1781,8 @@ export const CalificacionesView: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
         <table className="w-full text-left min-w-max border-collapse">
           <thead className="bg-gray-50 border-b border-gray-200">
-            {/* ── Row 1 (competencia groups) – rendered when evidence OR RAP mapping exists ── */}
-            {(compGroups || rapCompGroups) && (
+            {/* ── Row 1 (phase groups OR competencia groups) – rendered when any grouping exists ── */}
+            {(compGroups || rapCompGroups || phaseGroups) && (
               <tr style={{ height: 36 }}>
                 {/* Sticky identity cols – span both rows */}
                 <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-10 min-w-10 sticky left-0 z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] align-middle overflow-hidden">
@@ -1780,9 +1829,26 @@ export const CalificacionesView: React.FC = () => {
                 <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para marcar como evaluado">Juicios Evaluativos</th>
 
                 {/* Evidence section in Row 1:
+                    - if phaseGroups: show phase group headers (colSpan per phase) — "Todas las fases" view
                     - if compGroups: show competencia group headers (colSpan per group)
                     - else (only rapCompGroups): blank spacer that occupies the evidence columns area */}
-                {compGroups
+                {phaseGroups
+                  ? phaseGroups.map((g, gi) => {
+                    const color = PHASE_HEADER_COLORS[g.phase] ?? { bg: '#6b7280', text: '#ffffff' };
+                    return (
+                      <th
+                        key={`phase-${gi}`}
+                        colSpan={g.activities.length}
+                        className="px-2 py-1.5 text-center border-l border-white/30 align-middle"
+                        style={{ backgroundColor: color.bg }}
+                      >
+                        <span className="text-xs font-bold whitespace-nowrap" style={{ color: color.text }}>
+                          {g.phase}
+                        </span>
+                      </th>
+                    );
+                  })
+                  : compGroups
                   ? compGroups.map((g, gi) => (
                     <th
                       key={`comp-${gi}`}
