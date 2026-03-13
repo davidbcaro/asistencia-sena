@@ -494,7 +494,7 @@ export const CalificacionesView: React.FC = () => {
     'Fase 3: Ejecución',
     'Fase 4: Evaluación',
   ];
-  const [selectedPhase, setSelectedPhase] = useState(phases[1]);
+  const [selectedPhase, setSelectedPhase] = useState(ALL_PHASES_VIEW);
 
   const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
