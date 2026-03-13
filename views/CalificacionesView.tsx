@@ -1431,15 +1431,25 @@ export const CalificacionesView: React.FC = () => {
       phaseGroups.map(g => `<th colspan="${g.count}" style="background:${g.color.bg};color:${g.color.text};text-align:center;font-weight:bold">${esc(g.phase)}</th>`).join('') +
       Array.from({ length: rapFinalCount }, () => `<th style="background:#374151"></th>`).join('');
 
-    const headerRowHtml = headers.map(h => `<th>${esc(h)}</th>`).join('');
+    // Evidence headers: use short name as visible text + full description as tooltip
+    const headerRowHtml = headers.map((h, ci) => {
+      const isAct = ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT;
+      if (isAct) {
+        const activity = visibleActivities[ci - INFO_COLS];
+        const shortLabel = activity ? (activity.name || esc(h)) : esc(h);
+        const fullDesc = esc(h); // h is already the full description from buildReportData
+        return `<th class="ev-col" title="${fullDesc}">${esc(shortLabel)}</th>`;
+      }
+      return `<th>${esc(h)}</th>`;
+    }).join('');
 
     const bodyHtml = rows.map(row =>
       '<tr>' + row.map((val, ci) => {
         const isAct = ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT;
         const v = esc(val);
-        if (isAct && val === 'A') return `<td style="background:#22c55e;color:#fff;font-weight:bold;text-align:center">${v}</td>`;
-        if (isAct && val === 'D') return `<td style="background:#fee2e2;color:#ef4444;text-align:center">${v}</td>`;
-        if (isAct)                return `<td style="text-align:center">${v}</td>`;
+        if (isAct && val === 'A') return `<td class="ev-col" style="background:#22c55e;color:#fff;font-weight:bold;text-align:center">${v}</td>`;
+        if (isAct && val === 'D') return `<td class="ev-col" style="background:#fee2e2;color:#ef4444;text-align:center">${v}</td>`;
+        if (isAct)                return `<td class="ev-col" style="text-align:center">${v}</td>`;
         return `<td>${v}</td>`;
       }).join('') + '</tr>'
     ).join('\n      ');
@@ -1457,6 +1467,7 @@ export const CalificacionesView: React.FC = () => {
     table{border-collapse:collapse;width:100%}
     th,td{border:1px solid #d1d5db;padding:4px 8px;white-space:nowrap}
     thead th{background:#374151;color:#fff;font-size:10px;text-align:center}
+    .ev-col{width:50px;max-width:50px;min-width:50px;overflow:hidden;text-overflow:ellipsis;cursor:default}
     tbody tr:nth-child(even){background:#f9fafb}
     tbody tr:hover{background:#eff6ff}
   </style>
