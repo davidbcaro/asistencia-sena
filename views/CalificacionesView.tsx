@@ -1249,6 +1249,19 @@ export const CalificacionesView: React.FC = () => {
       });
     });
 
+    // ── Documento (col 1) y Ficha (col 6) como números ────────────────────
+    for (let rowIdx = DATA_START; rowIdx < DATA_START + rows.length; rowIdx++) {
+      const dataRow = sheet.getRow(rowIdx);
+      // Documento: col 1
+      const docCell = dataRow.getCell(1);
+      const docNum = Number(String(docCell.value ?? '').trim());
+      if (!isNaN(docNum) && docNum > 0) { docCell.value = docNum; docCell.numFmt = '0'; }
+      // Ficha: col 6
+      const fichaCell = dataRow.getCell(6);
+      const fichaNum = Number(String(fichaCell.value ?? '').trim());
+      if (!isNaN(fichaNum) && fichaNum > 0) { fichaCell.value = fichaNum; fichaCell.numFmt = '0'; }
+    }
+
     // ── Evidence cell coloring (A = green, D = light red) ────────────────
     const ACT_START_COL = INFO_COLS + 1;
     const ACT_END_COL   = INFO_COLS + ACT_COUNT;
@@ -2165,10 +2178,10 @@ export const CalificacionesView: React.FC = () => {
               })}
 
               {/* RAP cols:
-                  - single-row (!compGroups && !rapCompGroups): render here
+                  - single-row (!compGroups && !rapCompGroups && !phaseGroups): render here
                   - rapCompGroups present: render here (Row 1 has comp group headers)
-                  - compGroups only (!rapCompGroups): NOT here (rowSpan=2 from Row 1) */}
-              {(rapCompGroups || !compGroups) && activeRapColumns.map(key => {
+                  - compGroups or phaseGroups only: NOT here (rowSpan=2 from Row 1) */}
+              {(rapCompGroups || (!compGroups && !phaseGroups)) && activeRapColumns.map(key => {
                 const rapInfo = getRapStaticInfo(key);
                 return (
                   <th key={key} className="px-3 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[64px]" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={rapInfo ? rapInfo.rapName : key}>
@@ -2180,7 +2193,7 @@ export const CalificacionesView: React.FC = () => {
               })}
 
               {/* Computed cols: only in single-row mode (otherwise rowSpan=2 from Row 1) */}
-              {!(compGroups || rapCompGroups) && hasActivities && (
+              {!(compGroups || rapCompGroups || phaseGroups) && hasActivities && (
                 <>
                   <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Pendientes</th>
                   <th className="px-4 py-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Promedio</th>
