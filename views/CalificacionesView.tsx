@@ -1426,19 +1426,33 @@ export const CalificacionesView: React.FC = () => {
     const dateStr = new Date().toLocaleDateString('es-CO');
     const esc = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+    // table-layout:fixed requires explicit column widths via <colgroup>
+    // Info col widths (px): Documento, Nombres, Apellidos, Correo, Estado, Ficha, Juicios
+    const INFO_WIDTHS = [100, 130, 130, 160, 90, 65, 65];
+    const EV_W = 50;
+    const RAF_W = 70; // RAP / Final cols
+    const totalWidth = INFO_WIDTHS.reduce((a, b) => a + b, 0) + ACT_COUNT * EV_W + rapFinalCount * RAF_W;
+
+    const colGroupHtml =
+      '<colgroup>' +
+      INFO_WIDTHS.map(w => `<col style="width:${w}px">`).join('') +
+      Array.from({ length: ACT_COUNT }, () => `<col style="width:${EV_W}px">`).join('') +
+      Array.from({ length: rapFinalCount }, () => `<col style="width:${RAF_W}px">`).join('') +
+      '</colgroup>';
+
     const phaseRowHtml =
       Array.from({ length: INFO_COLS }, () => `<th style="background:#374151"></th>`).join('') +
       phaseGroups.map(g => `<th colspan="${g.count}" style="background:${g.color.bg};color:${g.color.text};text-align:center;font-weight:bold">${esc(g.phase)}</th>`).join('') +
       Array.from({ length: rapFinalCount }, () => `<th style="background:#374151"></th>`).join('');
 
-    // Evidence headers: use short name as visible text + full description as tooltip
+    // Evidence headers: short name visible, full description as tooltip
     const headerRowHtml = headers.map((h, ci) => {
       const isAct = ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT;
       if (isAct) {
         const activity = visibleActivities[ci - INFO_COLS];
-        const shortLabel = activity ? (activity.name || esc(h)) : esc(h);
-        const fullDesc = esc(h); // h is already the full description from buildReportData
-        return `<th class="ev-col" title="${fullDesc}">${esc(shortLabel)}</th>`;
+        const shortLabel = esc(activity?.name || h);
+        const fullDesc = esc(h);
+        return `<th title="${fullDesc}">${shortLabel}</th>`;
       }
       return `<th>${esc(h)}</th>`;
     }).join('');
@@ -1447,9 +1461,9 @@ export const CalificacionesView: React.FC = () => {
       '<tr>' + row.map((val, ci) => {
         const isAct = ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT;
         const v = esc(val);
-        if (isAct && val === 'A') return `<td class="ev-col" style="background:#22c55e;color:#fff;font-weight:bold;text-align:center">${v}</td>`;
-        if (isAct && val === 'D') return `<td class="ev-col" style="background:#fee2e2;color:#ef4444;text-align:center">${v}</td>`;
-        if (isAct)                return `<td class="ev-col" style="text-align:center">${v}</td>`;
+        if (isAct && val === 'A') return `<td style="background:#22c55e;color:#fff;font-weight:bold;text-align:center">${v}</td>`;
+        if (isAct && val === 'D') return `<td style="background:#fee2e2;color:#ef4444;text-align:center">${v}</td>`;
+        if (isAct)                return `<td style="text-align:center">${v}</td>`;
         return `<td>${v}</td>`;
       }).join('') + '</tr>'
     ).join('\n      ');
@@ -1464,10 +1478,10 @@ export const CalificacionesView: React.FC = () => {
     body{font-family:Arial,sans-serif;font-size:11px;margin:24px;color:#111827}
     h2{color:#374151;font-size:16px;margin-bottom:4px}
     .meta{color:#6b7280;font-size:11px;margin-bottom:16px}
-    table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #d1d5db;padding:4px 8px;white-space:nowrap}
+    .tbl-wrap{overflow-x:auto}
+    table{border-collapse:collapse;table-layout:fixed;width:${totalWidth}px}
+    th,td{border:1px solid #d1d5db;padding:4px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     thead th{background:#374151;color:#fff;font-size:10px;text-align:center}
-    .ev-col{width:50px;max-width:50px;min-width:50px;overflow:hidden;text-overflow:ellipsis;cursor:default}
     tbody tr:nth-child(even){background:#f9fafb}
     tbody tr:hover{background:#eff6ff}
   </style>
@@ -1475,7 +1489,9 @@ export const CalificacionesView: React.FC = () => {
 <body>
   <h2>Calificaciones — ${esc(selectedFicha)} — ${esc(selectedPhase)}</h2>
   <p class="meta">Generado: ${dateStr} · ${rows.length} aprendiz(ces)</p>
+  <div class="tbl-wrap">
   <table>
+    ${colGroupHtml}
     <thead>
       <tr>${phaseRowHtml}</tr>
       <tr>${headerRowHtml}</tr>
@@ -1484,6 +1500,7 @@ export const CalificacionesView: React.FC = () => {
       ${bodyHtml}
     </tbody>
   </table>
+  </div>
 </body>
 </html>`;
 
