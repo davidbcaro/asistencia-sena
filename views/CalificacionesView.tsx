@@ -1397,6 +1397,135 @@ export const CalificacionesView: React.FC = () => {
     );
   };
 
+  // ── Shared helper: build phase groups array (reutilizado en HTML/MD) ────
+  const buildPhaseGroups = () => {
+    type PG = { phase: string; count: number; color: { bg: string; text: string } };
+    const groups: PG[] = [];
+    if (selectedPhase === ALL_PHASES_VIEW) {
+      visibleActivities.forEach(a => {
+        const ph = a.phase || 'Sin fase';
+        const last = groups[groups.length - 1];
+        if (last && last.phase === ph) { last.count++; }
+        else { groups.push({ phase: ph, count: 1, color: PHASE_HEADER_COLORS[ph] ?? { bg: '#6b7280', text: '#ffffff' } }); }
+      });
+    } else {
+      const cnt = visibleActivities.length;
+      groups.push({ phase: selectedPhase, count: cnt, color: PHASE_HEADER_COLORS[selectedPhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
+    }
+    return groups;
+  };
+
+  const exportToHtml = () => {
+    const data = buildReportData();
+    if (!data) return;
+    const { headers, rows } = data;
+    const INFO_COLS = 7;
+    const ACT_COUNT = visibleActivities.length;
+    const phaseGroups = buildPhaseGroups();
+    const rapFinalCount = headers.length - INFO_COLS - ACT_COUNT;
+    const dateStr = new Date().toLocaleDateString('es-CO');
+    const esc = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const phaseRowHtml =
+      Array.from({ length: INFO_COLS }, () => `<th style="background:#374151"></th>`).join('') +
+      phaseGroups.map(g => `<th colspan="${g.count}" style="background:${g.color.bg};color:${g.color.text};text-align:center;font-weight:bold">${esc(g.phase)}</th>`).join('') +
+      Array.from({ length: rapFinalCount }, () => `<th style="background:#374151"></th>`).join('');
+
+    const headerRowHtml = headers.map(h => `<th>${esc(h)}</th>`).join('');
+
+    const bodyHtml = rows.map(row =>
+      '<tr>' + row.map((val, ci) => {
+        const isAct = ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT;
+        const v = esc(val);
+        if (isAct && val === 'A') return `<td style="background:#22c55e;color:#fff;font-weight:bold;text-align:center">${v}</td>`;
+        if (isAct && val === 'D') return `<td style="background:#fee2e2;color:#ef4444;text-align:center">${v}</td>`;
+        if (isAct)                return `<td style="text-align:center">${v}</td>`;
+        return `<td>${v}</td>`;
+      }).join('') + '</tr>'
+    ).join('\n      ');
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Calificaciones — ${esc(selectedFicha)} — ${esc(selectedPhase)}</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:11px;margin:24px;color:#111827}
+    h2{color:#374151;font-size:16px;margin-bottom:4px}
+    .meta{color:#6b7280;font-size:11px;margin-bottom:16px}
+    table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #d1d5db;padding:4px 8px;white-space:nowrap}
+    thead th{background:#374151;color:#fff;font-size:10px;text-align:center}
+    tbody tr:nth-child(even){background:#f9fafb}
+    tbody tr:hover{background:#eff6ff}
+  </style>
+</head>
+<body>
+  <h2>Calificaciones — ${esc(selectedFicha)} — ${esc(selectedPhase)}</h2>
+  <p class="meta">Generado: ${dateStr} · ${rows.length} aprendiz(ces)</p>
+  <table>
+    <thead>
+      <tr>${phaseRowHtml}</tr>
+      <tr>${headerRowHtml}</tr>
+    </thead>
+    <tbody>
+      ${bodyHtml}
+    </tbody>
+  </table>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte_calificaciones_${selectedFicha}_${selectedPhase.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.html`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToMarkdown = () => {
+    const data = buildReportData();
+    if (!data) return;
+    const { headers, rows } = data;
+    const INFO_COLS = 7;
+    const ACT_COUNT = visibleActivities.length;
+    const phaseGroups = buildPhaseGroups();
+    const escMd = (s: unknown) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
+
+    const lines: string[] = [];
+    lines.push(`# Calificaciones — ${selectedFicha} — ${selectedPhase}`);
+    lines.push(`\n_Generado: ${new Date().toLocaleDateString('es-CO')} · ${rows.length} aprendiz(ces)_`);
+
+    if (phaseGroups.length > 1) {
+      lines.push('\n## Fases');
+      phaseGroups.forEach(g => lines.push(`- **${g.phase}** — ${g.count} evidencia(s)`));
+    }
+
+    lines.push('\n## Tabla de calificaciones\n');
+    lines.push('| ' + headers.map(h => escMd(h)).join(' | ') + ' |');
+    lines.push('| ' + headers.map((_, i) => (i >= INFO_COLS && i < INFO_COLS + ACT_COUNT ? ':---:' : '---')).join(' | ') + ' |');
+
+    rows.forEach(row => {
+      const cells = row.map((val, ci) => {
+        const v = escMd(val);
+        const isAct = ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT;
+        return (isAct && val === 'A') ? `**${v}**` : v;
+      });
+      lines.push('| ' + cells.join(' | ') + ' |');
+    });
+
+    const md = lines.join('\n');
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte_calificaciones_${selectedFicha}_${selectedPhase.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const openAddActivity = () => {
     setEditingActivity(null);
     setActivityName('');
@@ -1916,24 +2045,35 @@ export const CalificacionesView: React.FC = () => {
                 {showExport && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowExport(false)} />
-                    <div className="absolute right-0 mt-2 w-40 rounded-lg border border-gray-200 bg-white shadow-xl z-50 p-2">
+                    <div className="absolute right-0 mt-2 w-44 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
                       <button
-                        onClick={() => {
-                          setShowExport(false);
-                          exportToExcel();
-                        }}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={() => { setShowExport(false); exportToExcel(); }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                       >
-                        Excel
+                        <FileSpreadsheet className="w-4 h-4 text-green-600" />
+                        Excel (.xlsx)
                       </button>
                       <button
-                        onClick={() => {
-                          setShowExport(false);
-                          exportToPdf();
-                        }}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={() => { setShowExport(false); exportToPdf(); }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                       >
+                        <FileDown className="w-4 h-4 text-red-500" />
                         PDF
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        onClick={() => { setShowExport(false); exportToHtml(); }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <FileDown className="w-4 h-4 text-blue-500" />
+                        HTML
+                      </button>
+                      <button
+                        onClick={() => { setShowExport(false); exportToMarkdown(); }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <FileDown className="w-4 h-4 text-purple-500" />
+                        Markdown (.md)
                       </button>
                     </div>
                   </>
