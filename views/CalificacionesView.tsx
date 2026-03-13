@@ -72,6 +72,7 @@ const COMPETENCIA_NAMES: Record<string, string> = {
   '240201528': 'Resolver problemas matemáticos de acuerdo con las necesidades del contexto productivo y social',
   '240201529': 'Formular el plan de negocio de acuerdo con las características del mercado y las necesidades del entorno',
   '240202501': 'Comprender y producir textos en inglés en forma oral y escrita en contextos sociales y laborales',
+  '240201530': 'Identificar la dinámica organizacional del SENA y el rol de la formación profesional integral de acuerdo con su proyecto de vida y el desarrollo profesional',
 };
 
 interface CronogramaRap {
@@ -172,6 +173,11 @@ interface CronogramaEvidence {
 
 /** Evidencias por fase, extraídas de los cronogramas pedagógicos */
 const FASE_EVIDENCES: Record<string, CronogramaEvidence[]> = {
+  'Fase Inducción': [
+    { code: 'GI1-240201530-AA1-EV01', compCode: '240201530', aaKey: 'AA1', description: 'Evidencia de producto: Infografía. Contextualización Senología.' },
+    { code: 'GI1-240201530-AA2-EV01', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (1).' },
+    { code: 'GI1-240201530-AA2-EV02', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (2).' },
+  ],
   'Fase 1: Análisis': [
     { code: 'GA1-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario sobre técnicas de levantamiento de información, plan de seguridad y continuidad del servicio.' },
     { code: 'GA1-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de producto: Informe de inventario y dispositivos de la red.' },
@@ -1933,7 +1939,7 @@ export const CalificacionesView: React.FC = () => {
             {/* ── Row 2 (or only row when no double header): evidence columns + sticky when single row ── */}
             <tr style={{ height: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
               {/* Sticky cols only rendered here when there is NO double header row */}
-              {!(compGroups || rapCompGroups) && (
+              {!(compGroups || rapCompGroups || phaseGroups) && (
                 <>
                   <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-10 min-w-10 sticky left-0 z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                     <input
