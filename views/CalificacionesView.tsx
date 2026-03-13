@@ -1629,21 +1629,17 @@ export const CalificacionesView: React.FC = () => {
                   {showFichaFilter && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowFichaFilter(false)} />
-                      <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 p-4">
-                        <label className="block text-xs font-semibold text-gray-500 mb-1">Ficha</label>
-                        <select
-                          value={selectedFicha}
-                          onChange={(e) => {
-                            setSelectedFicha(e.target.value);
-                            setShowFichaFilter(false);
-                          }}
-                          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
-                        >
-                          <option value="Todas">Todas las fichas</option>
-                          {fichas.map(f => (
-                            <option key={f.id} value={f.code}>{f.code} - {f.program}</option>
-                          ))}
-                        </select>
+                      <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                        {[{ code: 'Todas', label: 'Todas las fichas' }, ...fichas.map(f => ({ code: f.code, label: `${f.code} — ${f.program}` }))].map(opt => (
+                          <button
+                            key={opt.code}
+                            type="button"
+                            onClick={() => { setSelectedFicha(opt.code); setShowFichaFilter(false); }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedFicha === opt.code ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
                       </div>
                     </>
                   )}
@@ -1661,22 +1657,25 @@ export const CalificacionesView: React.FC = () => {
                   {showPhaseFilter && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowPhaseFilter(false)} />
-                      <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 p-4">
-                        <label className="block text-xs font-semibold text-gray-500 mb-1">Fase</label>
-                        <select
-                          value={selectedPhase}
-                          onChange={(e) => {
-                            setSelectedPhase(e.target.value);
-                            setShowPhaseFilter(false);
-                          }}
-                          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                      <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedPhase(ALL_PHASES_VIEW); setShowPhaseFilter(false); }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedPhase === ALL_PHASES_VIEW ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
                         >
-                          <option value={ALL_PHASES_VIEW}>📋 {ALL_PHASES_VIEW}</option>
-                          <option disabled>──────────────</option>
-                          {phases.map(phase => (
-                            <option key={phase} value={phase}>{phase}</option>
-                          ))}
-                        </select>
+                          📋 {ALL_PHASES_VIEW}
+                        </button>
+                        <div className="border-t border-gray-100 my-1" />
+                        {phases.map(phase => (
+                          <button
+                            key={phase}
+                            type="button"
+                            onClick={() => { setSelectedPhase(phase); setShowPhaseFilter(false); }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedPhase === phase ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                          >
+                            {phase}
+                          </button>
+                        ))}
                       </div>
                     </>
                   )}
