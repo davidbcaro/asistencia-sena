@@ -808,9 +808,31 @@ export const CalificacionesView: React.FC = () => {
       : activities.filter(a => (a.phase || phases[1]) === selectedPhase);
 
     if (selectedFicha !== 'Todas') {
-      // Ficha específica: actividades de esa ficha, o globales si no hay
       const fichaSpecific = phaseMatch.filter(a => a.group === selectedFicha);
-      const result = fichaSpecific.length > 0 ? fichaSpecific : phaseMatch.filter(a => a.group === '');
+      const globals      = phaseMatch.filter(a => a.group === '');
+
+      if (fichaSpecific.length === 0) {
+        // Sin actividades propias de la ficha: mostrar todas las globales (base)
+        return { activitiesForFicha: globals, activitiesByCanonicalAndFicha: null };
+      }
+
+      // Hay actividades propias: mezclar con las globales que NO tienen contraparte en la ficha.
+      // Para cada clave canónica, la actividad de la ficha tiene prioridad sobre la global.
+      const best = new Map<string, GradeActivity>();
+      globals.forEach(a => best.set(getCanonicalEvidenceKey(a.detail || a.name), a));
+      fichaSpecific.forEach(a => best.set(getCanonicalEvidenceKey(a.detail || a.name), a)); // sobreescribe
+
+      // Reconstruir en el orden de phaseMatch (fase → nombre), deduplicado por clave canónica
+      const seen = new Set<string>();
+      const result: GradeActivity[] = [];
+      phaseMatch.forEach(a => {
+        const k = getCanonicalEvidenceKey(a.detail || a.name);
+        if (!seen.has(k)) {
+          seen.add(k);
+          result.push(best.get(k)!);
+        }
+      });
+
       return { activitiesForFicha: result, activitiesByCanonicalAndFicha: null };
     }
 
