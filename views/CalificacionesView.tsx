@@ -417,6 +417,12 @@ const getCanonicalEvidenceKey = (baseName: string): string => {
   return normalizeText(trimmed) || trimmed;
 };
 
+/** Versión segura de getCanonicalEvidenceKey para GradeActivity.
+ *  Concatena `name` y `detail` para garantizar que el código GA en `name`
+ *  sea hallado aunque `detail` sea una descripción larga sin código. */
+const getActivityCanonicalKey = (a: { name: string; detail?: string | null }): string =>
+  getCanonicalEvidenceKey(`${a.name} ${a.detail ?? ''}`);
+
 const getActivityShortLabel = (name: string) => {
   const match = name.match(/EV\d+/i);
   return match ? match[0].toUpperCase() : name;
@@ -820,14 +826,14 @@ export const CalificacionesView: React.FC = () => {
       // Hay actividades propias: mezclar con las globales que NO tienen contraparte en la ficha.
       // Para cada clave canónica, la actividad de la ficha tiene prioridad sobre la global.
       const best = new Map<string, GradeActivity>();
-      globals.forEach(a => best.set(getCanonicalEvidenceKey(a.detail || a.name), a));
-      fichaSpecific.forEach(a => best.set(getCanonicalEvidenceKey(a.detail || a.name), a)); // sobreescribe
+      globals.forEach(a => best.set(getActivityCanonicalKey(a), a));
+      fichaSpecific.forEach(a => best.set(getActivityCanonicalKey(a), a)); // sobreescribe
 
       // Reconstruir en el orden de phaseMatch (fase → nombre), deduplicado por clave canónica
       const seen = new Set<string>();
       const result: GradeActivity[] = [];
       phaseMatch.forEach(a => {
-        const k = getCanonicalEvidenceKey(a.detail || a.name);
+        const k = getActivityCanonicalKey(a);
         if (!seen.has(k)) {
           seen.add(k);
           result.push(best.get(k)!);
@@ -844,7 +850,7 @@ export const CalificacionesView: React.FC = () => {
     const representative = new Map<string, GradeActivity>();
 
     phaseMatch.forEach(a => {
-      const key = getCanonicalEvidenceKey(a.detail || a.name);
+      const key = getActivityCanonicalKey(a);
       if (!byCanonical.has(key)) byCanonical.set(key, new Map());
       byCanonical.get(key)!.set(a.group, a);
       // Como representativa usar la primera encontrada (solo para nombre/orden)
@@ -914,7 +920,7 @@ export const CalificacionesView: React.FC = () => {
 
   /** Helper: get the EvCompEntry for an activity (handles all-fichas fallback) */
   const getEvCompEntry = (activity: GradeActivity): EvCompEntry | undefined => {
-    const evKey = getCanonicalEvidenceKey(activity.detail || activity.name);
+    const evKey = getActivityCanonicalKey(activity);
     // Try specific ficha+phase key first, then all-fichas key ('')
     return (
       evidenceCompMap[`${activity.group || selectedFicha}::${activity.phase || selectedPhase}`]?.byEvKey?.[evKey] ??
@@ -951,7 +957,7 @@ export const CalificacionesView: React.FC = () => {
 
     // Check if any visible activity has a comp entry
     const hasAnyMapping = visibleActivities.some(a => {
-      const evKey = getCanonicalEvidenceKey(a.detail || a.name);
+      const evKey = getActivityCanonicalKey(a);
       return !!merged[evKey];
     });
     if (!hasAnyMapping) return null;
@@ -961,7 +967,7 @@ export const CalificacionesView: React.FC = () => {
     let currentCode: string | null = null;
 
     visibleActivities.forEach(activity => {
-      const evKey = getCanonicalEvidenceKey(activity.detail || activity.name);
+      const evKey = getActivityCanonicalKey(activity);
       const info = merged[evKey];
       const compCode = info?.competenciaCode || '__ungrouped__';
       const compName = COMPETENCIA_NAMES[compCode] || info?.competenciaName || compCode;
@@ -1050,10 +1056,10 @@ export const CalificacionesView: React.FC = () => {
       // En vista "Todas": resolver la actividad real de la ficha del estudiante
       const resolvedActivity = activitiesByCanonicalAndFicha
         ? (activitiesByCanonicalAndFicha
-            .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+            .get(getActivityCanonicalKey(activity))
             ?.get(studentGroup || '') ??
           activitiesByCanonicalAndFicha
-            .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+            .get(getActivityCanonicalKey(activity))
             ?.get('') ?? activity)
         : activity;
       const grade = gradeMap.get(`${studentId}-${resolvedActivity.id}`);
@@ -1072,10 +1078,10 @@ export const CalificacionesView: React.FC = () => {
     const allApproved = delivered === totalActivities && visibleActivities.every(activity => {
       const resolvedActivity = activitiesByCanonicalAndFicha
         ? (activitiesByCanonicalAndFicha
-            .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+            .get(getActivityCanonicalKey(activity))
             ?.get(studentGroup || '') ??
           activitiesByCanonicalAndFicha
-            .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+            .get(getActivityCanonicalKey(activity))
             ?.get('') ?? activity)
         : activity;
       return gradeMap.get(`${studentId}-${resolvedActivity.id}`)?.letter === 'A';
@@ -1716,7 +1722,7 @@ export const CalificacionesView: React.FC = () => {
       activitiesInPhase
         .filter(a => a.group === '')
         .forEach(activity => {
-          const key = getCanonicalEvidenceKey(activity.detail || activity.name);
+          const key = getActivityCanonicalKey(activity);
           existingByDetail.set(key, activity);
         });
       // Luego las de la ficha seleccionada (mayor prioridad, sobreescribe globales)
@@ -1724,7 +1730,7 @@ export const CalificacionesView: React.FC = () => {
         activitiesInPhase
           .filter(a => a.group === selectedFicha)
           .forEach(activity => {
-            const key = getCanonicalEvidenceKey(activity.detail || activity.name);
+            const key = getActivityCanonicalKey(activity);
             existingByDetail.set(key, activity);
           });
       }
@@ -2473,10 +2479,10 @@ export const CalificacionesView: React.FC = () => {
                     // En vista "Todas": resolver la actividad real de la ficha del estudiante
                     const resolvedActivity = activitiesByCanonicalAndFicha
                       ? (activitiesByCanonicalAndFicha
-                          .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+                          .get(getActivityCanonicalKey(activity))
                           ?.get(student.group || '') ??
                         activitiesByCanonicalAndFicha
-                          .get(getCanonicalEvidenceKey(activity.detail || activity.name))
+                          .get(getActivityCanonicalKey(activity))
                           ?.get('') ?? activity)
                       : activity;
                     const grade = gradeMap.get(`${student.id}-${resolvedActivity.id}`);
