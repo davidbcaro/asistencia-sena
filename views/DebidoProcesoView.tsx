@@ -236,12 +236,12 @@ const CancelacionModal: React.FC<CancelacionModalProps> = ({ student, currentSte
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-amber-600 px-5 py-4 flex items-start justify-between">
+        <div className="bg-teal-600 px-5 py-4 flex items-start justify-between">
           <div>
             <h3 className="text-white font-semibold text-base leading-tight">Cancelación</h3>
-            <p className="text-amber-100 text-xs mt-0.5">{student.firstName} {student.lastName}</p>
+            <p className="text-teal-100 text-xs mt-0.5">{student.firstName} {student.lastName}</p>
           </div>
-          <button type="button" onClick={onClose} className="text-amber-200 hover:text-white mt-0.5"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} className="text-teal-200 hover:text-white mt-0.5"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-5 space-y-4">
           {/* Step selector */}
@@ -250,7 +250,7 @@ const CancelacionModal: React.FC<CancelacionModalProps> = ({ student, currentSte
             <div className="flex gap-2 flex-wrap">
               {STEPS.map(({ step: s, tooltip }) => (
                 <button key={s} type="button" onClick={() => setStep(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${step === s ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-300 hover:border-amber-400'}`}>
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${step === s ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-300 hover:border-teal-400'}`}>
                   {s === 0 ? tooltip : `${s}. ${tooltip}`}
                 </button>
               ))}
@@ -267,7 +267,7 @@ const CancelacionModal: React.FC<CancelacionModalProps> = ({ student, currentSte
                     <label className="block text-xs text-gray-500 mb-1">{label}</label>
                     <input type="date" value={dates[key as keyof typeof dates] as string}
                       onChange={(e) => setDates((d) => ({ ...d, [key]: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-amber-500 outline-none" />
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-teal-500 outline-none" />
                   </div>
                 ))}
             </div>
@@ -277,12 +277,12 @@ const CancelacionModal: React.FC<CancelacionModalProps> = ({ student, currentSte
             <label className="block text-xs font-semibold text-gray-600 mb-1">Observaciones</label>
             <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} rows={3}
               placeholder="Notas adicionales sobre el proceso de cancelación..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none resize-none" />
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 outline-none resize-none" />
           </div>
         </div>
         <div className="px-5 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-200 transition-colors">Cancelar</button>
-          <button type="button" onClick={handleSave} className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 transition-colors">Guardar</button>
+          <button type="button" onClick={handleSave} className="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white hover:bg-teal-700 transition-colors">Guardar</button>
         </div>
       </div>
     </div>,
@@ -322,12 +322,12 @@ const RetiroModal: React.FC<RetiroModalProps> = ({ student, currentStep, detail,
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-orange-600 px-5 py-4 flex items-start justify-between">
+        <div className="bg-teal-600 px-5 py-4 flex items-start justify-between">
           <div>
             <h3 className="text-white font-semibold text-base leading-tight">Retiro Voluntario</h3>
-            <p className="text-orange-100 text-xs mt-0.5">{student.firstName} {student.lastName}</p>
+            <p className="text-teal-100 text-xs mt-0.5">{student.firstName} {student.lastName}</p>
           </div>
-          <button type="button" onClick={onClose} className="text-orange-200 hover:text-white mt-0.5"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} className="text-teal-200 hover:text-white mt-0.5"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-5 space-y-4">
           {/* Step selector */}
@@ -336,7 +336,7 @@ const RetiroModal: React.FC<RetiroModalProps> = ({ student, currentStep, detail,
             <div className="flex gap-2 flex-wrap">
               {RETIRO_STEPS.map(({ step: s, tooltip }) => (
                 <button key={s} type="button" onClick={() => setStep(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${step === s ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-600 border-gray-300 hover:border-orange-400'}`}>
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${step === s ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-300 hover:border-teal-400'}`}>
                   {s === 1 ? tooltip : `${s}. ${tooltip}`}
                 </button>
               ))}
@@ -353,7 +353,7 @@ const RetiroModal: React.FC<RetiroModalProps> = ({ student, currentStep, detail,
                     <label className="block text-xs text-gray-500 mb-1">{label}</label>
                     <input type="date" value={dates[key as keyof typeof dates] as string}
                       onChange={(e) => setDates((d) => ({ ...d, [key]: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-orange-500 outline-none" />
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-teal-500 outline-none" />
                   </div>
                 ))}
             </div>
@@ -363,12 +363,12 @@ const RetiroModal: React.FC<RetiroModalProps> = ({ student, currentStep, detail,
             <label className="block text-xs font-semibold text-gray-600 mb-1">Observaciones</label>
             <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} rows={3}
               placeholder="Notas adicionales sobre el retiro voluntario..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-orange-500 outline-none resize-none" />
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 outline-none resize-none" />
           </div>
         </div>
         <div className="px-5 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-200 transition-colors">Cancelar</button>
-          <button type="button" onClick={handleSave} className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-600 text-white hover:bg-orange-700 transition-colors">Guardar</button>
+          <button type="button" onClick={handleSave} className="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white hover:bg-teal-700 transition-colors">Guardar</button>
         </div>
       </div>
     </div>,
