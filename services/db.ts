@@ -24,6 +24,7 @@ const STORAGE_KEYS = {
   SOFIA_JUICIO_HISTORY: 'asistenciapro_sofia_juicio_history',
   SOFIA_STUDENT_ESTADOS: 'asistenciapro_sofia_student_estados',
   EVIDENCE_COMP_MAP: 'asistenciapro_evidence_comp_map',
+  PMA_DETAILS: 'asistenciapro_pma_details',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -650,6 +651,28 @@ export function getEstadoStepperTooltip(
   }
   return s;
 }
+
+// --- PMA Details (per-student: aprobado, dates, observations) ---
+export interface PmaDetail {
+  aprobado: boolean | null; // null = no definido
+  fechaAsignacion: string;
+  fechaAprobacion: string;
+  observaciones: string;
+}
+export type PmaDetails = Record<string, PmaDetail>;
+
+export const getPmaDetails = (): PmaDetails => {
+  const data = localStorage.getItem(STORAGE_KEYS.PMA_DETAILS);
+  if (!data) return {};
+  try { return JSON.parse(data); } catch { return {}; }
+};
+
+export const savePmaDetail = (studentId: string, detail: PmaDetail) => {
+  const details = getPmaDetails();
+  details[studentId] = detail;
+  localStorage.setItem(STORAGE_KEYS.PMA_DETAILS, JSON.stringify(details));
+  notifyChange();
+};
 
 // Fichas
 export const getFichas = (): Ficha[] => {
@@ -1440,6 +1463,7 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY);
     localStorage.removeItem(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS);
     localStorage.removeItem(STORAGE_KEYS.EVIDENCE_COMP_MAP);
+    localStorage.removeItem(STORAGE_KEYS.PMA_DETAILS);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };

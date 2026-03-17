@@ -1,8 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Filter, Search, ChevronLeft, ChevronRight, Download, X, CheckCircle, XCircle } from 'lucide-react';
+import ExcelJS from 'exceljs';
 import { Student, Ficha } from '../types';
-import { getStudents, getFichas, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep, updateStudent, getEstadoStepperTooltip } from '../services/db';
+import {
+  getStudents, getFichas,
+  getDebidoProcesoState, saveDebidoProcesoStep,
+  getRetiroVoluntarioState, saveRetiroVoluntarioStep,
+  getPlanMejoramientoState, savePlanMejoramientoStep,
+  getPmaDetails, savePmaDetail, PmaDetail,
+  updateStudent, getEstadoStepperTooltip,
+  DEBIDO_PROCESO_STEP_LABELS, RETIRO_VOLUNTARIO_STEP_LABELS, PLAN_MEJORAMIENTO_STEP_LABELS,
+} from '../services/db';
 
 const STEPS: { step: number; tooltip: string }[] = [
   { step: 0, tooltip: 'Sin novedad' },
@@ -27,12 +36,179 @@ const PMA_STEPS: { step: number; tooltip: string }[] = [
   { step: 2, tooltip: 'Aprobación de PMA' },
 ];
 
+// ─── PMA Detail Modal ────────────────────────────────────────────────────────
+
+interface PmaModalProps {
+  student: Student;
+  currentStep: number;
+  detail: PmaDetail;
+  onSave: (step: number, detail: PmaDetail) => void;
+  onClose: () => void;
+}
+
+const PmaModal: React.FC<PmaModalProps> = ({ student, currentStep, detail, onSave, onClose }) => {
+  const [step, setStep] = useState(currentStep);
+  const [aprobado, setAprobado] = useState<boolean | null>(detail.aprobado);
+  const [fechaAsignacion, setFechaAsignacion] = useState(detail.fechaAsignacion ?? '');
+  const [fechaAprobacion, setFechaAprobacion] = useState(detail.fechaAprobacion ?? '');
+  const [observaciones, setObservaciones] = useState(detail.observaciones ?? '');
+
+  const handleSave = () => {
+    onSave(step, { aprobado, fechaAsignacion, fechaAprobacion, observaciones });
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-teal-600 px-5 py-4 flex items-start justify-between">
+          <div>
+            <h3 className="text-white font-semibold text-base leading-tight">Plan de Mejoramiento</h3>
+            <p className="text-teal-100 text-xs mt-0.5">{student.firstName} {student.lastName}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-teal-200 hover:text-white mt-0.5">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Step selector */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-2">Paso del plan</label>
+            <div className="flex gap-2 flex-wrap">
+              {PMA_STEPS.map(({ step: s, tooltip }) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStep(s)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    step === s
+                      ? 'bg-teal-600 text-white border-teal-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-teal-400'
+                  }`}
+                >
+                  {s === 0 ? tooltip : `${s}. ${tooltip}`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Aprobado / No aprobado — only relevant for steps 1 and 2 */}
+          {step > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-2">Resultado</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAprobado(true)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    aprobado === true
+                      ? 'bg-green-600 text-white border-green-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-green-400'
+                  }`}
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  Aprobó
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAprobado(false)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    aprobado === false
+                      ? 'bg-red-500 text-white border-red-500'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-red-400'
+                  }`}
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  No aprobó
+                </button>
+                {aprobado !== null && (
+                  <button
+                    type="button"
+                    onClick={() => setAprobado(null)}
+                    className="px-3 py-1.5 rounded-full text-xs text-gray-400 border border-gray-200 hover:border-gray-400"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Dates */}
+          {step > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Fecha de asignación</label>
+                <input
+                  type="date"
+                  value={fechaAsignacion}
+                  onChange={(e) => setFechaAsignacion(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-teal-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  {aprobado === true ? 'Fecha de aprobación' : aprobado === false ? 'Fecha de vencimiento' : 'Fecha de referencia'}
+                </label>
+                <input
+                  type="date"
+                  value={fechaAprobacion}
+                  onChange={(e) => setFechaAprobacion(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-teal-500 outline-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Observations */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Observaciones</label>
+            <textarea
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+              rows={3}
+              placeholder="Notas adicionales sobre el plan de mejoramiento..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 outline-none resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-200 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white hover:bg-teal-700 transition-colors"
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+// ─── Main View ───────────────────────────────────────────────────────────────
+
 export const DebidoProcesoView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [stateMap, setStateMap] = useState<Record<string, number>>({});
   const [retiroMap, setRetiroMap] = useState<Record<string, number>>({});
   const [pmaMap, setPmaMap] = useState<Record<string, number>>({});
+  const [pmaDetails, setPmaDetails] = useState<Record<string, PmaDetail>>({});
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterEstado, setFilterEstado] = useState<string>('Todos'); // Cancelación (stateMap)
   const [filterEstadoStudent, setFilterEstadoStudent] = useState<string>('Todos'); // Estado del aprendiz
@@ -45,6 +221,9 @@ export const DebidoProcesoView: React.FC = () => {
   const [showFilterPma, setShowFilterPma] = useState(false);
   const [filterAnchor, setFilterAnchor] = useState<{ left: number; bottom: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // PMA modal
+  const [pmaModalStudent, setPmaModalStudent] = useState<Student | null>(null);
 
   const openFilter = (e: React.MouseEvent, setter: (v: boolean) => void) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -88,6 +267,7 @@ export const DebidoProcesoView: React.FC = () => {
     setStateMap(getDebidoProcesoState());
     setRetiroMap(getRetiroVoluntarioState());
     setPmaMap(getPlanMejoramientoState());
+    setPmaDetails(getPmaDetails());
   };
 
   useEffect(() => {
@@ -171,10 +351,131 @@ export const DebidoProcesoView: React.FC = () => {
     setRetiroMap(getRetiroVoluntarioState());
   };
 
-  const savePmaState = (studentId: string, step: number) => {
-    savePlanMejoramientoStep(studentId, step);
-    setPmaMap(getPlanMejoramientoState());
+  const handlePmaStepClick = (student: Student) => {
+    setPmaModalStudent(student);
   };
+
+  const handlePmaModalSave = (step: number, detail: PmaDetail) => {
+    if (!pmaModalStudent) return;
+    savePlanMejoramientoStep(pmaModalStudent.id, step);
+    savePmaDetail(pmaModalStudent.id, detail);
+    setPmaMap(getPlanMejoramientoState());
+    setPmaDetails(getPmaDetails());
+    setPmaModalStudent(null);
+  };
+
+  // ─── Excel Export ───────────────────────────────────────────────────────────
+
+  const exportToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Debido Proceso');
+
+    const headers = [
+      'No', 'Documento', 'Nombres', 'Apellidos', 'Correo', 'Ficha',
+      'Estado Aprendiz',
+      'Cancelación (paso)', 'Cancelación (descripción)',
+      'Retiro Voluntario (paso)', 'Retiro Voluntario (descripción)',
+      'PMA (paso)', 'PMA (descripción)',
+      'PMA Resultado', 'Fecha Asignación PMA', 'Fecha Referencia PMA', 'Observaciones PMA',
+    ];
+
+    // Header row
+    const headerRow = sheet.addRow(headers);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } }; // teal-700
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    headerRow.height = 36;
+
+    // Data rows
+    filteredList.forEach((s, idx) => {
+      const cancelStep = stateMap[s.id] ?? 0;
+      const retiroStep = retiroMap[s.id] ?? 1;
+      const pmaStep = pmaMap[s.id] ?? 0;
+      const detail = pmaDetails[s.id];
+
+      const row = sheet.addRow([
+        idx + 1,
+        s.documentNumber || '',
+        s.firstName,
+        s.lastName,
+        s.email || '',
+        s.group || '',
+        s.status || 'Formación',
+        cancelStep,
+        DEBIDO_PROCESO_STEP_LABELS[cancelStep] ?? `Paso ${cancelStep}`,
+        retiroStep,
+        RETIRO_VOLUNTARIO_STEP_LABELS[retiroStep] ?? `Paso ${retiroStep}`,
+        pmaStep,
+        PLAN_MEJORAMIENTO_STEP_LABELS[pmaStep] ?? `Paso ${pmaStep}`,
+        pmaStep === 0 ? '' : detail?.aprobado === true ? 'Aprobó' : detail?.aprobado === false ? 'No aprobó' : '',
+        detail?.fechaAsignacion || '',
+        detail?.fechaAprobacion || '',
+        detail?.observaciones || '',
+      ]);
+
+      row.alignment = { vertical: 'middle', wrapText: false };
+      row.height = 18;
+
+      // Zebra striping
+      if (idx % 2 === 1) {
+        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+      }
+
+      // Estado aprendiz badge color (col 7)
+      const estadoCell = row.getCell(7);
+      const status = s.status || 'Formación';
+      const estadoColor =
+        status === 'Formación' ? 'FFD1FAE5' :
+        status === 'Cancelado' ? 'FFFEF9C3' :
+        status === 'Retiro Voluntario' ? 'FFFFEDD5' :
+        status === 'Deserción' ? 'FFFEE2E2' : 'FFF3F4F6';
+      estadoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: estadoColor } };
+      estadoCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      // PMA resultado badge color (col 14)
+      const pmaResCell = row.getCell(14);
+      if (detail?.aprobado === true) {
+        pmaResCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+        pmaResCell.font = { color: { argb: 'FF065F46' }, bold: true };
+      } else if (detail?.aprobado === false) {
+        pmaResCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+        pmaResCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+      }
+      pmaResCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // Borders
+    sheet.eachRow((row) => {
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          right: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        };
+      });
+    });
+
+    // Column widths
+    const colWidths = [5, 14, 20, 20, 28, 10, 16, 8, 26, 8, 28, 6, 20, 12, 18, 18, 35];
+    sheet.columns = colWidths.map((w) => ({ width: w }));
+
+    // Freeze header
+    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reporte_debido_proceso_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -200,6 +501,14 @@ export const DebidoProcesoView: React.FC = () => {
           <div className="text-sm text-gray-500">
             <strong className="text-gray-900">{filteredList.length}</strong> aprendices
           </div>
+          <button
+            type="button"
+            onClick={exportToExcel}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            Exportar Excel
+          </button>
         </div>
       </div>
 
@@ -271,7 +580,7 @@ export const DebidoProcesoView: React.FC = () => {
                     </button>
                   </div>
                 </th>
-                <th className="px-4 py-4 font-semibold text-gray-600 text-sm min-w-[140px]">
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm min-w-[160px]">
                   <div className="inline-flex items-center gap-1">
                     <button type="button" onClick={(e) => openFilter(e, setShowFilterPma)} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
                       Plan de mejoramiento
@@ -283,73 +592,92 @@ export const DebidoProcesoView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedList.map((student, index) => (
-                <tr
-                  key={student.id}
-                  className="border-b border-gray-100 hover:bg-gray-50/80"
-                >
-                  <td className="px-4 py-4 text-gray-500 text-xs tabular-nums text-center">
-                    {showAll ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}
-                  </td>
-                  <td className="px-4 py-4 text-gray-600 font-mono text-xs">{student.documentNumber || '—'}</td>
-                  <td className="px-4 py-4 text-gray-800 text-xs">{student.firstName}</td>
-                  <td className="px-4 py-4 font-medium text-gray-900 text-xs">{student.lastName}</td>
-                  <td className="px-4 py-4 text-gray-600 text-sm">{student.email || '—'}</td>
-                  <td className="px-4 py-4 text-gray-600 text-xs">{student.group || '—'}</td>
-                  <td className="px-4 py-4">
-                    <select
-                      value={student.status || 'Formación'}
-                      onChange={(e) => {
-                        const value = e.target.value as Student['status'];
-                        if (value) updateStudent({ ...student, status: value });
-                        loadData();
-                      }}
-                      title={getEstadoStepperTooltip(student.id, student.status)}
-                      className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
-                        student.status === 'Formación' ? 'bg-green-100 text-green-800' :
-                        student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
-                        student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
-                        student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      <option value="Formación">Formación</option>
-                      <option value="Cancelado">Cancelado</option>
-                      <option value="Retiro Voluntario">Retiro Voluntario</option>
-                      <option value="Deserción">Deserción</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-4">
-                    <DebidoProcesoStepper
-                      currentStep={stateMap[student.id] ?? 0}
-                      onStepClick={(step) => saveState(student.id, step)}
-                      steps={STEPS}
-                      defaultStep={0}
-                    />
-                  </td>
-                  <td className="px-4 py-4">
-                    <DebidoProcesoStepper
-                      currentStep={retiroMap[student.id] ?? 1}
-                      onStepClick={(step) => saveRetiroState(student.id, step)}
-                      steps={RETIRO_STEPS}
-                      defaultStep={1}
-                    />
-                  </td>
-                  <td className="px-4 py-4">
-                    <DebidoProcesoStepper
-                      currentStep={pmaMap[student.id] ?? 0}
-                      onStepClick={(step) => savePmaState(student.id, step)}
-                      steps={PMA_STEPS}
-                      defaultStep={0}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {paginatedList.map((student, index) => {
+                const pmaStep = pmaMap[student.id] ?? 0;
+                const detail = pmaDetails[student.id];
+                return (
+                  <tr
+                    key={student.id}
+                    className="border-b border-gray-100 hover:bg-gray-50/80"
+                  >
+                    <td className="px-4 py-4 text-gray-500 text-xs tabular-nums text-center">
+                      {showAll ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+                    </td>
+                    <td className="px-4 py-4 text-gray-600 font-mono text-xs">{student.documentNumber || '—'}</td>
+                    <td className="px-4 py-4 text-gray-800 text-xs">{student.firstName}</td>
+                    <td className="px-4 py-4 font-medium text-gray-900 text-xs">{student.lastName}</td>
+                    <td className="px-4 py-4 text-gray-600 text-sm">{student.email || '—'}</td>
+                    <td className="px-4 py-4 text-gray-600 text-xs">{student.group || '—'}</td>
+                    <td className="px-4 py-4">
+                      <select
+                        value={student.status || 'Formación'}
+                        onChange={(e) => {
+                          const value = e.target.value as Student['status'];
+                          if (value) updateStudent({ ...student, status: value });
+                          loadData();
+                        }}
+                        title={getEstadoStepperTooltip(student.id, student.status)}
+                        className={`cursor-pointer rounded border-0 px-2 py-0.5 text-xs font-medium focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 ${
+                          student.status === 'Formación' ? 'bg-green-100 text-green-800' :
+                          student.status === 'Cancelado' ? 'bg-yellow-100 text-yellow-800' :
+                          student.status === 'Retiro Voluntario' ? 'bg-orange-100 text-orange-800' :
+                          student.status === 'Deserción' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        <option value="Formación">Formación</option>
+                        <option value="Cancelado">Cancelado</option>
+                        <option value="Retiro Voluntario">Retiro Voluntario</option>
+                        <option value="Deserción">Deserción</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-4">
+                      <DebidoProcesoStepper
+                        currentStep={stateMap[student.id] ?? 0}
+                        onStepClick={(step) => saveState(student.id, step)}
+                        steps={STEPS}
+                        defaultStep={0}
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <DebidoProcesoStepper
+                        currentStep={retiroMap[student.id] ?? 1}
+                        onStepClick={(step) => saveRetiroState(student.id, step)}
+                        steps={RETIRO_STEPS}
+                        defaultStep={1}
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <DebidoProcesoStepper
+                          currentStep={pmaStep}
+                          onStepClick={() => handlePmaStepClick(student)}
+                          steps={PMA_STEPS}
+                          defaultStep={0}
+                        />
+                        {/* Resultado badge */}
+                        {pmaStep > 0 && detail?.aprobado !== undefined && detail.aprobado !== null && (
+                          <span
+                            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${
+                              detail.aprobado
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}
+                          >
+                            {detail.aprobado ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                            {detail.aprobado ? 'Aprobó' : 'No aprobó'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
-        {/* Filtros en portal (posición fija, opciones en vertical, sin scroll horizontal) */}
+        {/* Filtros en portal */}
         {(showFilterFicha || showFilterEstado || showFilterCancelacion || showFilterRetiro || showFilterPma) && filterAnchor &&
           createPortal(
             <>
@@ -461,9 +789,22 @@ export const DebidoProcesoView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* PMA Detail Modal */}
+      {pmaModalStudent && (
+        <PmaModal
+          student={pmaModalStudent}
+          currentStep={pmaMap[pmaModalStudent.id] ?? 0}
+          detail={pmaDetails[pmaModalStudent.id] ?? { aprobado: null, fechaAsignacion: '', fechaAprobacion: '', observaciones: '' }}
+          onSave={handlePmaModalSave}
+          onClose={() => setPmaModalStudent(null)}
+        />
+      )}
     </div>
   );
 };
+
+// ─── Stepper Component ───────────────────────────────────────────────────────
 
 interface DebidoProcesoStepperProps {
   steps: { step: number; tooltip: string }[];
