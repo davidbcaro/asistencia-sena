@@ -25,6 +25,8 @@ const STORAGE_KEYS = {
   SOFIA_STUDENT_ESTADOS: 'asistenciapro_sofia_student_estados',
   EVIDENCE_COMP_MAP: 'asistenciapro_evidence_comp_map',
   PMA_DETAILS: 'asistenciapro_pma_details',
+  CANCELACION_DETAILS: 'asistenciapro_cancelacion_details',
+  RETIRO_DETAILS: 'asistenciapro_retiro_details',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -568,6 +570,53 @@ export const saveRetiroVoluntarioStep = (studentId: string, step: number) => {
   const s = Math.min(5, Math.max(1, Math.floor(step)));
   state[studentId] = s;
   saveRetiroVoluntarioState(state);
+};
+
+// --- Cancelación details ---
+export interface CancelacionDetail {
+  fechaCorreoRiesgo: string;
+  fechaNotaActa: string;
+  fechaCorreoCoordinacion: string;
+  fechaCancelacion: string;
+  fechaSofiaPlus: string;
+  observaciones: string;
+}
+export type CancelacionDetails = Record<string, CancelacionDetail>;
+
+export const getCancelacionDetails = (): CancelacionDetails => {
+  const data = localStorage.getItem(STORAGE_KEYS.CANCELACION_DETAILS);
+  if (!data) return {};
+  try { return JSON.parse(data); } catch { return {}; }
+};
+
+export const saveCancelacionDetail = (studentId: string, detail: CancelacionDetail) => {
+  const details = getCancelacionDetails();
+  details[studentId] = detail;
+  localStorage.setItem(STORAGE_KEYS.CANCELACION_DETAILS, JSON.stringify(details));
+  notifyChange();
+};
+
+// --- Retiro voluntario details ---
+export interface RetiroDetail {
+  fechaIntencion: string;
+  fechaSolicitud: string;
+  fechaNotaActa: string;
+  fechaRetiroSofia: string;
+  observaciones: string;
+}
+export type RetiroDetails = Record<string, RetiroDetail>;
+
+export const getRetiroDetails = (): RetiroDetails => {
+  const data = localStorage.getItem(STORAGE_KEYS.RETIRO_DETAILS);
+  if (!data) return {};
+  try { return JSON.parse(data); } catch { return {}; }
+};
+
+export const saveRetiroDetail = (studentId: string, detail: RetiroDetail) => {
+  const details = getRetiroDetails();
+  details[studentId] = detail;
+  localStorage.setItem(STORAGE_KEYS.RETIRO_DETAILS, JSON.stringify(details));
+  notifyChange();
 };
 
 // --- Plan de mejoramiento (estado por aprendiz: 0-2) ---
@@ -1464,6 +1513,8 @@ export const clearDatabase = () => {
     localStorage.removeItem(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS);
     localStorage.removeItem(STORAGE_KEYS.EVIDENCE_COMP_MAP);
     localStorage.removeItem(STORAGE_KEYS.PMA_DETAILS);
+    localStorage.removeItem(STORAGE_KEYS.CANCELACION_DETAILS);
+    localStorage.removeItem(STORAGE_KEYS.RETIRO_DETAILS);
     // Don't remove password hash to avoid lockout
     notifyChange();
 };

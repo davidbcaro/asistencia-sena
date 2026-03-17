@@ -9,6 +9,8 @@ import {
   getRetiroVoluntarioState, saveRetiroVoluntarioStep,
   getPlanMejoramientoState, savePlanMejoramientoStep,
   getPmaDetails, savePmaDetail, PmaDetail,
+  getCancelacionDetails, saveCancelacionDetail, CancelacionDetail,
+  getRetiroDetails, saveRetiroDetail, RetiroDetail,
   updateStudent, getEstadoStepperTooltip,
   DEBIDO_PROCESO_STEP_LABELS, RETIRO_VOLUNTARIO_STEP_LABELS, PLAN_MEJORAMIENTO_STEP_LABELS,
 } from '../services/db';
@@ -200,6 +202,180 @@ const PmaModal: React.FC<PmaModalProps> = ({ student, currentStep, detail, onSav
   );
 };
 
+// ─── Cancelación Modal ───────────────────────────────────────────────────────
+
+interface CancelacionModalProps {
+  student: Student;
+  currentStep: number;
+  detail: CancelacionDetail;
+  onSave: (step: number, detail: CancelacionDetail) => void;
+  onClose: () => void;
+}
+
+const CANCELACION_DATE_LABELS: Record<number, { key: keyof CancelacionDetail; label: string }> = {
+  1: { key: 'fechaCorreoRiesgo', label: 'Fecha correo riesgo de deserción' },
+  2: { key: 'fechaNotaActa', label: 'Fecha nota en acta' },
+  3: { key: 'fechaCorreoCoordinacion', label: 'Fecha correo coordinación' },
+  4: { key: 'fechaCancelacion', label: 'Fecha de cancelación' },
+  5: { key: 'fechaSofiaPlus', label: 'Fecha cancelación en Sofia Plus' },
+};
+
+const CancelacionModal: React.FC<CancelacionModalProps> = ({ student, currentStep, detail, onSave, onClose }) => {
+  const [step, setStep] = useState(currentStep);
+  const [dates, setDates] = useState<Omit<CancelacionDetail, 'observaciones'>>({
+    fechaCorreoRiesgo: detail.fechaCorreoRiesgo ?? '',
+    fechaNotaActa: detail.fechaNotaActa ?? '',
+    fechaCorreoCoordinacion: detail.fechaCorreoCoordinacion ?? '',
+    fechaCancelacion: detail.fechaCancelacion ?? '',
+    fechaSofiaPlus: detail.fechaSofiaPlus ?? '',
+  });
+  const [observaciones, setObservaciones] = useState(detail.observaciones ?? '');
+
+  const handleSave = () => onSave(step, { ...dates, observaciones });
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-amber-600 px-5 py-4 flex items-start justify-between">
+          <div>
+            <h3 className="text-white font-semibold text-base leading-tight">Cancelación</h3>
+            <p className="text-amber-100 text-xs mt-0.5">{student.firstName} {student.lastName}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-amber-200 hover:text-white mt-0.5"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          {/* Step selector */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-2">Paso actual</label>
+            <div className="flex gap-2 flex-wrap">
+              {STEPS.map(({ step: s, tooltip }) => (
+                <button key={s} type="button" onClick={() => setStep(s)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${step === s ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-300 hover:border-amber-400'}`}>
+                  {s === 0 ? tooltip : `${s}. ${tooltip}`}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Dates for completed steps */}
+          {step > 0 && (
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold text-gray-600">Fechas por paso</label>
+              {Object.entries(CANCELACION_DATE_LABELS)
+                .filter(([s]) => Number(s) <= step)
+                .map(([s, { key, label }]) => (
+                  <div key={s}>
+                    <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                    <input type="date" value={dates[key as keyof typeof dates] as string}
+                      onChange={(e) => setDates((d) => ({ ...d, [key]: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-amber-500 outline-none" />
+                  </div>
+                ))}
+            </div>
+          )}
+          {/* Observations */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Observaciones</label>
+            <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} rows={3}
+              placeholder="Notas adicionales sobre el proceso de cancelación..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none resize-none" />
+          </div>
+        </div>
+        <div className="px-5 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-200 transition-colors">Cancelar</button>
+          <button type="button" onClick={handleSave} className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 transition-colors">Guardar</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+// ─── Retiro Voluntario Modal ──────────────────────────────────────────────────
+
+interface RetiroModalProps {
+  student: Student;
+  currentStep: number;
+  detail: RetiroDetail;
+  onSave: (step: number, detail: RetiroDetail) => void;
+  onClose: () => void;
+}
+
+const RETIRO_DATE_LABELS: Record<number, { key: keyof RetiroDetail; label: string }> = {
+  2: { key: 'fechaIntencion', label: 'Fecha intención de retiro' },
+  3: { key: 'fechaSolicitud', label: 'Fecha solicitud de retiro' },
+  4: { key: 'fechaNotaActa', label: 'Fecha nota en acta' },
+  5: { key: 'fechaRetiroSofia', label: 'Fecha retiro en Sofia Plus' },
+};
+
+const RetiroModal: React.FC<RetiroModalProps> = ({ student, currentStep, detail, onSave, onClose }) => {
+  const [step, setStep] = useState(currentStep);
+  const [dates, setDates] = useState<Omit<RetiroDetail, 'observaciones'>>({
+    fechaIntencion: detail.fechaIntencion ?? '',
+    fechaSolicitud: detail.fechaSolicitud ?? '',
+    fechaNotaActa: detail.fechaNotaActa ?? '',
+    fechaRetiroSofia: detail.fechaRetiroSofia ?? '',
+  });
+  const [observaciones, setObservaciones] = useState(detail.observaciones ?? '');
+
+  const handleSave = () => onSave(step, { ...dates, observaciones });
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-orange-600 px-5 py-4 flex items-start justify-between">
+          <div>
+            <h3 className="text-white font-semibold text-base leading-tight">Retiro Voluntario</h3>
+            <p className="text-orange-100 text-xs mt-0.5">{student.firstName} {student.lastName}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-orange-200 hover:text-white mt-0.5"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          {/* Step selector */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-2">Paso actual</label>
+            <div className="flex gap-2 flex-wrap">
+              {RETIRO_STEPS.map(({ step: s, tooltip }) => (
+                <button key={s} type="button" onClick={() => setStep(s)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${step === s ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-600 border-gray-300 hover:border-orange-400'}`}>
+                  {s === 1 ? tooltip : `${s}. ${tooltip}`}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Dates for completed steps */}
+          {step > 1 && (
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold text-gray-600">Fechas por paso</label>
+              {Object.entries(RETIRO_DATE_LABELS)
+                .filter(([s]) => Number(s) <= step)
+                .map(([s, { key, label }]) => (
+                  <div key={s}>
+                    <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                    <input type="date" value={dates[key as keyof typeof dates] as string}
+                      onChange={(e) => setDates((d) => ({ ...d, [key]: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-orange-500 outline-none" />
+                  </div>
+                ))}
+            </div>
+          )}
+          {/* Observations */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Observaciones</label>
+            <textarea value={observaciones} onChange={(e) => setObservaciones(e.target.value)} rows={3}
+              placeholder="Notas adicionales sobre el retiro voluntario..."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-orange-500 outline-none resize-none" />
+          </div>
+        </div>
+        <div className="px-5 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-200 transition-colors">Cancelar</button>
+          <button type="button" onClick={handleSave} className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-600 text-white hover:bg-orange-700 transition-colors">Guardar</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 // ─── Main View ───────────────────────────────────────────────────────────────
 
 export const DebidoProcesoView: React.FC = () => {
@@ -209,6 +385,8 @@ export const DebidoProcesoView: React.FC = () => {
   const [retiroMap, setRetiroMap] = useState<Record<string, number>>({});
   const [pmaMap, setPmaMap] = useState<Record<string, number>>({});
   const [pmaDetails, setPmaDetails] = useState<Record<string, PmaDetail>>({});
+  const [cancelacionDetails, setCancelacionDetails] = useState<Record<string, CancelacionDetail>>({});
+  const [retiroDetails, setRetiroDetails] = useState<Record<string, RetiroDetail>>({});
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterEstado, setFilterEstado] = useState<string>('Todos'); // Cancelación (stateMap)
   const [filterEstadoStudent, setFilterEstadoStudent] = useState<string>('Todos'); // Estado del aprendiz
@@ -222,8 +400,10 @@ export const DebidoProcesoView: React.FC = () => {
   const [filterAnchor, setFilterAnchor] = useState<{ left: number; bottom: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // PMA modal
+  // Modals
   const [pmaModalStudent, setPmaModalStudent] = useState<Student | null>(null);
+  const [cancelacionModalStudent, setCancelacionModalStudent] = useState<Student | null>(null);
+  const [retiroModalStudent, setRetiroModalStudent] = useState<Student | null>(null);
 
   const openFilter = (e: React.MouseEvent, setter: (v: boolean) => void) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -268,6 +448,8 @@ export const DebidoProcesoView: React.FC = () => {
     setRetiroMap(getRetiroVoluntarioState());
     setPmaMap(getPlanMejoramientoState());
     setPmaDetails(getPmaDetails());
+    setCancelacionDetails(getCancelacionDetails());
+    setRetiroDetails(getRetiroDetails());
   };
 
   useEffect(() => {
@@ -364,6 +546,24 @@ export const DebidoProcesoView: React.FC = () => {
     setPmaModalStudent(null);
   };
 
+  const handleCancelacionModalSave = (step: number, detail: CancelacionDetail) => {
+    if (!cancelacionModalStudent) return;
+    saveDebidoProcesoStep(cancelacionModalStudent.id, step);
+    saveCancelacionDetail(cancelacionModalStudent.id, detail);
+    setStateMap(getDebidoProcesoState());
+    setCancelacionDetails(getCancelacionDetails());
+    setCancelacionModalStudent(null);
+  };
+
+  const handleRetiroModalSave = (step: number, detail: RetiroDetail) => {
+    if (!retiroModalStudent) return;
+    saveRetiroVoluntarioStep(retiroModalStudent.id, step);
+    saveRetiroDetail(retiroModalStudent.id, detail);
+    setRetiroMap(getRetiroVoluntarioState());
+    setRetiroDetails(getRetiroDetails());
+    setRetiroModalStudent(null);
+  };
+
   // ─── Excel Export ───────────────────────────────────────────────────────────
 
   const exportToExcel = async () => {
@@ -374,9 +574,13 @@ export const DebidoProcesoView: React.FC = () => {
       'No', 'Documento', 'Nombres', 'Apellidos', 'Correo', 'Ficha',
       'Estado Aprendiz',
       'Cancelación (paso)', 'Cancelación (descripción)',
+      'F. Correo Riesgo', 'F. Nota Acta', 'F. Correo Coord.', 'F. Cancelación', 'F. Sofia Plus (Cancel.)',
+      'Observaciones Cancelación',
       'Retiro Voluntario (paso)', 'Retiro Voluntario (descripción)',
+      'F. Intención Retiro', 'F. Solicitud Retiro', 'F. Nota Acta (Retiro)', 'F. Retiro Sofia Plus',
+      'Observaciones Retiro',
       'PMA (paso)', 'PMA (descripción)',
-      'PMA Resultado', 'Fecha Asignación PMA', 'Fecha Referencia PMA', 'Observaciones PMA',
+      'PMA Resultado', 'F. Asignación PMA', 'F. Referencia PMA', 'Observaciones PMA',
     ];
 
     // Header row
@@ -384,14 +588,16 @@ export const DebidoProcesoView: React.FC = () => {
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
     headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } }; // teal-700
     headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-    headerRow.height = 36;
+    headerRow.height = 48;
 
     // Data rows
     filteredList.forEach((s, idx) => {
       const cancelStep = stateMap[s.id] ?? 0;
       const retiroStep = retiroMap[s.id] ?? 1;
       const pmaStep = pmaMap[s.id] ?? 0;
-      const detail = pmaDetails[s.id];
+      const pmaD = pmaDetails[s.id];
+      const cancelD = cancelacionDetails[s.id];
+      const retiroD = retiroDetails[s.id];
 
       const row = sheet.addRow([
         idx + 1,
@@ -403,14 +609,25 @@ export const DebidoProcesoView: React.FC = () => {
         s.status || 'Formación',
         cancelStep,
         DEBIDO_PROCESO_STEP_LABELS[cancelStep] ?? `Paso ${cancelStep}`,
+        cancelD?.fechaCorreoRiesgo || '',
+        cancelD?.fechaNotaActa || '',
+        cancelD?.fechaCorreoCoordinacion || '',
+        cancelD?.fechaCancelacion || '',
+        cancelD?.fechaSofiaPlus || '',
+        cancelD?.observaciones || '',
         retiroStep,
         RETIRO_VOLUNTARIO_STEP_LABELS[retiroStep] ?? `Paso ${retiroStep}`,
+        retiroD?.fechaIntencion || '',
+        retiroD?.fechaSolicitud || '',
+        retiroD?.fechaNotaActa || '',
+        retiroD?.fechaRetiroSofia || '',
+        retiroD?.observaciones || '',
         pmaStep,
         PLAN_MEJORAMIENTO_STEP_LABELS[pmaStep] ?? `Paso ${pmaStep}`,
-        pmaStep === 0 ? '' : detail?.aprobado === true ? 'Aprobó' : detail?.aprobado === false ? 'No aprobó' : '',
-        detail?.fechaAsignacion || '',
-        detail?.fechaAprobacion || '',
-        detail?.observaciones || '',
+        pmaStep === 0 ? '' : pmaD?.aprobado === true ? 'Aprobó' : pmaD?.aprobado === false ? 'No aprobó' : '',
+        pmaD?.fechaAsignacion || '',
+        pmaD?.fechaAprobacion || '',
+        pmaD?.observaciones || '',
       ]);
 
       row.alignment = { vertical: 'middle', wrapText: false };
@@ -432,12 +649,12 @@ export const DebidoProcesoView: React.FC = () => {
       estadoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: estadoColor } };
       estadoCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
-      // PMA resultado badge color (col 14)
-      const pmaResCell = row.getCell(14);
-      if (detail?.aprobado === true) {
+      // PMA resultado badge color (col 25)
+      const pmaResCell = row.getCell(25);
+      if (pmaD?.aprobado === true) {
         pmaResCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
         pmaResCell.font = { color: { argb: 'FF065F46' }, bold: true };
-      } else if (detail?.aprobado === false) {
+      } else if (pmaD?.aprobado === false) {
         pmaResCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
         pmaResCell.font = { color: { argb: 'FF991B1B' }, bold: true };
       }
@@ -457,7 +674,7 @@ export const DebidoProcesoView: React.FC = () => {
     });
 
     // Column widths
-    const colWidths = [5, 14, 20, 20, 28, 10, 16, 8, 26, 8, 28, 6, 20, 12, 18, 18, 35];
+    const colWidths = [5, 14, 20, 20, 28, 10, 16, 8, 26, 14, 14, 16, 14, 18, 32, 8, 28, 16, 16, 18, 18, 32, 6, 20, 12, 18, 18, 35];
     sheet.columns = colWidths.map((w) => ({ width: w }));
 
     // Freeze header
@@ -634,7 +851,7 @@ export const DebidoProcesoView: React.FC = () => {
                     <td className="px-4 py-4">
                       <DebidoProcesoStepper
                         currentStep={stateMap[student.id] ?? 0}
-                        onStepClick={(step) => saveState(student.id, step)}
+                        onStepClick={() => setCancelacionModalStudent(student)}
                         steps={STEPS}
                         defaultStep={0}
                       />
@@ -642,7 +859,7 @@ export const DebidoProcesoView: React.FC = () => {
                     <td className="px-4 py-4">
                       <DebidoProcesoStepper
                         currentStep={retiroMap[student.id] ?? 1}
-                        onStepClick={(step) => saveRetiroState(student.id, step)}
+                        onStepClick={() => setRetiroModalStudent(student)}
                         steps={RETIRO_STEPS}
                         defaultStep={1}
                       />
@@ -798,6 +1015,28 @@ export const DebidoProcesoView: React.FC = () => {
           detail={pmaDetails[pmaModalStudent.id] ?? { aprobado: null, fechaAsignacion: '', fechaAprobacion: '', observaciones: '' }}
           onSave={handlePmaModalSave}
           onClose={() => setPmaModalStudent(null)}
+        />
+      )}
+
+      {/* Cancelación Detail Modal */}
+      {cancelacionModalStudent && (
+        <CancelacionModal
+          student={cancelacionModalStudent}
+          currentStep={stateMap[cancelacionModalStudent.id] ?? 0}
+          detail={cancelacionDetails[cancelacionModalStudent.id] ?? { fechaCorreoRiesgo: '', fechaNotaActa: '', fechaCorreoCoordinacion: '', fechaCancelacion: '', fechaSofiaPlus: '', observaciones: '' }}
+          onSave={handleCancelacionModalSave}
+          onClose={() => setCancelacionModalStudent(null)}
+        />
+      )}
+
+      {/* Retiro Voluntario Detail Modal */}
+      {retiroModalStudent && (
+        <RetiroModal
+          student={retiroModalStudent}
+          currentStep={retiroMap[retiroModalStudent.id] ?? 1}
+          detail={retiroDetails[retiroModalStudent.id] ?? { fechaIntencion: '', fechaSolicitud: '', fechaNotaActa: '', fechaRetiroSofia: '', observaciones: '' }}
+          onSave={handleRetiroModalSave}
+          onClose={() => setRetiroModalStudent(null)}
         />
       )}
     </div>
