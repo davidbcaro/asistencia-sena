@@ -15,7 +15,7 @@ import { SofiaPlusView } from './views/SofiaPlusView';
 import { CronogramaView } from './views/CronogramaView';
 import { AsistenciaLmsView } from './views/AsistenciaLmsView';
 import { DebidoProcesoView } from './views/DebidoProcesoView';
-import { syncFromCloud, subscribeToRealtime } from './services/db';
+import { syncFromCloud, subscribeToRealtime, uploadLocalAppDataToCloud } from './services/db';
 import { UserRole } from './types';
 
 const instructorRouteToTab: Record<string, string> = {
@@ -59,9 +59,11 @@ const App: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // 1. Initial Pull
+    // 1. Pull data from cloud (fichas, students, attendance, app_data)
     syncFromCloud();
-    // 2. Setup Realtime Listener (Insert/Update/Delete)
+    // 2. Upload local data independently — runs even if syncFromCloud has an issue
+    uploadLocalAppDataToCloud();
+    // 3. Setup Realtime Listener (Insert/Update/Delete)
     subscribeToRealtime();
   }, []);
 

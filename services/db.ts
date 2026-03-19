@@ -115,10 +115,12 @@ export const syncAppDataFromCloud = async (): Promise<void> => {
   }
 };
 
-/** Upload all non-empty localStorage keys to app_data (initial migration + ensure cloud has data) */
-export const uploadLocalAppDataToCloud = async (): Promise<void> => {
+/** Upload all non-empty localStorage keys to app_data.
+ *  Returns the number of keys actually uploaded, or -1 on error.
+ */
+export const uploadLocalAppDataToCloud = async (): Promise<number> => {
   const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-  if (!edgeUrl) return;
+  if (!edgeUrl) { console.warn('[AppData] VITE_SUPABASE_EDGE_URL not set — skipping upload'); return 0; }
   const entries: Array<{ key: string; value: unknown }> = [];
   Object.entries(APP_DATA_SYNC_KEYS).forEach(([cloudKey, storageKey]) => {
     const raw = localStorage.getItem(storageKey);
@@ -126,8 +128,12 @@ export const uploadLocalAppDataToCloud = async (): Promise<void> => {
     try { entries.push({ key: cloudKey, value: JSON.parse(raw!) }); }
     catch { /* skip malformed */ }
   });
-  if (entries.length === 0) return;
+  if (entries.length === 0) {
+    console.log('[AppData] nothing to upload (all localStorage keys are empty)');
+    return 0;
+  }
   try {
+    console.log('[AppData] uploading', entries.length, 'keys:', entries.map(e => e.key));
     const res = await fetch(`${edgeUrl}/save-app-data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -135,12 +141,15 @@ export const uploadLocalAppDataToCloud = async (): Promise<void> => {
     });
     if (!res.ok) {
       const txt = await res.text();
-      console.error('[AppData] upload failed:', res.status, txt);
-    } else {
-      console.log('[AppData] uploaded', entries.length, 'keys to cloud ✅');
+      console.error('[AppData] upload FAILED:', res.status, txt);
+      return -1;
     }
+    const json = await res.json();
+    console.log('[AppData] uploaded', entries.length, 'keys to cloud ✅', json);
+    return entries.length;
   } catch (e) {
-    console.warn('[AppData] uploadLocalAppDataToCloud failed', e);
+    console.error('[AppData] uploadLocalAppDataToCloud network error:', e);
+    return -1;
   }
 };
 
@@ -1432,11 +1441,14 @@ export const syncFromCloud = async () => {
         }
 
         await syncAppDataFromCloud();
-        await uploadLocalAppDataToCloud();
 
     } catch (e) {
         console.error("Auto-sync failed", e);
     }
+
+    // Always attempt upload — outside try/catch so a Supabase query error above
+    // can never prevent local data from being persisted to the cloud.
+    await uploadLocalAppDataToCloud();
 };
 
 // --- BACKUP & RESTORE SYSTEM ---

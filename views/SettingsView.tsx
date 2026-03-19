@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Upload, Trash2, CheckCircle, FileJson, Cloud, CloudUpload, CloudDownload, RefreshCw, XCircle, AlertCircle, AlertTriangle, Database, Copy, Check, Lock } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { 
-    exportFullBackup, 
-    importFullBackup, 
-    clearDatabase, 
+import {
+    exportFullBackup,
+    importFullBackup,
+    clearDatabase,
     isSupabaseConfigured,
     getStudents, getFichas, getAttendance, getSessions,
     syncFromCloud,
+    uploadLocalAppDataToCloud,
     verifyInstructorPassword,
     saveInstructorPassword,
     sendStudentsToCloud,
@@ -110,6 +111,31 @@ export const SettingsView: React.FC = () => {
       } finally {
         setPassLoading(false);
       }
+  };
+
+  // APP DATA UPLOAD: calificaciones, debido proceso, sofia plus, etc.
+  const [appDataSyncStatus, setAppDataSyncStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [appDataSyncMsg, setAppDataSyncMsg] = useState('');
+
+  const handleUploadAppData = async () => {
+    if (!isSupabaseConfigured()) {
+      setAppDataSyncStatus('error');
+      setAppDataSyncMsg('Supabase no configurado. Revisa las variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.');
+      return;
+    }
+    setAppDataSyncStatus('loading');
+    setAppDataSyncMsg('Subiendo calificaciones, debido proceso, Sofia Plus…');
+    const count = await uploadLocalAppDataToCloud();
+    if (count === -1) {
+      setAppDataSyncStatus('error');
+      setAppDataSyncMsg('Error al subir. Revisa la consola del navegador (F12) para ver el detalle.');
+    } else if (count === 0) {
+      setAppDataSyncStatus('success');
+      setAppDataSyncMsg('No había datos que subir (localStorage vacío para estas claves).');
+    } else {
+      setAppDataSyncStatus('success');
+      setAppDataSyncMsg(`✅ ¡Listo! Se subieron ${count} claves de datos a Supabase.`);
+    }
   };
 
   // UPLOAD: Local -> Cloud (via Edge Functions)
@@ -384,7 +410,7 @@ END $$;
         
         {syncMessage && (
             <div className={`mt-4 p-4 rounded-lg flex items-center justify-center gap-3 text-sm font-bold border ${
-                syncStatus === 'error' ? 'bg-red-50 text-red-700 border-red-100' : 
+                syncStatus === 'error' ? 'bg-red-50 text-red-700 border-red-100' :
                 syncStatus === 'success' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-blue-50 text-blue-700 border-blue-100'
             }`}>
                 {syncStatus === 'error' && <AlertTriangle className="w-5 h-5 flex-shrink-0"/>}
@@ -392,6 +418,37 @@ END $$;
                 <span>{syncMessage}</span>
             </div>
         )}
+
+        {/* App Data Upload: calificaciones, debido proceso, sofia plus, etc. */}
+        <div className="mt-4 p-4 rounded-xl border-2 border-teal-200 bg-teal-50">
+            <div className="flex items-center gap-3 mb-2">
+                <Database className="w-5 h-5 text-teal-700 flex-shrink-0" />
+                <span className="font-bold text-teal-900 text-sm">Subir datos de Calificaciones, Debido Proceso y Sofia Plus</span>
+            </div>
+            <p className="text-xs text-teal-700 mb-3">
+                Sube a Supabase las calificaciones, juicios evaluativos, debido proceso y demás datos de la app para que estén disponibles en otros equipos.
+            </p>
+            <button
+                onClick={handleUploadAppData}
+                disabled={appDataSyncStatus === 'loading'}
+                className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white text-sm font-bold rounded-lg transition-colors"
+            >
+                {appDataSyncStatus === 'loading'
+                    ? <><RefreshCw className="w-4 h-4 animate-spin" /> Subiendo...</>
+                    : <><CloudUpload className="w-4 h-4" /> Subir datos a la nube</>
+                }
+            </button>
+            {appDataSyncMsg && (
+                <div className={`mt-2 p-3 rounded-lg text-xs font-semibold flex items-start gap-2 ${
+                    appDataSyncStatus === 'error' ? 'bg-red-100 text-red-700' :
+                    appDataSyncStatus === 'success' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                }`}>
+                    {appDataSyncStatus === 'error' && <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                    {appDataSyncStatus === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                    <span>{appDataSyncMsg}</span>
+                </div>
+            )}
+        </div>
       </div>
 
       {/* --- PASSWORD MANAGEMENT --- */}
