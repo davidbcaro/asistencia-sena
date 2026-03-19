@@ -59,6 +59,14 @@ const PHASE_HEADER_COLORS: Record<string, { bg: string; text: string }> = {
   'Fase 4: Evaluación':{ bg: '#ef4444', text: '#ffffff' },
 };
 
+const PHASE_TOTAL_LABELS: Record<string, string> = {
+  'Fase Inducción':    'TOTAL FASE DE INDUCCIÓN',
+  'Fase 1: Análisis':  'TOTAL Fase Análisis',
+  'Fase 2: Planeación':'TOTAL Fase Planeación',
+  'Fase 3: Ejecución': 'TOTAL Fase Ejecución',
+  'Fase 4: Evaluación':'TOTAL Fase Evaluación',
+};
+
 /** Nombres oficiales de competencias por código SENA */
 const COMPETENCIA_NAMES: Record<string, string> = {
   '210201501': 'Promover la interacción idónea consigo mismo, con los demás y con la naturaleza en los contextos laboral y social',
@@ -183,8 +191,14 @@ const FASE_EVIDENCES: Record<string, CronogramaEvidence[]> = {
     { code: 'GI1-240201530-AA1-EV01', compCode: '240201530', aaKey: 'AA1', description: 'Evidencia de producto: Infografía. Contextualización Senología.' },
     { code: 'GI1-240201530-AA2-EV01', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (1).' },
     { code: 'GI1-240201530-AA2-EV02', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (2).' },
+    { code: 'GI1-240201530-AA3-EV01', compCode: '240201530', aaKey: 'AA3', description: 'Prueba de Conocimiento: Cuestionario AA3-EV01.' },
+    { code: 'GI1-PM-EV01', compCode: '240201530', aaKey: 'PM', description: 'Prueba de Conocimiento: Cuestionario Plan de Mejoramiento Fase Inducción.' },
   ],
   'Fase 1: Análisis': [
+    { code: 'GA1-240201530-AA2-EV01', compCode: '240201530', aaKey: 'AA2', description: 'Foro: Foro temático AA2-EV01.' },
+    { code: 'GA1-240201530-AA3-EV01', compCode: '240201530', aaKey: 'AA3', description: 'Evidencia: Crucigrama. AA3-EV01.' },
+    { code: 'GA1-240201530-AA4-EV01', compCode: '240201530', aaKey: 'AA4', description: 'Evidencia: Cuadro sinóptico. AA4-EV01.' },
+    { code: 'GA1-240201530-AA4-EV02', compCode: '240201530', aaKey: 'AA4', description: 'Evidencia: Taller. AA4-EV02.' },
     { code: 'GA1-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario sobre técnicas de levantamiento de información, plan de seguridad y continuidad del servicio.' },
     { code: 'GA1-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de producto: Informe de inventario y dispositivos de la red.' },
     { code: 'GA1-220501046-AA1-EV01', compCode: '220501046', aaKey: 'AA1', description: 'Evidencia de conocimiento: Mapa mental - Software y servicios de Internet.' },
@@ -878,6 +892,21 @@ export const CalificacionesView: React.FC = () => {
     [activitiesForFicha]
   );
 
+  /** Groups visibleActivities by phase in order. Used to compute per-phase totals. */
+  const visiblePhaseGroups = useMemo<Array<{ phase: string; activities: GradeActivity[] }>>(() => {
+    if (selectedPhase !== ALL_PHASES_VIEW) {
+      return visibleActivities.length > 0 ? [{ phase: selectedPhase, activities: visibleActivities }] : [];
+    }
+    const groups: Array<{ phase: string; activities: GradeActivity[] }> = [];
+    visibleActivities.forEach(a => {
+      const ph = a.phase || 'Sin fase';
+      const last = groups[groups.length - 1];
+      if (last && last.phase === ph) last.activities.push(a);
+      else groups.push({ phase: ph, activities: [a] });
+    });
+    return groups;
+  }, [visibleActivities, selectedPhase]);
+
   const rapKey = showAllFichasColumns ? '' : `${selectedFicha}::${selectedPhase}`;
 
   const getRapKeyForStudent = (studentGroup: string | undefined) =>
@@ -1044,6 +1073,29 @@ export const CalificacionesView: React.FC = () => {
     return groups.length > 0 ? groups : null;
   }, [activeRapColumns]);
 
+  /** Returns 'A' if all activities in a phase are 'A', 'D' if any are D/missing once at least one is graded, '' if nothing graded yet. */
+  const getPhaseLetterTotal = (studentId: string, phaseActivities: GradeActivity[], studentGroup?: string): 'A' | 'D' | '' => {
+    if (phaseActivities.length === 0) return '';
+    let hasAny = false;
+    let allA = true;
+    for (const activity of phaseActivities) {
+      const actToUse = activitiesByCanonicalAndFicha
+        ? (activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get(studentGroup || '')
+           ?? activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get('')
+           ?? activity)
+        : activity;
+      const grade = gradeMap.get(`${studentId}-${actToUse.id}`);
+      if (grade?.letter) {
+        hasAny = true;
+        if (grade.letter !== 'A') allA = false;
+      } else {
+        allA = false;
+      }
+    }
+    if (!hasAny) return '';
+    return allA ? 'A' : 'D';
+  };
+
   const getFinalForStudent = (studentId: string, studentGroup?: string) => {
     const totalActivities = visibleActivities.length;
     if (totalActivities === 0) {
@@ -1153,7 +1205,10 @@ export const CalificacionesView: React.FC = () => {
       'Estado',
       'Ficha',
       'Juicios Evaluativos',
-      ...visibleActivities.map(a => a.detail || a.name),
+      ...visiblePhaseGroups.flatMap(({ phase, activities }) => [
+        ...activities.map(a => a.detail || a.name),
+        PHASE_TOTAL_LABELS[phase] ?? `TOTAL ${phase}`,
+      ]),
       ...rapColumnsForFicha,
       ...(hasActivities ? ['Pendientes', 'Promedio', 'FINAL'] : []),
     ];
@@ -1163,10 +1218,13 @@ export const CalificacionesView: React.FC = () => {
       : studentsForFicha;
 
     const rows = studentsToExport.map((student) => {
-      const activityScores = visibleActivities.map(activity => {
-        const grade = gradeMap.get(`${student.id}-${activity.id}`);
-        return grade ? grade.letter : '';
-      });
+      const activityScores = visiblePhaseGroups.flatMap(({ phase, activities }) => [
+        ...activities.map(activity => {
+          const grade = gradeMap.get(`${student.id}-${activity.id}`);
+          return grade ? grade.letter : '';
+        }),
+        getPhaseLetterTotal(student.id, activities, student.group),
+      ]);
       const final = getFinalForStudent(student.id, student.group);
       const rapLetter = final.letter === 'A' ? 'A' : '';
       const rapValues = rapColumnsForFicha.map(() => rapLetter);
@@ -1201,7 +1259,7 @@ export const CalificacionesView: React.FC = () => {
 
     // ── Column layout metadata ─────────────────────────────────────────────
     const INFO_COLS = 7; // Documento…Juicios Evaluativos
-    const ACT_COUNT = visibleActivities.length;
+    const ACT_COUNT = visibleActivities.length + visiblePhaseGroups.length; // activities + one TOTAL per phase
     const TOTAL_COLS = headers.length;
 
     // ── Build phase groups ─────────────────────────────────────────────────
@@ -1214,6 +1272,8 @@ export const CalificacionesView: React.FC = () => {
         if (last && last.phase === ph) { last.count++; }
         else { phaseGroups.push({ phase: ph, count: 1, color: PHASE_HEADER_COLORS[ph] ?? { bg: '#6b7280', text: '#ffffff' } }); }
       });
+      // +1 per phase for TOTAL column
+      phaseGroups.forEach(g => { g.count++; });
     } else {
       phaseGroups.push({ phase: selectedPhase, count: ACT_COUNT, color: PHASE_HEADER_COLORS[selectedPhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
     }
@@ -1258,6 +1318,21 @@ export const CalificacionesView: React.FC = () => {
     headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     headerRow.height = 72; // tall enough for truncated descriptions
 
+    // Style TOTAL column headers with phase color
+    {
+      let ci = INFO_COLS + 1;
+      visiblePhaseGroups.forEach(({ phase, activities }) => {
+        ci += activities.length;
+        const phaseColor = PHASE_HEADER_COLORS[phase];
+        if (phaseColor) {
+          const cell = headerRow.getCell(ci);
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + phaseColor.bg.replace('#', '') } };
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
+        }
+        ci++;
+      });
+    }
+
     // ── Data rows (start at row 3) ─────────────────────────────────────────
     const DATA_START = 3;
     rows.forEach(rowData => {
@@ -1291,13 +1366,35 @@ export const CalificacionesView: React.FC = () => {
       if (!isNaN(fichaNum) && fichaNum > 0) { fichaCell.value = fichaNum; fichaCell.numFmt = '0'; }
     }
 
-    // ── Evidence cell coloring (A = green, D = light red) ────────────────
+    // ── Evidence cell coloring (A = green, D = light red; TOTAL = bold green/red) ─
     const ACT_START_COL = INFO_COLS + 1;
     const ACT_END_COL   = INFO_COLS + ACT_COUNT;
+    // Build set of 1-based column indices that are TOTAL columns
+    const totalColSet = new Set<number>();
+    {
+      let ci = INFO_COLS + 1;
+      visiblePhaseGroups.forEach(({ activities }) => {
+        ci += activities.length; // skip evidence columns
+        totalColSet.add(ci);     // TOTAL column
+        ci++;
+      });
+    }
     for (let rowIdx = DATA_START; rowIdx < DATA_START + rows.length; rowIdx++) {
       for (let colIdx = ACT_START_COL; colIdx <= ACT_END_COL; colIdx++) {
         const cell = sheet.getRow(rowIdx).getCell(colIdx);
-        if (cell.value === 'A') {
+        if (totalColSet.has(colIdx)) {
+          // TOTAL column styling
+          if (cell.value === 'A') {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16a34a' } };
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+          } else if (cell.value === 'D') {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } };
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+          } else {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFf3f4f6' } };
+          }
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        } else if (cell.value === 'A') {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF22C55E' } };
           cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1311,10 +1408,22 @@ export const CalificacionesView: React.FC = () => {
       }
     }
 
-    // ── Column widths: evidence = 50 px (≈7.1 units), others = auto-fit ──
+    // ── Column widths: evidence = 50 px (≈7.1 units), TOTAL = 16, others = auto-fit ──
     const EVIDENCE_W = 7.1; // 50 px ÷ ~7 px/unit
+    // Build set of 0-based header indices that are TOTAL columns
+    const totalColHeaderSet = new Set<number>();
+    {
+      let ci = INFO_COLS;
+      visiblePhaseGroups.forEach(({ activities }) => {
+        ci += activities.length;
+        totalColHeaderSet.add(ci);
+        ci++;
+      });
+    }
     sheet.columns = headers.map((header, colIdx) => {
-      const isActivity = colIdx >= INFO_COLS && colIdx < INFO_COLS + ACT_COUNT;
+      const isTotal = totalColHeaderSet.has(colIdx);
+      const isActivity = colIdx >= INFO_COLS && colIdx < INFO_COLS + ACT_COUNT && !isTotal;
+      if (isTotal) return { width: 16 }; // wider for TOTAL label
       if (isActivity) return { width: EVIDENCE_W };
       let maxLen = String(header ?? '').length;
       rows.forEach(row => { const v = String(row[colIdx] ?? ''); if (v.length > maxLen) maxLen = v.length; });
@@ -1343,7 +1452,7 @@ export const CalificacionesView: React.FC = () => {
 
     // ── Column layout metadata ─────────────────────────────────────────────
     const INFO_COLS = 7;
-    const ACT_COUNT = visibleActivities.length;
+    const ACT_COUNT = visibleActivities.length + visiblePhaseGroups.length; // activities + one TOTAL per phase
 
     // ── Build phase groups ─────────────────────────────────────────────────
     type PhaseGroup = { phase: string; count: number; color: { bg: string; text: string } };
@@ -1355,6 +1464,8 @@ export const CalificacionesView: React.FC = () => {
         if (last && last.phase === ph) { last.count++; }
         else { phaseGroups.push({ phase: ph, count: 1, color: PHASE_HEADER_COLORS[ph] ?? { bg: '#6b7280', text: '#ffffff' } }); }
       });
+      // +1 per phase for TOTAL column
+      phaseGroups.forEach(g => { g.count++; });
     } else {
       phaseGroups.push({ phase: selectedPhase, count: ACT_COUNT, color: PHASE_HEADER_COLORS[selectedPhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
     }
@@ -1437,8 +1548,10 @@ export const CalificacionesView: React.FC = () => {
         if (last && last.phase === ph) { last.count++; }
         else { groups.push({ phase: ph, count: 1, color: PHASE_HEADER_COLORS[ph] ?? { bg: '#6b7280', text: '#ffffff' } }); }
       });
+      // +1 per phase for TOTAL column
+      groups.forEach(g => { g.count++; });
     } else {
-      const cnt = visibleActivities.length;
+      const cnt = visibleActivities.length + 1; // +1 for TOTAL column
       groups.push({ phase: selectedPhase, count: cnt, color: PHASE_HEADER_COLORS[selectedPhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
     }
     return groups;
@@ -1449,7 +1562,7 @@ export const CalificacionesView: React.FC = () => {
     if (!data) return;
     const { headers, rows } = data;
     const INFO_COLS = 7;
-    const ACT_COUNT = visibleActivities.length;
+    const ACT_COUNT = visibleActivities.length + visiblePhaseGroups.length; // activities + one TOTAL per phase
     const phaseGroups = buildPhaseGroups();
     const rapFinalCount = headers.length - INFO_COLS - ACT_COUNT;
     const dateStr = new Date().toLocaleDateString('es-CO');
@@ -1469,11 +1582,39 @@ export const CalificacionesView: React.FC = () => {
       ).join('') +
       Array.from({ length: rapFinalCount }, () => `<th style="background:#374151"></th>`).join('');
 
+    // Build 0-based set of TOTAL header indices
+    const totalHeaderIndices = new Set<number>();
+    {
+      let ci = INFO_COLS;
+      visiblePhaseGroups.forEach(({ activities }) => {
+        ci += activities.length;
+        totalHeaderIndices.add(ci);
+        ci++;
+      });
+    }
+
+    // Build map from header index to activity (only for non-TOTAL evidence headers)
+    const activityByHeaderIndex = new Map<number, GradeActivity>();
+    {
+      let ci = INFO_COLS;
+      visiblePhaseGroups.forEach(({ activities }) => {
+        activities.forEach(activity => {
+          activityByHeaderIndex.set(ci, activity);
+          ci++;
+        });
+        ci++; // skip TOTAL column
+      });
+    }
+
     // Evidence headers: div fijo de 44px → columna ≈ 50px; tooltip con descripción completa
     const headerRowHtml = headers.map((h, ci) => {
-      const isAct = ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT;
+      const isTotal = totalHeaderIndices.has(ci);
+      const isAct = ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT && !isTotal;
+      if (isTotal) {
+        return `<th style="background:#374151;color:#fff;font-weight:bold;text-align:center;white-space:nowrap;padding:3px 6px">${esc(h)}</th>`;
+      }
       if (isAct) {
-        const activity = visibleActivities[ci - INFO_COLS];
+        const activity = activityByHeaderIndex.get(ci);
         const shortLabel = esc(activity?.name || h);
         const fullDesc = esc(h);
         return `<th title="${fullDesc}" style="padding:3px 2px;text-align:center">` +
@@ -1484,8 +1625,12 @@ export const CalificacionesView: React.FC = () => {
 
     const bodyHtml = rows.map(row =>
       '<tr>' + row.map((val, ci) => {
-        const isAct = ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT;
+        const isTotal = totalHeaderIndices.has(ci);
+        const isAct = ci >= INFO_COLS && ci < INFO_COLS + ACT_COUNT && !isTotal;
         const v = esc(val);
+        if (isTotal && val === 'A') return `<td style="background:#16a34a;color:#fff;font-weight:bold;text-align:center;padding:3px 4px">${v}</td>`;
+        if (isTotal && val === 'D') return `<td style="background:#dc2626;color:#fff;font-weight:bold;text-align:center;padding:3px 4px">${v}</td>`;
+        if (isTotal) return `<td style="background:#f3f4f6;text-align:center;padding:3px 4px">${v}</td>`;
         if (isAct && val === 'A') return `<td style="background:#22c55e;color:#fff;font-weight:bold;text-align:center;padding:3px 2px">${v}</td>`;
         if (isAct && val === 'D') return `<td style="background:#fee2e2;color:#ef4444;text-align:center;padding:3px 2px">${v}</td>`;
         if (isAct)                return `<td style="text-align:center;padding:3px 2px">${v}</td>`;
@@ -1542,7 +1687,7 @@ export const CalificacionesView: React.FC = () => {
     if (!data) return;
     const { headers, rows } = data;
     const INFO_COLS = 7;
-    const ACT_COUNT = visibleActivities.length;
+    const ACT_COUNT = visibleActivities.length + visiblePhaseGroups.length; // activities + one TOTAL per phase
     const phaseGroups = buildPhaseGroups();
     const escMd = (s: unknown) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
@@ -2210,7 +2355,7 @@ export const CalificacionesView: React.FC = () => {
                     return (
                       <th
                         key={`phase-${gi}`}
-                        colSpan={g.activities.length}
+                        colSpan={g.activities.length + 1}
                         className="px-2 py-1.5 text-center border-l border-white/30 align-middle"
                         style={{ backgroundColor: color.bg }}
                       >
@@ -2353,19 +2498,35 @@ export const CalificacionesView: React.FC = () => {
               )}
 
               {/* Evidence column headers (always in this row) */}
-              {visibleActivities.map(activity => {
-                const compEntry = getEvCompEntry(activity);
+              {visiblePhaseGroups.map(({ phase, activities }) => {
+                const phColor = PHASE_HEADER_COLORS[phase];
+                const totalLabel = PHASE_TOTAL_LABELS[phase] ?? `TOTAL ${phase}`;
                 return (
-                  <th key={activity.id} className="px-4 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle bg-gray-50" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                    {compEntry?.aaKey && (
-                      <div className="text-[10px] text-teal-400 font-medium leading-tight mb-0.5 text-center">{compEntry.aaKey}</div>
-                    )}
-                    <div className="flex items-center gap-2 justify-center">
-                      <button type="button" onClick={() => openActivityDetail(activity)} className="hover:text-gray-900 underline decoration-dotted">{getActivityShortLabel(activity.name)}</button>
-                      <button onClick={() => openEditActivity(activity)} className="text-gray-400 hover:text-teal-600" title="Editar actividad"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setActivityToDelete(activity)} className="text-gray-400 hover:text-red-600" title="Eliminar actividad"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </th>
+                  <React.Fragment key={`phase-ev-${phase}`}>
+                    {activities.map(activity => {
+                      const compEntry = getEvCompEntry(activity);
+                      return (
+                        <th key={activity.id} className="px-4 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle bg-gray-50" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                          {compEntry?.aaKey && (
+                            <div className="text-[10px] text-teal-400 font-medium leading-tight mb-0.5 text-center">{compEntry.aaKey}</div>
+                          )}
+                          <div className="flex items-center gap-2 justify-center">
+                            <button type="button" onClick={() => openActivityDetail(activity)} className="hover:text-gray-900 underline decoration-dotted">{getActivityShortLabel(activity.name)}</button>
+                            <button onClick={() => openEditActivity(activity)} className="text-gray-400 hover:text-teal-600" title="Editar actividad"><Pencil className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => setActivityToDelete(activity)} className="text-gray-400 hover:text-red-600" title="Eliminar actividad"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </th>
+                      );
+                    })}
+                    {/* TOTAL column for this phase */}
+                    <th
+                      className="px-2 py-2 font-bold text-xs text-center border-r border-l border-gray-300 align-middle whitespace-nowrap min-w-[56px]"
+                      style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX, backgroundColor: phColor?.bg ?? '#374151', color: phColor?.text ?? '#fff' }}
+                      title={totalLabel}
+                    >
+                      TOTAL
+                    </th>
+                  </React.Fragment>
                 );
               })}
 
@@ -2413,13 +2574,13 @@ export const CalificacionesView: React.FC = () => {
           <tbody className="divide-y divide-gray-100">
             {studentsForFicha.length === 0 ? (
               <tr>
-                <td colSpan={9 + visibleActivities.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={9 + visibleActivities.length + visiblePhaseGroups.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
                   {filterStatus !== 'Todos' ? 'Ningún aprendiz coincide con el filtro de estado seleccionado.' : hasSearchTerm ? 'No se encontraron aprendices con la búsqueda.' : selectedFicha === 'Todas' ? 'No hay aprendices.' : 'No hay aprendices en esta ficha.'}
                 </td>
               </tr>
             ) : studentsFilteredByFinal.length === 0 ? (
               <tr>
-                <td colSpan={9 + visibleActivities.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={9 + visibleActivities.length + visiblePhaseGroups.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
                   Ningún aprendiz coincide con el filtro FINAL seleccionado.
                 </td>
               </tr>
@@ -2475,30 +2636,53 @@ export const CalificacionesView: React.FC = () => {
                       </span>
                     )}
                   </td>
-                  {visibleActivities.map(activity => {
-                    // En vista "Todas": resolver la actividad real de la ficha del estudiante
-                    const resolvedActivity = activitiesByCanonicalAndFicha
-                      ? (activitiesByCanonicalAndFicha
-                          .get(getActivityCanonicalKey(activity))
-                          ?.get(student.group || '') ??
-                        activitiesByCanonicalAndFicha
-                          .get(getActivityCanonicalKey(activity))
-                          ?.get('') ?? activity)
-                      : activity;
-                    const grade = gradeMap.get(`${student.id}-${resolvedActivity.id}`);
-                    const isEditing = editingCell?.studentId === student.id && editingCell?.activityId === resolvedActivity.id;
+                  {visiblePhaseGroups.map(({ phase, activities }) => {
+                    const phColor = PHASE_HEADER_COLORS[phase];
+                    const phaseTotal = getPhaseLetterTotal(student.id, activities, student.group);
                     return (
-                      <td key={activity.id} className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} onClick={() => { setEditingCell({ studentId: student.id, activityId: resolvedActivity.id }); setEditingScore(grade ? String(grade.score) : ''); }}>
-                        {isEditing ? (
-                          <input type="number" min={0} max={100} className="w-20 bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-teal-500 outline-none" value={editingScore} onChange={(e) => setEditingScore(e.target.value)}
-                            onBlur={() => { const trimmed = editingScore.trim(); if (!trimmed) { deleteGradeEntry(student.id, resolvedActivity.id); setEditingCell(null); setEditingScore(''); return; } const numeric = Number(trimmed); if (!Number.isNaN(numeric)) { const finalScore = Math.max(0, Math.min(100, Math.round(numeric))); upsertGrades([{ studentId: student.id, activityId: resolvedActivity.id, score: finalScore, letter: scoreToLetter(finalScore), updatedAt: new Date().toISOString() }]); } setEditingCell(null); setEditingScore(''); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); if (e.key === 'Escape') { setEditingCell(null); setEditingScore(''); } }} autoFocus />
-                        ) : grade ? (
-                          <span className="inline-flex items-center gap-2"><span className="font-semibold">{grade.score}</span><span className={`text-xs font-bold px-2 py-0.5 rounded-full ${grade.letter === 'A' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{grade.letter}</span></span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
+                      <React.Fragment key={`phase-data-${phase}`}>
+                        {activities.map(activity => {
+                          // En vista "Todas": resolver la actividad real de la ficha del estudiante
+                          const resolvedActivity = activitiesByCanonicalAndFicha
+                            ? (activitiesByCanonicalAndFicha
+                                .get(getActivityCanonicalKey(activity))
+                                ?.get(student.group || '') ??
+                              activitiesByCanonicalAndFicha
+                                .get(getActivityCanonicalKey(activity))
+                                ?.get('') ?? activity)
+                            : activity;
+                          const grade = gradeMap.get(`${student.id}-${resolvedActivity.id}`);
+                          const isEditing = editingCell?.studentId === student.id && editingCell?.activityId === resolvedActivity.id;
+                          return (
+                            <td key={activity.id} className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} onClick={() => { setEditingCell({ studentId: student.id, activityId: resolvedActivity.id }); setEditingScore(grade ? String(grade.score) : ''); }}>
+                              {isEditing ? (
+                                <input type="number" min={0} max={100} className="w-20 bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-teal-500 outline-none" value={editingScore} onChange={(e) => setEditingScore(e.target.value)}
+                                  onBlur={() => { const trimmed = editingScore.trim(); if (!trimmed) { deleteGradeEntry(student.id, resolvedActivity.id); setEditingCell(null); setEditingScore(''); return; } const numeric = Number(trimmed); if (!Number.isNaN(numeric)) { const finalScore = Math.max(0, Math.min(100, Math.round(numeric))); upsertGrades([{ studentId: student.id, activityId: resolvedActivity.id, score: finalScore, letter: scoreToLetter(finalScore), updatedAt: new Date().toISOString() }]); } setEditingCell(null); setEditingScore(''); }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); if (e.key === 'Escape') { setEditingCell(null); setEditingScore(''); } }} autoFocus />
+                              ) : grade ? (
+                                <span className="inline-flex items-center gap-2"><span className="font-semibold">{grade.score}</span><span className={`text-xs font-bold px-2 py-0.5 rounded-full ${grade.letter === 'A' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{grade.letter}</span></span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                        {/* TOTAL cell */}
+                        <td
+                          className="px-2 py-2 text-center font-bold text-xs border-r border-l border-gray-200 align-middle whitespace-nowrap"
+                          style={{
+                            height: TABLE_ROW_HEIGHT_PX,
+                            maxHeight: TABLE_ROW_HEIGHT_PX,
+                            ...(phaseTotal === 'A'
+                              ? { backgroundColor: '#16a34a', color: '#fff' }
+                              : phaseTotal === 'D'
+                              ? { backgroundColor: '#dc2626', color: '#fff' }
+                              : { backgroundColor: '#f9fafb', color: '#9ca3af' }),
+                          }}
+                        >
+                          {phaseTotal || '—'}
+                        </td>
+                      </React.Fragment>
                     );
                   })}
                   {(() => {
