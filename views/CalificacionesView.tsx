@@ -1150,6 +1150,24 @@ export const CalificacionesView: React.FC = () => {
     });
   }, [studentsForFicha, finalFilter, gradeMap, visibleActivities, showAllFichasColumns]);
 
+  /** Counts how many students from studentsForFicha have letter='A' for each activity (by activity.id). */
+  const activityApprovalCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    visibleActivities.forEach(activity => {
+      let count = 0;
+      studentsForFicha.forEach(student => {
+        const actToUse = activitiesByCanonicalAndFicha
+          ? (activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get(student.group || '')
+             ?? activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get('')
+             ?? activity)
+          : activity;
+        if (gradeMap.get(`${student.id}-${actToUse.id}`)?.letter === 'A') count++;
+      });
+      counts.set(activity.id, count);
+    });
+    return counts;
+  }, [visibleActivities, studentsForFicha, gradeMap, activitiesByCanonicalAndFicha]);
+
   const totalPagesFiltered = Math.ceil(studentsFilteredByFinal.length / ITEMS_PER_PAGE);
   const paginatedStudentsFiltered = useMemo(() => {
     if (showAllStudents) return studentsFilteredByFinal;
@@ -2505,6 +2523,9 @@ export const CalificacionesView: React.FC = () => {
                   <React.Fragment key={`phase-ev-${phase}`}>
                     {activities.map(activity => {
                       const compEntry = getEvCompEntry(activity);
+                      const approved = activityApprovalCounts.get(activity.id) ?? 0;
+                      const total = studentsForFicha.length;
+                      const pct = total > 0 ? Math.round((approved / total) * 100) : 0;
                       return (
                         <th key={activity.id} className="px-4 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle bg-gray-50" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                           {compEntry?.aaKey && (
@@ -2515,6 +2536,14 @@ export const CalificacionesView: React.FC = () => {
                             <button onClick={() => openEditActivity(activity)} className="text-gray-400 hover:text-teal-600" title="Editar actividad"><Pencil className="w-3.5 h-3.5" /></button>
                             <button onClick={() => setActivityToDelete(activity)} className="text-gray-400 hover:text-red-600" title="Eliminar actividad"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
+                          {total > 0 && (
+                            <div className="mt-1 flex flex-col items-center gap-0.5" title={`${approved} de ${total} aprendices aprobaron`}>
+                              <div className="w-full h-1 rounded-full bg-gray-200 overflow-hidden">
+                                <div className="h-full rounded-full bg-teal-500 transition-all" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-[9px] font-medium text-gray-400 leading-none">{approved}/{total}</span>
+                            </div>
+                          )}
                         </th>
                       );
                     })}

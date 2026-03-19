@@ -1,11 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Layers, BookOpen, Pencil, X, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Ficha } from '../types';
-import { getFichas, addFicha, deleteFicha, updateFicha } from '../services/db';
+import { Ficha, Student } from '../types';
+import { getFichas, addFicha, deleteFicha, updateFicha, getStudents } from '../services/db';
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  'Formación':       { label: 'Formación',       color: '#16a34a', bg: '#dcfce7' },
+  'Cancelado':       { label: 'Cancelado',        color: '#ca8a04', bg: '#fef9c3' },
+  'Retiro Voluntario': { label: 'Retiro Vol.',    color: '#ea580c', bg: '#ffedd5' },
+  'Deserción':       { label: 'Deserción',        color: '#dc2626', bg: '#fee2e2' },
+};
 
 export const FichasView: React.FC = () => {
   const [fichas, setFichas] = useState<Ficha[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const navigate = useNavigate();
   
@@ -46,7 +54,8 @@ export const FichasView: React.FC = () => {
   };
 
   const loadData = () => {
-      setFichas(getFichas());
+    setFichas(getFichas());
+    setStudents(getStudents());
   };
 
   useEffect(() => {
@@ -127,6 +136,20 @@ export const FichasView: React.FC = () => {
       setFichaToDelete(null);
     }
   };
+
+  /** Status counts per ficha code */
+  const fichaStats = useMemo(() => {
+    const map = new Map<string, Record<string, number>>();
+    fichas.forEach(f => map.set(f.code, {}));
+    students.forEach(s => {
+      const code = s.group || '';
+      if (!map.has(code)) return;
+      const status = s.status || 'Formación';
+      const entry = map.get(code)!;
+      entry[status] = (entry[status] ?? 0) + 1;
+    });
+    return map;
+  }, [fichas, students]);
 
   const handleOpenCronograma = (ficha: Ficha) => {
     navigate(`/instructor/fichas/${ficha.id}/cronograma`);
@@ -267,6 +290,54 @@ export const FichasView: React.FC = () => {
                     <p className="text-teal-600 font-medium text-sm">{ficha.program}</p>
                     {ficha.description && <p className="text-gray-500 text-sm mt-2">{ficha.description}</p>}
                 </div>
+                {/* Status distribution */}
+                {(() => {
+                  const stats = fichaStats.get(ficha.code) ?? {};
+                  const total = Object.values(stats).reduce((a, b) => a + b, 0);
+                  if (total === 0) return (
+                    <p className="text-xs text-gray-400 mt-3">Sin aprendices registrados</p>
+                  );
+                  return (
+                    <div className="mt-3">
+                      {/* Mini stacked bar */}
+                      <div className="flex h-2 rounded-full overflow-hidden gap-px mb-2">
+                        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+                          const count = stats[key] ?? 0;
+                          if (count === 0) return null;
+                          const pct = (count / total) * 100;
+                          return (
+                            <div
+                              key={key}
+                              style={{ width: `${pct}%`, backgroundColor: cfg.color }}
+                              title={`${cfg.label}: ${count}`}
+                            />
+                          );
+                        })}
+                      </div>
+                      {/* Badges */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+                          const count = stats[key] ?? 0;
+                          if (count === 0) return null;
+                          return (
+                            <span
+                              key={key}
+                              className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full"
+                              style={{ backgroundColor: cfg.bg, color: cfg.color }}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: cfg.color }} />
+                              {cfg.label} <span className="font-bold">{count}</span>
+                            </span>
+                          );
+                        })}
+                        <span className="inline-flex items-center text-[11px] text-gray-400 ml-auto font-medium">
+                          {total} total
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="mt-4">
                     <button
                         onClick={() => handleOpenCronograma(ficha)}
