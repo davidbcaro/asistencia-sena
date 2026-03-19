@@ -74,11 +74,15 @@ const callSaveAppData = (cloudKey: string, value: unknown): void => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
     if (!edgeUrl) return;
     try {
-      await fetch(`${edgeUrl}/save-app-data`, {
+      const res = await fetch(`${edgeUrl}/save-app-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: cloudKey, value }),
       });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.warn('[AppData] cloud write failed for key:', cloudKey, res.status, txt);
+      }
     } catch (e) {
       console.warn('[AppData] cloud write failed for key:', cloudKey, e);
     }
@@ -124,11 +128,17 @@ export const uploadLocalAppDataToCloud = async (): Promise<void> => {
   });
   if (entries.length === 0) return;
   try {
-    await fetch(`${edgeUrl}/save-app-data`, {
+    const res = await fetch(`${edgeUrl}/save-app-data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ entries }),
     });
+    if (!res.ok) {
+      const txt = await res.text();
+      console.error('[AppData] upload failed:', res.status, txt);
+    } else {
+      console.log('[AppData] uploaded', entries.length, 'keys to cloud ✅');
+    }
   } catch (e) {
     console.warn('[AppData] uploadLocalAppDataToCloud failed', e);
   }
