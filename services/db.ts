@@ -37,6 +37,103 @@ const notifyChange = () => {
   }
 };
 
+// ─── APP_DATA CLOUD SYNC ────────────────────────────────────────────────────
+
+/** Maps cloud key → localStorage key for app_data table sync */
+const APP_DATA_SYNC_KEYS: Record<string, string> = {
+  grade_activities:            STORAGE_KEYS.GRADE_ACTIVITIES,
+  grades:                      STORAGE_KEYS.GRADES,
+  rap_notes:                   STORAGE_KEYS.RAP_NOTES,
+  rap_columns:                 STORAGE_KEYS.RAP_COLUMNS,
+  student_grade_observations:  STORAGE_KEYS.STUDENT_GRADE_OBSERVATIONS,
+  juicios_evaluativos:         STORAGE_KEYS.JUICIOS_EVALUATIVOS,
+  lms_last_access:             STORAGE_KEYS.LMS_LAST_ACCESS,
+  debido_proceso:              STORAGE_KEYS.DEBIDO_PROCESO,
+  retiro_voluntario:           STORAGE_KEYS.RETIRO_VOLUNTARIO,
+  plan_mejoramiento:           STORAGE_KEYS.PLAN_MEJORAMIENTO,
+  pma_details:                 STORAGE_KEYS.PMA_DETAILS,
+  cancelacion_details:         STORAGE_KEYS.CANCELACION_DETAILS,
+  retiro_details:              STORAGE_KEYS.RETIRO_DETAILS,
+  evidence_comp_map:           STORAGE_KEYS.EVIDENCE_COMP_MAP,
+  sofia_rap_defs:              STORAGE_KEYS.SOFIA_RAP_DEFS,
+  sofia_juicio_entries:        STORAGE_KEYS.SOFIA_JUICIO_ENTRIES,
+  sofia_juicio_history:        STORAGE_KEYS.SOFIA_JUICIO_HISTORY,
+  sofia_student_estados:       STORAGE_KEYS.SOFIA_STUDENT_ESTADOS,
+};
+
+const _isEmptyValue = (raw: string | null): boolean =>
+  !raw || raw === 'null' || raw === '[]' || raw === '{}' || raw === '';
+
+/** Debounced timers per cloud key */
+const _cloudTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+/** Fire-and-forget: upsert a single key into app_data via Edge Function (debounced 400ms) */
+const callSaveAppData = (cloudKey: string, value: unknown): void => {
+  clearTimeout(_cloudTimers[cloudKey]);
+  _cloudTimers[cloudKey] = setTimeout(async () => {
+    const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
+    if (!edgeUrl) return;
+    try {
+      await fetch(`${edgeUrl}/save-app-data`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: cloudKey, value }),
+      });
+    } catch (e) {
+      console.warn('[AppData] cloud write failed for key:', cloudKey, e);
+    }
+  }, 400);
+};
+
+/** Download app_data rows from Supabase; only restore if localStorage is empty for that key */
+export const syncAppDataFromCloud = async (): Promise<void> => {
+  const client = getClient();
+  if (!client) return;
+  try {
+    const { data, error } = await client
+      .from('app_data')
+      .select('key, value_json');
+    if (error || !data) return;
+    let changed = false;
+    data.forEach(({ key, value_json }: { key: string; value_json: unknown }) => {
+      const storageKey = APP_DATA_SYNC_KEYS[key];
+      if (!storageKey) return;
+      const local = localStorage.getItem(storageKey);
+      if (_isEmptyValue(local)) {
+        localStorage.setItem(storageKey, JSON.stringify(value_json));
+        changed = true;
+      }
+      // local has data → keep it (local wins)
+    });
+    if (changed) window.dispatchEvent(new Event('asistenciapro-storage-update'));
+  } catch (e) {
+    console.warn('[AppData] syncAppDataFromCloud failed', e);
+  }
+};
+
+/** Upload all non-empty localStorage keys to app_data (initial migration + ensure cloud has data) */
+export const uploadLocalAppDataToCloud = async (): Promise<void> => {
+  const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
+  if (!edgeUrl) return;
+  const entries: Array<{ key: string; value: unknown }> = [];
+  Object.entries(APP_DATA_SYNC_KEYS).forEach(([cloudKey, storageKey]) => {
+    const raw = localStorage.getItem(storageKey);
+    if (_isEmptyValue(raw)) return;
+    try { entries.push({ key: cloudKey, value: JSON.parse(raw!) }); }
+    catch { /* skip malformed */ }
+  });
+  if (entries.length === 0) return;
+  try {
+    await fetch(`${edgeUrl}/save-app-data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries }),
+    });
+  } catch (e) {
+    console.warn('[AppData] uploadLocalAppDataToCloud failed', e);
+  }
+};
+
 // --- CRYPTO HELPERS (SHA-256) ---
 
 const hashPasswordInsecure = (plainText: string): string => {
@@ -508,6 +605,7 @@ export const getLmsLastAccess = (): Record<string, string> => {
 export const saveLmsLastAccess = (data: Record<string, string>) => {
   localStorage.setItem(STORAGE_KEYS.LMS_LAST_ACCESS, JSON.stringify(data));
   notifyChange();
+  callSaveAppData('lms_last_access', data);
 };
 
 // --- Debido proceso (estado por aprendiz: 0-5, 0 = Sin novedad) ---
@@ -532,6 +630,7 @@ export const getDebidoProcesoState = (): DebidoProcesoState => {
 export const saveDebidoProcesoState = (state: DebidoProcesoState) => {
   localStorage.setItem(STORAGE_KEYS.DEBIDO_PROCESO, JSON.stringify(state));
   notifyChange();
+  callSaveAppData('debido_proceso', state);
 };
 
 export const saveDebidoProcesoStep = (studentId: string, step: number) => {
@@ -563,6 +662,7 @@ export const getRetiroVoluntarioState = (): RetiroVoluntarioState => {
 export const saveRetiroVoluntarioState = (state: RetiroVoluntarioState) => {
   localStorage.setItem(STORAGE_KEYS.RETIRO_VOLUNTARIO, JSON.stringify(state));
   notifyChange();
+  callSaveAppData('retiro_voluntario', state);
 };
 
 export const saveRetiroVoluntarioStep = (studentId: string, step: number) => {
@@ -594,6 +694,7 @@ export const saveCancelacionDetail = (studentId: string, detail: CancelacionDeta
   details[studentId] = detail;
   localStorage.setItem(STORAGE_KEYS.CANCELACION_DETAILS, JSON.stringify(details));
   notifyChange();
+  callSaveAppData('cancelacion_details', details);
 };
 
 // --- Retiro voluntario details ---
@@ -617,6 +718,7 @@ export const saveRetiroDetail = (studentId: string, detail: RetiroDetail) => {
   details[studentId] = detail;
   localStorage.setItem(STORAGE_KEYS.RETIRO_DETAILS, JSON.stringify(details));
   notifyChange();
+  callSaveAppData('retiro_details', details);
 };
 
 // --- Plan de mejoramiento (estado por aprendiz: 0-2) ---
@@ -641,6 +743,7 @@ export const getPlanMejoramientoState = (): PlanMejoramientoState => {
 export const savePlanMejoramientoState = (state: PlanMejoramientoState) => {
   localStorage.setItem(STORAGE_KEYS.PLAN_MEJORAMIENTO, JSON.stringify(state));
   notifyChange();
+  callSaveAppData('plan_mejoramiento', state);
 };
 
 export const savePlanMejoramientoStep = (studentId: string, step: number) => {
@@ -721,6 +824,7 @@ export const savePmaDetail = (studentId: string, detail: PmaDetail) => {
   details[studentId] = detail;
   localStorage.setItem(STORAGE_KEYS.PMA_DETAILS, JSON.stringify(details));
   notifyChange();
+  callSaveAppData('pma_details', details);
 };
 
 // Fichas
@@ -914,6 +1018,7 @@ export const getGradeActivities = (): GradeActivity[] => {
 export const saveGradeActivities = (activities: GradeActivity[]) => {
     localStorage.setItem(STORAGE_KEYS.GRADE_ACTIVITIES, JSON.stringify(activities));
     notifyChange();
+    callSaveAppData('grade_activities', activities);
 };
 
 export const addGradeActivity = (activity: GradeActivity) => {
@@ -945,6 +1050,7 @@ export const getGrades = (): GradeEntry[] => {
 export const saveGrades = (grades: GradeEntry[]) => {
     localStorage.setItem(STORAGE_KEYS.GRADES, JSON.stringify(grades));
     notifyChange();
+    callSaveAppData('grades', grades);
 };
 
 export const upsertGrades = (entries: GradeEntry[]) => {
@@ -982,6 +1088,7 @@ export const getRapNotes = (): RapNotes => {
 export const saveRapNotes = (notes: RapNotes) => {
     localStorage.setItem(STORAGE_KEYS.RAP_NOTES, JSON.stringify(notes));
     notifyChange();
+    callSaveAppData('rap_notes', notes);
 };
 
 export const getRapColumns = (): RapColumns => {
@@ -992,6 +1099,7 @@ export const getRapColumns = (): RapColumns => {
 export const saveRapColumns = (columns: RapColumns) => {
     localStorage.setItem(STORAGE_KEYS.RAP_COLUMNS, JSON.stringify(columns));
     notifyChange();
+    callSaveAppData('rap_columns', columns);
 };
 
 // --- STUDENT GRADE OBSERVATIONS (observaciones en detalle del aprendiz en Calificaciones) ---
@@ -1005,6 +1113,7 @@ export const getStudentGradeObservations = (): StudentGradeObservations => {
 export const saveStudentGradeObservations = (obs: StudentGradeObservations) => {
     localStorage.setItem(STORAGE_KEYS.STUDENT_GRADE_OBSERVATIONS, JSON.stringify(obs));
     notifyChange();
+    callSaveAppData('student_grade_observations', obs);
 };
 
 // --- JUICIOS EVALUATIVOS (por ficha+fase, por estudiante: '-' | 'orange' | 'green') ---
@@ -1032,6 +1141,7 @@ export const getJuiciosEvaluativos = (): JuiciosEvaluativos => {
 export const saveJuiciosEvaluativos = (juicios: JuiciosEvaluativos) => {
     localStorage.setItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS, JSON.stringify(juicios));
     notifyChange();
+    callSaveAppData('juicios_evaluativos', juicios);
 };
 
 // Attendance
@@ -1193,6 +1303,27 @@ export const subscribeToRealtime = () => {
             }
         )
         .subscribe();
+
+    client
+        .channel('app_data_realtime')
+        .on(
+            'postgres_changes' as any,
+            { event: '*', schema: 'public', table: 'app_data' },
+            (payload: any) => {
+                const newRow = payload.new ?? {};
+                const { key, value_json } = newRow as { key: string; value_json: unknown };
+                if (!key) return;
+                const storageKey = APP_DATA_SYNC_KEYS[key];
+                if (!storageKey) return;
+                const currentLocal = localStorage.getItem(storageKey);
+                const incoming = JSON.stringify(value_json);
+                if (currentLocal !== incoming) {
+                    localStorage.setItem(storageKey, incoming);
+                    window.dispatchEvent(new Event('asistenciapro-storage-update'));
+                }
+            }
+        )
+        .subscribe();
 };
 
 // Sync attendance from cloud (used by Realtime)
@@ -1289,6 +1420,9 @@ export const syncFromCloud = async () => {
         if (p && p.value) {
             localStorage.setItem(STORAGE_KEYS.INSTRUCTOR_PWD_HASH, p.value);
         }
+
+        await syncAppDataFromCloud();
+        await uploadLocalAppDataToCloud();
 
     } catch (e) {
         console.error("Auto-sync failed", e);
@@ -1415,6 +1549,7 @@ export const getSofiaRapDefs = (): Record<string, RapDefinition> => {
 
 export const saveSofiaRapDefs = (defs: Record<string, RapDefinition>) => {
   localStorage.setItem(STORAGE_KEYS.SOFIA_RAP_DEFS, JSON.stringify(defs));
+  callSaveAppData('sofia_rap_defs', defs);
 };
 
 export const getSofiaJuicioEntries = (): Record<string, JuicioRapEntry> => {
@@ -1429,6 +1564,7 @@ export const upsertSofiaJuicioEntries = (entries: JuicioRapEntry[]) => {
   });
   localStorage.setItem(STORAGE_KEYS.SOFIA_JUICIO_ENTRIES, JSON.stringify(existing));
   notifyChange();
+  callSaveAppData('sofia_juicio_entries', existing);
 };
 
 export const getSofiaJuicioHistory = (): JuicioRapHistoryEntry[] => {
@@ -1442,7 +1578,9 @@ export const appendSofiaJuicioHistory = (entries: JuicioRapHistoryEntry[]) => {
   const existingKeys = new Set(existing.map(e => `${e.studentId}-${e.rapId}-${e.fecha}-${e.funcionario}`));
   const newEntries = entries.filter(e => !existingKeys.has(`${e.studentId}-${e.rapId}-${e.fecha}-${e.funcionario}`));
   if (newEntries.length === 0) return;
-  localStorage.setItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY, JSON.stringify([...existing, ...newEntries]));
+  const updated = [...existing, ...newEntries];
+  localStorage.setItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY, JSON.stringify(updated));
+  callSaveAppData('sofia_juicio_history', updated);
 };
 
 export const getSofiaStudentEstados = (): Record<string, string> => {
@@ -1455,6 +1593,7 @@ export const upsertSofiaStudentEstados = (map: Record<string, string>) => {
   const merged = { ...existing, ...map };
   localStorage.setItem(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS, JSON.stringify(merged));
   notifyChange();
+  callSaveAppData('sofia_student_estados', merged);
 };
 
 // ---------------------------------------------------------------------------
@@ -1489,6 +1628,7 @@ export const getEvidenceCompMap = (): EvidenceCompMapData => {
 export const saveEvidenceCompMap = (map: EvidenceCompMapData) => {
   localStorage.setItem(STORAGE_KEYS.EVIDENCE_COMP_MAP, JSON.stringify(map));
   notifyChange();
+  callSaveAppData('evidence_comp_map', map);
 };
 
 export const clearDatabase = () => {
