@@ -67,8 +67,15 @@ const _isEmptyValue = (raw: string | null): boolean =>
 /** Debounced timers per cloud key */
 const _cloudTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
-/** Fire-and-forget: upsert a single key into app_data via Edge Function (debounced 400ms) */
+/** Fire-and-forget: upsert a single key into app_data via Edge Function (debounced 400ms).
+ *  IMPORTANT: skips upload if value serializes to an empty array/object — prevents
+ *  accidentally overwriting real cloud data with empty local state.
+ */
 const callSaveAppData = (cloudKey: string, value: unknown): void => {
+  // Guard: never upload empty values to the cloud
+  const serialized = JSON.stringify(value);
+  if (_isEmptyValue(serialized)) return;
+
   clearTimeout(_cloudTimers[cloudKey]);
   _cloudTimers[cloudKey] = setTimeout(async () => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
@@ -94,14 +101,17 @@ const callSaveAppData = (cloudKey: string, value: unknown): void => {
   }, 400);
 };
 
-/** Download app_data rows via Edge Function (service_role — bypasses RLS).
- *  Only restores keys whose localStorage value is empty (local wins otherwise).
+/** Fetch all rows from app_data via Edge Function (service_role — bypasses RLS).
+ *  @param force  When true: cloud always wins (overwrites local regardless of content).
+ *                When false (default): local wins if it already has data.
+ *  Always dispatches 'asistenciapro-storage-update' so views reload.
  */
-export const syncAppDataFromCloud = async (): Promise<void> => {
+export const syncAppDataFromCloud = async (force = false): Promise<void> => {
   const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   if (!edgeUrl || !anonKey) {
-    console.warn('[AppData] syncAppDataFromCloud: env vars missing (VITE_SUPABASE_EDGE_URL / VITE_SUPABASE_ANON_KEY)');
+    console.warn('[AppData] syncAppDataFromCloud: env vars missing');
+    window.dispatchEvent(new Event('asistenciapro-storage-update'));
     return;
   }
   try {
@@ -115,27 +125,76 @@ export const syncAppDataFromCloud = async (): Promise<void> => {
     if (!res.ok) {
       const txt = await res.text();
       console.error('[AppData] syncAppDataFromCloud HTTP error:', res.status, txt);
+      window.dispatchEvent(new Event('asistenciapro-storage-update'));
       return;
     }
     const data: Array<{ key: string; value_json: unknown }> = await res.json();
-    console.log(`[AppData] syncAppDataFromCloud: fetched ${data.length} rows from app_data`);
+    console.log(`[AppData] syncAppDataFromCloud: fetched ${data.length} rows (force=${force})`);
     let restored = 0;
     data.forEach(({ key, value_json }) => {
       const storageKey = APP_DATA_SYNC_KEYS[key];
       if (!storageKey) return;
       const local = localStorage.getItem(storageKey);
-      if (_isEmptyValue(local)) {
-        localStorage.setItem(storageKey, JSON.stringify(value_json));
+      // force=true → always overwrite. force=false → only overwrite if local is empty.
+      if (force || _isEmptyValue(local)) {
+        const incoming = JSON.stringify(value_json);
+        // Never restore an explicitly empty value from cloud (would erase real local data)
+        if (!force && _isEmptyValue(incoming)) return;
+        localStorage.setItem(storageKey, incoming);
         restored++;
-        console.log(`[AppData] restored key "${key}" from cloud`);
+        console.log(`[AppData] ${force ? 'force-restored' : 'restored'} key "${key}" from cloud`);
       }
-      // local has data → keep it (local wins)
     });
-    console.log(`[AppData] syncAppDataFromCloud done: ${restored} keys restored from cloud`);
-    // Always dispatch so views refresh after every sync
-    window.dispatchEvent(new Event('asistenciapro-storage-update'));
+    console.log(`[AppData] syncAppDataFromCloud done: ${restored} keys written to localStorage`);
   } catch (e) {
     console.error('[AppData] syncAppDataFromCloud exception:', e);
+  }
+  // Always dispatch — views must reload after every sync attempt
+  window.dispatchEvent(new Event('asistenciapro-storage-update'));
+};
+
+/** Force-download ALL app_data keys from cloud, overwriting whatever is in localStorage.
+ *  Use this for disaster recovery when local data is lost or corrupted.
+ *  Returns the number of keys restored, or -1 on error.
+ */
+export const forceDownloadAppDataFromCloud = async (): Promise<number> => {
+  const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!edgeUrl || !anonKey) return -1;
+  try {
+    const res = await fetch(`${edgeUrl}/save-app-data`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${anonKey}`,
+        'apikey': anonKey,
+      },
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      console.error('[AppData] forceDownload HTTP error:', res.status, txt);
+      return -1;
+    }
+    const data: Array<{ key: string; value_json: unknown }> = await res.json();
+    let count = 0;
+    data.forEach(({ key, value_json }) => {
+      const storageKey = APP_DATA_SYNC_KEYS[key];
+      if (!storageKey) return;
+      const incoming = JSON.stringify(value_json);
+      // Only restore non-empty values — never overwrite with cloud empty data
+      if (_isEmptyValue(incoming)) {
+        console.warn(`[AppData] forceDownload: cloud key "${key}" is empty — skipping to protect local data`);
+        return;
+      }
+      localStorage.setItem(storageKey, incoming);
+      count++;
+      console.log(`[AppData] forceDownload: restored key "${key}"`);
+    });
+    console.log(`[AppData] forceDownload done: ${count} keys restored from cloud`);
+    window.dispatchEvent(new Event('asistenciapro-storage-update'));
+    return count;
+  } catch (e) {
+    console.error('[AppData] forceDownload exception:', e);
+    return -1;
   }
 };
 

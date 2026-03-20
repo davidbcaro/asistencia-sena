@@ -9,6 +9,7 @@ import {
     getStudents, getFichas, getAttendance, getSessions,
     syncFromCloud,
     uploadLocalAppDataToCloud,
+    forceDownloadAppDataFromCloud,
     verifyInstructorPassword,
     saveInstructorPassword,
     sendStudentsToCloud,
@@ -138,6 +139,32 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  // APP DATA FORCE DOWNLOAD: restaurar todo desde la nube (sobreescribe local)
+  const [forceDownloadStatus, setForceDownloadStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [forceDownloadMsg, setForceDownloadMsg] = useState('');
+
+  const handleForceDownload = async () => {
+    if (!isSupabaseConfigured()) {
+      setForceDownloadStatus('error');
+      setForceDownloadMsg('Supabase no configurado.');
+      return;
+    }
+    if (!window.confirm('⚠️ Esto sobreescribirá los datos locales de Calificaciones, Sofia Plus y Debido Proceso con los datos guardados en la nube. ¿Continuar?')) return;
+    setForceDownloadStatus('loading');
+    setForceDownloadMsg('Descargando datos desde Supabase…');
+    const count = await forceDownloadAppDataFromCloud();
+    if (count === -1) {
+      setForceDownloadStatus('error');
+      setForceDownloadMsg('Error al descargar. Verifica que la Edge Function esté desplegada (supabase functions deploy save-app-data) y revisa la consola (F12).');
+    } else if (count === 0) {
+      setForceDownloadStatus('success');
+      setForceDownloadMsg('La nube no tiene datos guardados para restaurar (app_data vacío).');
+    } else {
+      setForceDownloadStatus('success');
+      setForceDownloadMsg(`✅ ¡Restaurados ${count} claves desde la nube! Recarga la página para ver los cambios.`);
+    }
+  };
+
   // UPLOAD: Local -> Cloud (via Edge Functions)
   const handleCloudUpload = async () => {
     if (!isSupabaseConfigured()) {
@@ -182,11 +209,15 @@ export const SettingsView: React.FC = () => {
     if (!confirm("⚠️ REEMPLAZAR DATOS LOCALES\n\nSe descargarán los datos de la nube y se sobrescribirá lo que tienes aquí.\n\n¿Continuar?")) return;
 
     setSyncStatus('loading');
-    setSyncMessage('Descargando...');
+    setSyncMessage('Descargando calificaciones, Sofia Plus y datos de la app...');
     try {
+        // Force-overwrite grades/sofia/etc from cloud FIRST (before any upload)
+        await forceDownloadAppDataFromCloud();
+        // Then sync fichas/students/sessions/attendance (also dispatches final event)
+        setSyncMessage('Sincronizando aprendices, fichas y asistencia...');
         await syncFromCloud();
         setSyncStatus('success');
-        setSyncMessage('¡Datos sincronizados!');
+        setSyncMessage('¡Datos sincronizados! Calificaciones y Sofia Plus restaurados desde la nube.');
     } catch (e: any) {
         setSyncStatus('error');
         setSyncMessage(`Error descarga: ${e.message}`);
@@ -448,6 +479,34 @@ END $$;
                     <span>{appDataSyncMsg}</span>
                 </div>
             )}
+
+            {/* Force download: restores all cloud data overwriting local */}
+            <div className="mt-3 pt-3 border-t border-teal-200">
+                <p className="text-xs text-teal-700 mb-2 font-semibold">🆘 Recuperación de datos — Restaurar desde la nube</p>
+                <p className="text-xs text-teal-600 mb-2">
+                    Si los datos locales se perdieron o están vacíos, usa este botón para restaurarlos desde Supabase. <strong>Sobreescribirá</strong> los datos locales con los de la nube.
+                </p>
+                <button
+                    onClick={handleForceDownload}
+                    disabled={forceDownloadStatus === 'loading'}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white text-sm font-bold rounded-lg transition-colors"
+                >
+                    {forceDownloadStatus === 'loading'
+                        ? <><RefreshCw className="w-4 h-4 animate-spin" /> Descargando...</>
+                        : <><CloudDownload className="w-4 h-4" /> Restaurar todo desde la nube</>
+                    }
+                </button>
+                {forceDownloadMsg && (
+                    <div className={`mt-2 p-3 rounded-lg text-xs font-semibold flex items-start gap-2 ${
+                        forceDownloadStatus === 'error' ? 'bg-red-100 text-red-700' :
+                        forceDownloadStatus === 'success' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                        {forceDownloadStatus === 'error' && <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                        {forceDownloadStatus === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                        <span>{forceDownloadMsg}</span>
+                    </div>
+                )}
+            </div>
         </div>
       </div>
 
