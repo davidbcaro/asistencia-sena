@@ -94,22 +94,33 @@ const callSaveAppData = (cloudKey: string, value: unknown): void => {
   }, 400);
 };
 
-/** Download app_data rows from Supabase; only restore if localStorage is empty for that key */
+/** Download app_data rows via Edge Function (service_role — bypasses RLS).
+ *  Only restores keys whose localStorage value is empty (local wins otherwise).
+ */
 export const syncAppDataFromCloud = async (): Promise<void> => {
-  const client = getClient();
-  if (!client) { console.warn('[AppData] syncAppDataFromCloud: no Supabase client'); return; }
+  const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!edgeUrl || !anonKey) {
+    console.warn('[AppData] syncAppDataFromCloud: env vars missing (VITE_SUPABASE_EDGE_URL / VITE_SUPABASE_ANON_KEY)');
+    return;
+  }
   try {
-    const { data, error } = await client
-      .from('app_data')
-      .select('key, value_json');
-    if (error) {
-      console.error('[AppData] syncAppDataFromCloud Supabase error:', error.message, error);
+    const res = await fetch(`${edgeUrl}/save-app-data`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${anonKey}`,
+        'apikey': anonKey,
+      },
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      console.error('[AppData] syncAppDataFromCloud HTTP error:', res.status, txt);
       return;
     }
-    if (!data) { console.warn('[AppData] syncAppDataFromCloud: null data returned'); return; }
+    const data: Array<{ key: string; value_json: unknown }> = await res.json();
     console.log(`[AppData] syncAppDataFromCloud: fetched ${data.length} rows from app_data`);
     let restored = 0;
-    data.forEach(({ key, value_json }: { key: string; value_json: unknown }) => {
+    data.forEach(({ key, value_json }) => {
       const storageKey = APP_DATA_SYNC_KEYS[key];
       if (!storageKey) return;
       const local = localStorage.getItem(storageKey);
@@ -121,7 +132,7 @@ export const syncAppDataFromCloud = async (): Promise<void> => {
       // local has data → keep it (local wins)
     });
     console.log(`[AppData] syncAppDataFromCloud done: ${restored} keys restored from cloud`);
-    // Always dispatch — views should refresh regardless of whether any key changed
+    // Always dispatch so views refresh after every sync
     window.dispatchEvent(new Event('asistenciapro-storage-update'));
   } catch (e) {
     console.error('[AppData] syncAppDataFromCloud exception:', e);
