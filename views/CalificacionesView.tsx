@@ -2158,6 +2158,38 @@ export const CalificacionesView: React.FC = () => {
 
       upsertGrades(entries);
 
+      // ── Limpieza adicional: semillas globales en fases no importadas ────────
+      // Cuando este import solo cubre Fase 1 (GA1-xxx), elimina cualquier entrada
+      // de los mismos estudiantes contra semillas globales de fases superiores
+      // (Fase 2, 3, etc.) que hayan quedado de reparaciones automáticas previas.
+      if (entries.length > 0) {
+        const importedStudentIds2 = new Set(entries.map(e => e.studentId));
+        const importedActivityIds2 = new Set(entries.map(e => e.activityId));
+        // Fases presentes en este import
+        const importedPhaseSet = new Set<string>();
+        activityColumns.forEach(({ activity }) => { if (activity.phase) importedPhaseSet.add(activity.phase); });
+        newActivities.forEach(a => { if (a.phase) importedPhaseSet.add(a.phase); });
+
+        if (importedPhaseSet.size > 0) {
+          const allActById2 = new Map(activities.map(a => [a.id, a]));
+          newActivities.forEach(a => allActById2.set(a.id, a));
+          const afterUpsert = getGrades();
+          const phaseClean = afterUpsert.filter(g => {
+            if (!importedStudentIds2.has(g.studentId)) return true; // otro estudiante → conservar
+            if (importedActivityIds2.has(g.activityId)) return true; // recién importado → conservar
+            const act = allActById2.get(g.activityId);
+            if (!act) return true; // actividad desconocida → conservar
+            if (act.group !== '') return true; // actividad ficha-específica → conservar
+            if (!act.id.startsWith('seed-')) return true; // no es semilla global → conservar
+            // Semilla global en fase NO importada → eliminar (artefacto de reparación)
+            return importedPhaseSet.has(act.phase || '');
+          });
+          if (phaseClean.length < afterUpsert.length) {
+            saveGrades(phaseClean);
+          }
+        }
+      }
+
       // -----------------------------------------------------------------------
       // Extract and persist competencia / AA mapping from Excel column names.
       // Columns follow the pattern: GA#-<competenciaCode>-AA#-EV##
