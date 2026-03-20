@@ -61,8 +61,26 @@ const APP_DATA_SYNC_KEYS: Record<string, string> = {
   sofia_student_estados:       STORAGE_KEYS.SOFIA_STUDENT_ESTADOS,
 };
 
-const _isEmptyValue = (raw: string | null): boolean =>
-  !raw || raw === 'null' || raw === '[]' || raw === '{}' || raw === '';
+const _isEmptyValue = (raw: string | null | undefined): boolean =>
+  !raw || raw === 'null' || raw === '[]' || raw === '{}' || raw === '' || raw === 'undefined';
+
+/** Safe JSON.parse — returns fallback on any parse error (e.g. when localStorage has "undefined" string) */
+const safeParseJSON = <T>(raw: string | null | undefined, fallback: T): T => {
+  if (_isEmptyValue(raw)) return fallback;
+  try { return JSON.parse(raw as string) as T; }
+  catch { return fallback; }
+};
+
+/** Remove corrupt localStorage values ("undefined" string) for all managed keys */
+const _cleanupCorruptLocalStorage = (): void => {
+  Object.values(APP_DATA_SYNC_KEYS).forEach(storageKey => {
+    const val = localStorage.getItem(storageKey);
+    if (val === 'undefined') {
+      console.warn(`[Storage] Removing corrupt value "undefined" from key: ${storageKey}`);
+      localStorage.removeItem(storageKey);
+    }
+  });
+};
 
 /** Debounced timers per cloud key */
 const _cloudTimers: Record<string, ReturnType<typeof setTimeout>> = {};
@@ -158,6 +176,7 @@ export const syncAppDataFromCloud = async (force = false): Promise<void> => {
  *  Returns the number of keys restored, or -1 on error.
  */
 export const forceDownloadAppDataFromCloud = async (): Promise<number> => {
+  _cleanupCorruptLocalStorage();
   const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   if (!edgeUrl || !anonKey) return -1;
@@ -1115,8 +1134,7 @@ export const deleteSession = async (id: string) => {
 
 // --- GRADES ---
 export const getGradeActivities = (): GradeActivity[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.GRADE_ACTIVITIES);
-    const parsed = data ? JSON.parse(data) : [];
+    const parsed = safeParseJSON<GradeActivity[]>(localStorage.getItem(STORAGE_KEYS.GRADE_ACTIVITIES), []);
     const migrated = parsed.map((a: any) => ({
         ...a,
         phase: a.phase || 'Fase 1: Análisis',
@@ -1156,8 +1174,7 @@ export const deleteGradeActivity = (activityId: string) => {
 };
 
 export const getGrades = (): GradeEntry[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.GRADES);
-    return data ? JSON.parse(data) : [];
+    return safeParseJSON<GradeEntry[]>(localStorage.getItem(STORAGE_KEYS.GRADES), []);
 };
 
 export const saveGrades = (grades: GradeEntry[]) => {
@@ -1194,8 +1211,7 @@ export type RapNotes = Record<string, Record<string, string>>;
 export type RapColumns = Record<string, string[]>;
 
 export const getRapNotes = (): RapNotes => {
-    const data = localStorage.getItem(STORAGE_KEYS.RAP_NOTES);
-    return data ? JSON.parse(data) : {};
+    return safeParseJSON<RapNotes>(localStorage.getItem(STORAGE_KEYS.RAP_NOTES), {});
 };
 
 export const saveRapNotes = (notes: RapNotes) => {
@@ -1205,8 +1221,7 @@ export const saveRapNotes = (notes: RapNotes) => {
 };
 
 export const getRapColumns = (): RapColumns => {
-    const data = localStorage.getItem(STORAGE_KEYS.RAP_COLUMNS);
-    return data ? JSON.parse(data) : {};
+    return safeParseJSON<RapColumns>(localStorage.getItem(STORAGE_KEYS.RAP_COLUMNS), {});
 };
 
 export const saveRapColumns = (columns: RapColumns) => {
@@ -1219,8 +1234,7 @@ export const saveRapColumns = (columns: RapColumns) => {
 export type StudentGradeObservations = Record<string, string>;
 
 export const getStudentGradeObservations = (): StudentGradeObservations => {
-    const data = localStorage.getItem(STORAGE_KEYS.STUDENT_GRADE_OBSERVATIONS);
-    return data ? JSON.parse(data) : {};
+    return safeParseJSON<StudentGradeObservations>(localStorage.getItem(STORAGE_KEYS.STUDENT_GRADE_OBSERVATIONS), {});
 };
 
 export const saveStudentGradeObservations = (obs: StudentGradeObservations) => {
@@ -1234,8 +1248,7 @@ export type JuicioEstado = 'orange' | 'green';
 export type JuiciosEvaluativos = Record<string, Record<string, JuicioEstado>>;
 
 export const getJuiciosEvaluativos = (): JuiciosEvaluativos => {
-    const data = localStorage.getItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS);
-    const raw = data ? JSON.parse(data) : {};
+    const raw = safeParseJSON<Record<string, unknown>>(localStorage.getItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS), {});
     const result: JuiciosEvaluativos = {};
     Object.keys(raw).forEach(key => {
         const byStudent = raw[key];
@@ -1663,8 +1676,7 @@ export const importFullBackup = (jsonString: string): boolean => {
 // --- SOFIA PLUS - JUICIOS EVALUATIVOS POR RAP ---
 
 export const getSofiaRapDefs = (): Record<string, RapDefinition> => {
-  const data = localStorage.getItem(STORAGE_KEYS.SOFIA_RAP_DEFS);
-  return data ? JSON.parse(data) : {};
+  return safeParseJSON<Record<string, RapDefinition>>(localStorage.getItem(STORAGE_KEYS.SOFIA_RAP_DEFS), {});
 };
 
 export const saveSofiaRapDefs = (defs: Record<string, RapDefinition>) => {
@@ -1673,8 +1685,7 @@ export const saveSofiaRapDefs = (defs: Record<string, RapDefinition>) => {
 };
 
 export const getSofiaJuicioEntries = (): Record<string, JuicioRapEntry> => {
-  const data = localStorage.getItem(STORAGE_KEYS.SOFIA_JUICIO_ENTRIES);
-  return data ? JSON.parse(data) : {};
+  return safeParseJSON<Record<string, JuicioRapEntry>>(localStorage.getItem(STORAGE_KEYS.SOFIA_JUICIO_ENTRIES), {});
 };
 
 export const upsertSofiaJuicioEntries = (entries: JuicioRapEntry[]) => {
@@ -1688,8 +1699,7 @@ export const upsertSofiaJuicioEntries = (entries: JuicioRapEntry[]) => {
 };
 
 export const getSofiaJuicioHistory = (): JuicioRapHistoryEntry[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY);
-  return data ? JSON.parse(data) : [];
+  return safeParseJSON<JuicioRapHistoryEntry[]>(localStorage.getItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY), []);
 };
 
 export const appendSofiaJuicioHistory = (entries: JuicioRapHistoryEntry[]) => {
@@ -1704,8 +1714,7 @@ export const appendSofiaJuicioHistory = (entries: JuicioRapHistoryEntry[]) => {
 };
 
 export const getSofiaStudentEstados = (): Record<string, string> => {
-  const data = localStorage.getItem(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS);
-  return data ? JSON.parse(data) : {};
+  return safeParseJSON<Record<string, string>>(localStorage.getItem(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS), {});
 };
 
 export const upsertSofiaStudentEstados = (map: Record<string, string>) => {

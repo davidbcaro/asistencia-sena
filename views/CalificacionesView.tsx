@@ -545,6 +545,15 @@ export const CalificacionesView: React.FC = () => {
     const loadedRapColumns = getRapColumns();
     const loadedJuicios = getJuiciosEvaluativos();
     console.log(`[Calificaciones] loadData: students=${loadedStudents.length} fichas=${loadedFichas.length} activities=${loadedActivities.length} grades=${loadedGrades.length}`);
+    if (loadedGrades.length > 0 && loadedStudents.length > 0 && loadedActivities.length > 0) {
+      const g = loadedGrades[0];
+      const sMatch = loadedStudents.some(s => s.id === g.studentId);
+      const aMatch = loadedActivities.some(a => a.id === g.activityId);
+      const sampleStudentId = loadedStudents[0].id;
+      const sampleActivityId = loadedActivities[0].id;
+      console.log(`[Calificaciones] ID check → grades[0].studentId="${g.studentId}" matchesStudent=${sMatch}, grades[0].activityId="${g.activityId}" matchesActivity=${aMatch}`);
+      console.log(`[Calificaciones] Sample IDs → students[0].id="${sampleStudentId}", activities[0].id="${sampleActivityId}"`);
+    }
     setStudents(loadedStudents);
     setFichas(loadedFichas);
     setActivities(loadedActivities);
