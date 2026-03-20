@@ -544,6 +544,7 @@ export const CalificacionesView: React.FC = () => {
     const loadedRapNotes = getRapNotes();
     const loadedRapColumns = getRapColumns();
     const loadedJuicios = getJuiciosEvaluativos();
+    console.log(`[Calificaciones] loadData: students=${loadedStudents.length} fichas=${loadedFichas.length} activities=${loadedActivities.length} grades=${loadedGrades.length}`);
     setStudents(loadedStudents);
     setFichas(loadedFichas);
     setActivities(loadedActivities);
@@ -570,7 +571,10 @@ export const CalificacionesView: React.FC = () => {
       return EXCLUDED_ACTIVITY_HEADERS.has(normalized);
     });
     if (toDelete.length > 0) {
+      console.warn(`[Calificaciones] Eliminando ${toDelete.length} actividades excluidas:`, toDelete.map(a => a.name));
       toDelete.forEach(activity => deleteGradeActivity(activity.id));
+    } else {
+      console.log(`[Calificaciones] Limpieza: ninguna actividad excluida de ${existing.length} totales`);
     }
   }, []);
 

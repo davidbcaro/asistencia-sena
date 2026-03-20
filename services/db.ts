@@ -176,13 +176,19 @@ export const forceDownloadAppDataFromCloud = async (): Promise<number> => {
     }
     const data: Array<{ key: string; value_json: unknown }> = await res.json();
     let count = 0;
+    console.log(`[AppData] forceDownload: received ${data.length} keys from cloud`);
     data.forEach(({ key, value_json }) => {
       const storageKey = APP_DATA_SYNC_KEYS[key];
       if (!storageKey) return;
       const incoming = JSON.stringify(value_json);
+      // Diagnostic log for critical keys
+      if (key === 'grades' || key === 'grade_activities') {
+        const len = Array.isArray(value_json) ? (value_json as unknown[]).length : typeof value_json;
+        console.log(`[AppData] forceDownload cloud["${key}"] → ${len} items, empty=${_isEmptyValue(incoming)}`);
+      }
       // Only restore non-empty values — never overwrite with cloud empty data
       if (_isEmptyValue(incoming)) {
-        console.warn(`[AppData] forceDownload: cloud key "${key}" is empty — skipping to protect local data`);
+        console.warn(`[AppData] forceDownload: cloud key "${key}" is empty — skipping`);
         return;
       }
       localStorage.setItem(storageKey, incoming);
