@@ -149,19 +149,28 @@ export const SettingsView: React.FC = () => {
       setForceDownloadMsg('Supabase no configurado.');
       return;
     }
-    if (!window.confirm('⚠️ Esto sobreescribirá los datos locales de Calificaciones, Sofia Plus y Debido Proceso con los datos guardados en la nube. ¿Continuar?')) return;
+    if (!window.confirm('⚠️ Esto sobreescribirá los datos locales con los datos guardados en la nube (calificaciones, Sofia Plus, estudiantes, fichas). ¿Continuar?')) return;
     setForceDownloadStatus('loading');
-    setForceDownloadMsg('Descargando datos desde Supabase…');
+    setForceDownloadMsg('Paso 1/2: Descargando calificaciones y Sofia Plus desde Supabase…');
     const count = await forceDownloadAppDataFromCloud();
     if (count === -1) {
       setForceDownloadStatus('error');
       setForceDownloadMsg('Error al descargar. Verifica que la Edge Function esté desplegada (supabase functions deploy save-app-data) y revisa la consola (F12).');
-    } else if (count === 0) {
+      return;
+    }
+    setForceDownloadMsg('Paso 2/2: Sincronizando estudiantes, fichas y asistencia…');
+    try {
+      await syncFromCloud();
+    } catch (e) {
+      // syncFromCloud failing is non-fatal; app_data was already restored
+    }
+    if (count === 0) {
       setForceDownloadStatus('success');
-      setForceDownloadMsg('La nube no tiene datos guardados para restaurar (app_data vacío).');
+      setForceDownloadMsg('Sincronización completa. La nube no tenía datos de calificaciones/Sofia Plus para restaurar.');
     } else {
       setForceDownloadStatus('success');
-      setForceDownloadMsg(`✅ ¡Restaurados ${count} claves desde la nube! Recarga la página para ver los cambios.`);
+      setForceDownloadMsg(`✅ ¡${count} claves restauradas! Recargando la página…`);
+      setTimeout(() => window.location.reload(), 1500);
     }
   };
 
