@@ -2421,7 +2421,7 @@ export const CalificacionesView: React.FC = () => {
                   </div>
                 </th>
                 <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-28 min-w-28 sticky left-[864px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Ficha</th>
-                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para marcar como evaluado">Juicios Evaluativos</th>
+                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para ciclar: — → PE (Por Evaluar) → A (Aprobado) → —">Juicios Evaluativos</th>
 
                 {/* Evidence section in Row 1:
                     - if phaseGroups: show phase group headers (colSpan per phase) — "Todas las fases" view
@@ -2571,7 +2571,7 @@ export const CalificacionesView: React.FC = () => {
                     </div>
                   </th>
                   <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 sticky left-[864px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
-                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para marcar como evaluado">Juicios Evaluativos</th>
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para ciclar: — → PE (Por Evaluar) → A (Aprobado) → —">Juicios Evaluativos</th>
                 </>
               )}
 
@@ -2705,25 +2705,26 @@ export const CalificacionesView: React.FC = () => {
                     onClick={() => toggleJuicioEvaluativo(student.id, student.group)}
                     title={
                       getJuicioEstado(student.id, student.group) === '-'
-                        ? 'Clic: en proceso (naranja)'
+                        ? 'Sin juicio — Clic: marcar Por Evaluar'
                         : getJuicioEstado(student.id, student.group) === 'orange'
-                          ? 'Clic: evaluado (verde)'
-                          : 'Clic: quitar (guión)'
+                          ? 'Por Evaluar — Clic: marcar Aprobado'
+                          : 'Aprobado — Clic: quitar juicio'
                     }
                   >
-                    {getJuicioEstado(student.id, student.group) === '-' ? (
-                      <span className="text-gray-400">-</span>
-                    ) : (
-                      <span
-                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full flex-shrink-0 ${
-                          getJuicioEstado(student.id, student.group) === 'orange'
-                            ? 'bg-orange-100 text-orange-700'
-                            : 'bg-green-100 text-green-700'
-                        }`}
-                      >
-                        <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                      </span>
-                    )}
+                    {(() => {
+                      const estado = getJuicioEstado(student.id, student.group);
+                      if (estado === '-') return <span className="text-gray-400 text-sm">—</span>;
+                      if (estado === 'orange') return (
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold tracking-wide leading-none whitespace-nowrap">
+                          PE
+                        </span>
+                      );
+                      return (
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold tracking-wide leading-none whitespace-nowrap">
+                          A
+                        </span>
+                      );
+                    })()}
                   </td>
                   {visiblePhaseGroups.map(({ phase, activities }) => {
                     const phColor = PHASE_HEADER_COLORS[phase];

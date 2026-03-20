@@ -11,6 +11,7 @@ import {
     uploadLocalAppDataToCloud,
     forceDownloadAppDataFromCloud,
     repairGradeActivityLinks,
+    fixGradePhaseAssignment,
     verifyInstructorPassword,
     saveInstructorPassword,
     sendStudentsToCloud,
@@ -158,6 +159,32 @@ export const SettingsView: React.FC = () => {
       setRepairStatus('success');
       setRepairMsg(`✅ Reparadas ${result.repaired} calificaciones (${result.orphanedCount} IDs huérfanos → ${result.mappedCount} actividades actuales mapeadas). Recargando…`);
       setTimeout(() => window.location.reload(), 1500);
+    }
+  };
+
+  // PHASE-ASSIGNMENT FIX: move mis-phased grades back to Fase 1 / Fase 2
+  const [phaseFixStatus, setPhaseFixStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [phaseFixMsg, setPhaseFixMsg] = useState('');
+
+  const handleFixPhaseAssignment = () => {
+    if (!window.confirm(
+      '⚠️ Esta función mueve calificaciones que quedaron en fases incorrectas (Inducción, Fase 3, Fase 4) de vuelta a Fase 1 y Fase 2.\n\n' +
+      'Úsala si las calificaciones aparecen en columnas equivocadas.\n\nDespués de esto, vuelve a cargar los Excel de calificaciones por ficha para garantizar las columnas correctas.\n\n¿Continuar?'
+    )) return;
+
+    try {
+      const result = fixGradePhaseAssignment(['Fase 1: Análisis', 'Fase 2: Planeación']);
+      if (result.wrongPhaseCount === 0) {
+        setPhaseFixStatus('success');
+        setPhaseFixMsg('✅ No se encontraron calificaciones en fases incorrectas. Las fases ya están bien asignadas.');
+      } else {
+        setPhaseFixStatus('success');
+        setPhaseFixMsg(`✅ Corregidas ${result.fixed} calificaciones que estaban en fases incorrectas (${result.wrongPhaseCount} actividades reubicadas a Fase 1/Fase 2). Recargando…`);
+        setTimeout(() => window.location.reload(), 1800);
+      }
+    } catch (e: any) {
+      setPhaseFixStatus('error');
+      setPhaseFixMsg(`Error: ${e.message}`);
     }
   };
 
@@ -554,6 +581,29 @@ END $$;
                         {repairStatus === 'error' && <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
                         {repairStatus === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
                         <span>{repairMsg}</span>
+                    </div>
+                )}
+            </div>
+
+            {/* Fix phase assignment */}
+            <div className="mt-3 pt-3 border-t border-teal-200">
+                <p className="text-xs text-teal-700 mb-2 font-semibold">📐 Corregir fases de calificaciones</p>
+                <p className="text-xs text-teal-600 mb-2">
+                    Si las calificaciones aparecen en <strong>fases incorrectas</strong> (Inducción, Fase 3, Fase 4) cuando solo deberían estar en <strong>Fase 1: Análisis</strong> y <strong>Fase 2: Planeación</strong>, usa este botón. Tras ejecutar, vuelve a importar los Excel de calificaciones por ficha para asegurar las columnas exactas.
+                </p>
+                <button
+                    onClick={handleFixPhaseAssignment}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors"
+                >
+                    <AlertTriangle className="w-4 h-4" /> Corregir fases de calificaciones
+                </button>
+                {phaseFixMsg && (
+                    <div className={`mt-2 p-3 rounded-lg text-xs font-semibold flex items-start gap-2 ${
+                        phaseFixStatus === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                    }`}>
+                        {phaseFixStatus === 'error' && <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                        {phaseFixStatus === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                        <span>{phaseFixMsg}</span>
                     </div>
                 )}
             </div>

@@ -1288,6 +1288,111 @@ export const repairGradeActivityLinks = (): { repaired: number; orphanedCount: n
     return { repaired, orphanedCount: orphanedIds.length, mappedCount: mapLen };
 };
 
+/**
+ * Fix grades that ended up in wrong phases (e.g., Fase Inducción, Fase 3/4) after
+ * a positional repair. Remaps them back to the nearest available seed activities
+ * in the allowed phases (default: Fase 1 + Fase 2), grouped per-ficha so each
+ * ficha's students end up in the same canonical columns.
+ *
+ * Returns { fixed, wrongPhaseCount }.
+ */
+export const fixGradePhaseAssignment = (
+    allowedPhases: string[] = ['Fase 1: Análisis', 'Fase 2: Planeación']
+): { fixed: number; wrongPhaseCount: number } => {
+    const activities = getGradeActivities();
+    const grades = getGrades();
+    const students = getStudents();
+
+    const activityById = new Map(activities.map(a => [a.id, a]));
+    const studentFicha = new Map(students.map(s => [s.id, s.group || '']));
+    const allowedPhaseSet = new Set(allowedPhases);
+
+    // Seed activities in allowed phases, sorted by phase order then canonical name
+    const allowedSeeds = activities
+        .filter(a => allowedPhaseSet.has(a.phase || '') && a.id.startsWith('seed-'))
+        .sort((a, b) => {
+            const pi = (p: string) => allowedPhases.indexOf(p);
+            const pd = pi(a.phase || '') - pi(b.phase || '');
+            if (pd !== 0) return pd;
+            return a.id.localeCompare(b.id);
+        });
+
+    // Find activity IDs currently in wrong phases, tracking their earliest grade date
+    const wrongIdEarliestDate = new Map<string, string>();
+    grades.forEach(g => {
+        const act = activityById.get(g.activityId);
+        if (!act || !allowedPhaseSet.has(act.phase || '')) {
+            const prev = wrongIdEarliestDate.get(g.activityId);
+            if (!prev || g.updatedAt < prev) wrongIdEarliestDate.set(g.activityId, g.updatedAt);
+        }
+    });
+
+    if (wrongIdEarliestDate.size === 0) return { fixed: 0, wrongPhaseCount: 0 };
+
+    // Determine the most-common ficha for each wrong activityId
+    const fichaForWrongId = new Map<string, string>();
+    wrongIdEarliestDate.forEach((_, actId) => {
+        const fichaCount = new Map<string, number>();
+        grades.forEach(g => {
+            if (g.activityId === actId) {
+                const f = studentFicha.get(g.studentId) || '';
+                fichaCount.set(f, (fichaCount.get(f) || 0) + 1);
+            }
+        });
+        let bestFicha = '';
+        let bestCount = 0;
+        fichaCount.forEach((cnt, f) => { if (cnt > bestCount) { bestFicha = f; bestCount = cnt; } });
+        fichaForWrongId.set(actId, bestFicha);
+    });
+
+    // Group wrong IDs by ficha
+    const wrongIdsByFicha = new Map<string, string[]>();
+    wrongIdEarliestDate.forEach((_, actId) => {
+        const ficha = fichaForWrongId.get(actId) || '';
+        const list = wrongIdsByFicha.get(ficha) || [];
+        list.push(actId);
+        wrongIdsByFicha.set(ficha, list);
+    });
+
+    // Build the id-remap table: wrongId → correct seed id
+    const idMap = new Map<string, string>();
+    wrongIdsByFicha.forEach((wrongIds, ficha) => {
+        // Sort wrong IDs by earliest date (oldest = earliest worked on)
+        const sorted = [...wrongIds].sort((a, b) =>
+            (wrongIdEarliestDate.get(a) || '').localeCompare(wrongIdEarliestDate.get(b) || '')
+        );
+
+        // Seeds already correctly used by this ficha's students
+        const usedSeedIds = new Set<string>();
+        grades.forEach(g => {
+            if (studentFicha.get(g.studentId) === ficha) {
+                const act = activityById.get(g.activityId);
+                if (act && allowedPhaseSet.has(act.phase || '')) usedSeedIds.add(g.activityId);
+            }
+        });
+
+        // Remaining seeds not yet occupied by this ficha
+        const availableSeeds = allowedSeeds.filter(s => !usedSeedIds.has(s.id));
+
+        // Positional mapping: earliest wrong-phase activity → earliest available seed
+        const mapLen = Math.min(sorted.length, availableSeeds.length);
+        for (let i = 0; i < mapLen; i++) {
+            idMap.set(sorted[i], availableSeeds[i].id);
+        }
+    });
+
+    // Apply the remap
+    let fixed = 0;
+    const updatedGrades = grades.map(g => {
+        const newId = idMap.get(g.activityId);
+        if (newId) { fixed++; return { ...g, activityId: newId }; }
+        return g;
+    });
+
+    if (fixed > 0) saveGrades(updatedGrades);
+    return { fixed, wrongPhaseCount: wrongIdEarliestDate.size };
+};
+
 // --- RAP NOTES ---
 export type RapNotes = Record<string, Record<string, string>>;
 export type RapColumns = Record<string, string[]>;
