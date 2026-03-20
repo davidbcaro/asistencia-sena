@@ -1240,10 +1240,34 @@ export const repairGradeActivityLinks = (): { repaired: number; orphanedCount: n
         (a, b) => (orphanedEarliestDate[a] || '').localeCompare(orphanedEarliestDate[b] || '')
     );
 
-    // Sort current activities by createdAt
-    const sortedActivities = [...activities].sort(
-        (a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')
-    );
+    // Sort activities by phase order → GA number → EV number → name.
+    // This ensures grades from the earliest phases (Análisis, Planeación) are mapped
+    // to the correct early-phase activities rather than being scattered randomly.
+    const PHASE_ORDER_MAP: Record<string, number> = {
+        'Fase Inducción': 0,
+        'Fase 1: Análisis': 1,
+        'Fase 2: Planeación': 2,
+        'Fase 3: Ejecución': 3,
+        'Fase 4: Evaluación': 4,
+    };
+    const getGaNum = (a: GradeActivity): number => {
+        const m = (a.name + ' ' + (a.id || '')).match(/GA(\d+)/i);
+        return m ? parseInt(m[1], 10) : 999;
+    };
+    const getEvNum = (a: GradeActivity): number => {
+        const m = (a.name + ' ' + (a.id || '')).match(/EV(\d+)/i);
+        return m ? parseInt(m[1], 10) : 999;
+    };
+    const sortedActivities = [...activities].sort((a, b) => {
+        const phaseA = PHASE_ORDER_MAP[a.phase || ''] ?? 99;
+        const phaseB = PHASE_ORDER_MAP[b.phase || ''] ?? 99;
+        if (phaseA !== phaseB) return phaseA - phaseB;
+        const gaA = getGaNum(a); const gaB = getGaNum(b);
+        if (gaA !== gaB) return gaA - gaB;
+        const evA = getEvNum(a); const evB = getEvNum(b);
+        if (evA !== evB) return evA - evB;
+        return (a.name || '').localeCompare(b.name || '');
+    });
 
     // Build positional mapping: orphanedId → currentActivity.id
     const idMap: Record<string, string> = {};

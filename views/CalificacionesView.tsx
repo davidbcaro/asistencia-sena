@@ -1206,24 +1206,71 @@ export const CalificacionesView: React.FC = () => {
     setSelectedStudents(updated);
   };
 
+  /** Returns all candidate lookup keys for a student's juicio, in priority order. */
+  const getJuicioKeys = (studentGroup?: string): string[] => {
+    const ficha = studentGroup || '';
+    const phaseKey = getRapKeyForStudent(studentGroup);
+    return [
+      phaseKey,
+      ficha,                              // legacy key (saved before phase was added)
+      `${ficha}::Fase Inducción`,
+      `${ficha}::Fase 1: Análisis`,
+      `${ficha}::Fase 2: Planeación`,
+      `${ficha}::Fase 3: Ejecución`,
+      `${ficha}::Fase 4: Evaluación`,
+    ].filter((k, i, arr) => Boolean(k) && arr.indexOf(k) === i);
+  };
+
   const toggleJuicioEvaluativo = (studentId: string, studentGroup?: string) => {
-    const key = getRapKeyForStudent(studentGroup);
-    if (!key) return;
-    const byKey = juiciosEvaluativos[key] || {};
-    const current = byKey[studentId];
+    const ficha = studentGroup || '';
+    const phaseKey = getRapKeyForStudent(studentGroup);
+
+    // Find which key currently holds this student's juicio value
+    let activeKey = selectedPhase === ALL_PHASES_VIEW
+      ? (ficha || phaseKey)   // prefer ficha-only key for new entries in all-phases view
+      : phaseKey;
+    let currentValue: 'orange' | 'green' | undefined;
+    for (const k of getJuicioKeys(studentGroup)) {
+      const v = (juiciosEvaluativos[k] || {})[studentId];
+      if (v === 'orange' || v === 'green') { activeKey = k; currentValue = v; break; }
+    }
+    if (!activeKey) return;
+
     const nextEstado: 'orange' | 'green' | undefined =
-      current === undefined ? 'orange' : current === 'orange' ? 'green' : undefined;
-    const next = nextEstado === undefined ? (() => { const { [studentId]: _, ...rest } = byKey; return rest; })() : { ...byKey, [studentId]: nextEstado };
-    const updated = { ...juiciosEvaluativos, [key]: next };
+      currentValue === undefined ? 'orange' : currentValue === 'orange' ? 'green' : undefined;
+    let updated = { ...juiciosEvaluativos };
+    if (nextEstado === undefined) {
+      const { [studentId]: _, ...rest } = (updated[activeKey] || {});
+      updated = { ...updated, [activeKey]: rest };
+    } else {
+      updated = { ...updated, [activeKey]: { ...(updated[activeKey] || {}), [studentId]: nextEstado } };
+    }
     setJuiciosEvaluativos(updated);
     saveJuiciosEvaluativos(updated);
   };
 
   const getJuicioEstado = (studentId: string, studentGroup?: string): '-' | 'orange' | 'green' => {
-    const key = getRapKeyForStudent(studentGroup);
-    if (!key) return '-';
-    const v = (juiciosEvaluativos[key] || {})[studentId];
-    return v === 'orange' ? 'orange' : v === 'green' ? 'green' : '-';
+    const phaseKey = getRapKeyForStudent(studentGroup);
+    // Primary: phase-specific key
+    if (phaseKey) {
+      const v = (juiciosEvaluativos[phaseKey] || {})[studentId];
+      if (v === 'orange' || v === 'green') return v;
+    }
+    // Fallback: search all candidate keys (legacy ficha-only + all phase keys)
+    // In specific-phase view: only check legacy key to avoid cross-phase bleed
+    // In all-phases view: aggregate across all phases (return highest state found)
+    const keys = getJuicioKeys(studentGroup);
+    let best: '-' | 'orange' | 'green' = '-';
+    for (const k of keys) {
+      if (k === phaseKey) continue; // already checked above
+      const v = (juiciosEvaluativos[k] || {})[studentId];
+      if (v === 'green') return 'green'; // green is the highest state
+      if (v === 'orange') {
+        if (selectedPhase === ALL_PHASES_VIEW) { best = 'orange'; continue; }
+        return 'orange'; // in specific-phase view, return on first match
+      }
+    }
+    return best;
   };
 
   const buildReportData = () => {
