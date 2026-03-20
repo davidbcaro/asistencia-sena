@@ -123,6 +123,20 @@ function normalizeText(value: unknown): string {
     .replace(/\p{Diacritic}/gu, '');
 }
 
+/** Clave canónica de una actividad — mismo algoritmo que CalificacionesView. */
+function getActivityCanonicalKey(a: { name: string; detail?: string | null }): string {
+  const baseName = `${a.name} ${a.detail ?? ''}`.trim();
+  const gaFullMatch = baseName.match(/GA\d+-\d+-AA\d+-EV\d+/i);
+  if (gaFullMatch) return normalizeText(gaFullMatch[0]);
+  const aaEvMatch = baseName.match(/AA\d+-EV\d+/i);
+  if (aaEvMatch) return normalizeText(aaEvMatch[0]);
+  const evMatch = baseName.match(/ev(idencia)?\s*(\d+)/i);
+  if (evMatch) return 'ev' + String(parseInt(evMatch[2], 10));
+  const numMatch = baseName.match(/(\d+)/);
+  if (numMatch) return 'ev' + String(parseInt(numMatch[1], 10));
+  return normalizeText(baseName) || baseName;
+}
+
 /**
  * Parsea fecha desde el archivo. Acepta:
  * - "2026-01-27 10:54:31"
@@ -236,20 +250,58 @@ export const AsistenciaLmsView: React.FC = () => {
   }, [grades]);
 
   /**
+   * Mapa por clave canónica: `studentId-canonicalKey` → GradeEntry
+   * Permite encontrar calificaciones aunque el activityId haya cambiado (ej: semillas vs ficha-específicas).
+   */
+  const canonicalGradeMap = useMemo(() => {
+    const activityCanonical = new Map<string, string>();
+    gradeActivities.forEach(a => activityCanonical.set(a.id, getActivityCanonicalKey(a)));
+    const map = new Map<string, GradeEntry>();
+    grades.forEach(g => {
+      const canonical = activityCanonical.get(g.activityId);
+      if (!canonical) return;
+      const key = `${g.studentId}-${canonical}`;
+      const existing = map.get(key);
+      if (!existing || g.updatedAt > existing.updatedAt) map.set(key, g);
+    });
+    return map;
+  }, [grades, gradeActivities]);
+
+  /**
+   * Devuelve las actividades deduplicadas por clave canónica para un estudiante.
+   * Combina semillas globales (group='') y actividades ficha-específicas,
+   * eliminando duplicados (la versión ficha-específica prevalece).
+   */
+  const getStudentActivities = (student: Student): GradeActivity[] => {
+    const studentGroup = student.group || '';
+    const byCanonical = new Map<string, GradeActivity>();
+    // Base: semillas globales
+    gradeActivities.filter(a => a.group === '').forEach(a => byCanonical.set(getActivityCanonicalKey(a), a));
+    // Sobreescribir con versiones ficha-específicas si las hay
+    if (studentGroup) {
+      gradeActivities.filter(a => a.group === studentGroup).forEach(a => byCanonical.set(getActivityCanonicalKey(a), a));
+    }
+    return Array.from(byCanonical.values());
+  };
+
+  /** Lookup de calificación tolerante a cambios de ID: primero intenta exacto, luego por clave canónica. */
+  const getGradeForActivity = (studentId: string, activity: GradeActivity): GradeEntry | undefined =>
+    gradeMap.get(`${studentId}-${activity.id}`) ??
+    canonicalGradeMap.get(`${studentId}-${getActivityCanonicalKey(activity)}`);
+
+  /**
    * Calcula el "Final" de un estudiante considerando las actividades de su ficha.
-   * Si no hay actividades para su ficha, usa las de grupo vacío (globales), igual que CalificacionesView.
+   * Usa deduplicación por clave canónica para tolerar cambios de ID entre importaciones.
    */
   const getFinalForStudent = (student: Student): { score: number | null; letter: 'A' | 'D' | null } => {
-    const studentGroup = student.group || '';
-    const fichaSpecific = gradeActivities.filter(a => a.group === studentGroup);
-    const fichaActivities = fichaSpecific.length > 0 ? fichaSpecific : gradeActivities.filter(a => a.group === '');
+    const fichaActivities = getStudentActivities(student);
     const totalActivities = fichaActivities.length;
     if (totalActivities === 0) return { score: null, letter: null };
 
     let missing = 0;
     let sum = 0;
     fichaActivities.forEach(activity => {
-      const grade = gradeMap.get(`${student.id}-${activity.id}`);
+      const grade = getGradeForActivity(student.id, activity);
       if (!grade) {
         missing += 1;
         sum += 0;
@@ -262,7 +314,7 @@ export const AsistenciaLmsView: React.FC = () => {
     const delivered = totalActivities - missing;
     const allApproved =
       delivered === totalActivities &&
-      fichaActivities.every(a => gradeMap.get(`${student.id}-${a.id}`)?.letter === 'A');
+      fichaActivities.every(a => getGradeForActivity(student.id, a)?.letter === 'A');
     const letter: 'A' | 'D' = allApproved ? 'A' : 'D';
     return { score: avg, letter };
   };
@@ -274,15 +326,14 @@ export const AsistenciaLmsView: React.FC = () => {
   };
 
   /**
-   * Pendientes del aprendiz: actividades de su ficha (o globales si no hay de su ficha) sin entregar o con letra D.
+   * Pendientes del aprendiz: actividades sin calificación o con letra D.
+   * Usa deduplicación por clave canónica para tolerar cambios de ID entre importaciones.
    */
   const getPendientesForStudent = (student: Student): { count: number; activities: GradeActivity[] } => {
-    const studentGroup = student.group || '';
-    const fichaSpecific = gradeActivities.filter(a => a.group === studentGroup);
-    const fichaActivities = fichaSpecific.length > 0 ? fichaSpecific : gradeActivities.filter(a => a.group === '');
+    const fichaActivities = getStudentActivities(student);
     const activities: GradeActivity[] = [];
     fichaActivities.forEach(activity => {
-      const grade = gradeMap.get(`${student.id}-${activity.id}`);
+      const grade = getGradeForActivity(student.id, activity);
       if (!grade || grade.letter !== 'A') activities.push(activity);
     });
     return { count: activities.length, activities };
