@@ -72,11 +72,16 @@ const callSaveAppData = (cloudKey: string, value: unknown): void => {
   clearTimeout(_cloudTimers[cloudKey]);
   _cloudTimers[cloudKey] = setTimeout(async () => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    if (!edgeUrl) return;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!edgeUrl || !anonKey) return;
     try {
       const res = await fetch(`${edgeUrl}/save-app-data`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+        },
         body: JSON.stringify({ key: cloudKey, value }),
       });
       if (!res.ok) {
@@ -120,7 +125,8 @@ export const syncAppDataFromCloud = async (): Promise<void> => {
  */
 export const uploadLocalAppDataToCloud = async (): Promise<number> => {
   const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-  if (!edgeUrl) { console.warn('[AppData] VITE_SUPABASE_EDGE_URL not set — skipping upload'); return 0; }
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!edgeUrl || !anonKey) { console.warn('[AppData] Supabase env vars not set — skipping upload'); return 0; }
   const entries: Array<{ key: string; value: unknown }> = [];
   Object.entries(APP_DATA_SYNC_KEYS).forEach(([cloudKey, storageKey]) => {
     const raw = localStorage.getItem(storageKey);
@@ -136,7 +142,11 @@ export const uploadLocalAppDataToCloud = async (): Promise<number> => {
     console.log('[AppData] uploading', entries.length, 'keys:', entries.map(e => e.key));
     const res = await fetch(`${edgeUrl}/save-app-data`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${anonKey}`,
+        'apikey': anonKey,
+      },
       body: JSON.stringify({ entries }),
     });
     if (!res.ok) {
