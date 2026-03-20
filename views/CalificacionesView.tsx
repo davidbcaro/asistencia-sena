@@ -976,10 +976,16 @@ export const CalificacionesView: React.FC = () => {
    *  Also returns null in "Todas las fases" view (phaseGroups takes Row 1 instead). */
   const compGroups = useMemo<Array<{ compCode: string; compName: string; aaKeys: string; activities: GradeActivity[] }> | null>(() => {
     if (selectedPhase === ALL_PHASES_VIEW) return null;
-    // Collect all mapping sources relevant to the current view
+    // Collect all mapping sources relevant to the current view.
+    // Global seeds (key='') are always included FIRST as lowest-priority base,
+    // so every seed activity always has its competencia group even if the
+    // ficha-specific import map only covers a subset of activities.
     const mappingSources: Array<Record<string, EvCompEntry>> = [];
+    if (evidenceCompMap['']?.byEvKey) {
+      mappingSources.push(evidenceCompMap[''].byEvKey);        // global seeds — base
+    }
     if (evidenceCompMap[evidenceMapKey]?.byEvKey) {
-      mappingSources.push(evidenceCompMap[evidenceMapKey].byEvKey);
+      mappingSources.push(evidenceCompMap[evidenceMapKey].byEvKey); // ficha+phase — overrides
     }
     if (showAllFichasColumns) {
       // Gather mappings from all fichas for current phase
@@ -987,9 +993,6 @@ export const CalificacionesView: React.FC = () => {
         const k = `${f.code}::${selectedPhase}`;
         if (evidenceCompMap[k]?.byEvKey) mappingSources.push(evidenceCompMap[k].byEvKey);
       });
-    }
-    if (mappingSources.length === 0 && evidenceCompMap['']?.byEvKey) {
-      mappingSources.push(evidenceCompMap[''].byEvKey);
     }
     if (mappingSources.length === 0) return null;
 
@@ -2127,34 +2130,40 @@ export const CalificacionesView: React.FC = () => {
       });
 
       // ── Limpiar calificaciones antiguas mal mapeadas ────────────────────────
-      // Antes de insertar, eliminamos todas las entradas que correspondan a los
-      // mismos estudiantes × cualquier actividad en las fases que cubre este Excel.
-      // Esto evita que queden notas "fantasma" en columnas incorrectas de pasos anteriores.
+      // Elimina entradas previas del MISMO estudiante × MISMA EVIDENCIA (por clave canónica)
+      // que referencien un activity.id diferente al que se acaba de importar.
+      // Esto borra las entradas dejadas por reparaciones posicionales incorrectas
+      // aunque estén en fases distintas (no filtra por fase sino por clave canónica).
       if (entries.length > 0) {
         const importedStudentIds = new Set(entries.map(e => e.studentId));
-        // Detectar las fases que cubre este import (basadas en las actividades que se usaron)
+        // Mapa: activityId correcto → clave canónica de esa evidencia
         const importedActivityIds = new Set(entries.map(e => e.activityId));
-        const importedPhases = new Set<string>();
+        const canonicalByImportedId = new Map<string, string>();
         activityColumns.forEach(({ activity }) => {
-          if (activity.phase) importedPhases.add(activity.phase);
+          canonicalByImportedId.set(activity.id, getActivityCanonicalKey(activity));
         });
-        if (importedPhases.size === 0) importedPhases.add(phases[1]); // fallback Fase 1
-        // Todos los IDs de actividades en esas fases (globales + ficha)
-        const allPhaseActIds = new Set(
-          activities
-            .filter(a => importedPhases.has(a.phase || '') &&
-              (!isAllFichas ? (a.group === selectedFicha || a.group === '') : true))
-            .map(a => a.id)
-        );
-        // Incluir también nuevas actividades recién creadas
-        newActivities.forEach(a => allPhaseActIds.add(a.id));
+        // Inverso: clave canónica → activityId correcto (para la búsqueda rápida)
+        const importedIdByCanonical = new Map<string, string>();
+        canonicalByImportedId.forEach((canonical, id) => importedIdByCanonical.set(canonical, id));
+
+        // Construir mapa de todas las actividades conocidas para la búsqueda
+        const allActivitiesById = new Map(activities.map(a => [a.id, a]));
+        newActivities.forEach(a => allActivitiesById.set(a.id, a));
+
         const beforeClean = getGrades();
-        const cleaned = beforeClean.filter(g =>
-          !(importedStudentIds.has(g.studentId) && allPhaseActIds.has(g.activityId) && !importedActivityIds.has(g.activityId))
-        );
+        const cleaned = beforeClean.filter(g => {
+          if (!importedStudentIds.has(g.studentId)) return true; // estudiante no importado → conservar
+          if (importedActivityIds.has(g.activityId)) return true; // es la entrada correcta → conservar
+          // Verificar si esta entrada apunta a la misma evidencia (clave canónica) que alguna importada
+          const act = allActivitiesById.get(g.activityId);
+          if (!act) return true; // actividad desconocida → conservar
+          const canonical = getActivityCanonicalKey(act);
+          if (importedIdByCanonical.has(canonical)) return false; // misma evidencia, ID incorrecto → eliminar
+          return true; // evidencia diferente → conservar
+        });
         if (cleaned.length < beforeClean.length) {
           saveGrades(cleaned);
-          console.log(`[Import] Eliminadas ${beforeClean.length - cleaned.length} calificaciones desactualizadas de fases anteriores`);
+          console.log(`[Import] Eliminadas ${beforeClean.length - cleaned.length} entradas mal mapeadas (mismo estudiante, misma evidencia, ID incorrecto)`);
         }
       }
 
