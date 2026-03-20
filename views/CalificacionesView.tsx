@@ -1935,30 +1935,39 @@ export const CalificacionesView: React.FC = () => {
 
       const isAllFichas = selectedFicha === 'Todas';
 
-      // Buscar actividades existentes: primero por ficha específica, luego globales (group='')
-      const activitiesInPhase = activities.filter(
-        a => (a.phase || phases[1]) === selectedPhase
-      );
-      // Prioridad: ficha seleccionada > global
+      // ── Auto-detect phase from canonical evidence code (GA#→phase) ──────────
+      // GA1 → Fase 1: Análisis, GA2-3 → Fase 2: Planeación,
+      // GA4-7 → Fase 3: Ejecución, GA8+ → Fase 4: Evaluación, GI → Inducción
+      const detectPhaseFromCode = (code: string): string => {
+        if (/^GI\d+/i.test(code)) return 'Fase Inducción';
+        const m = code.match(/GA(\d+)/i);
+        if (m) {
+          const n = parseInt(m[1]);
+          if (n === 1) return 'Fase 1: Análisis';
+          if (n <= 3) return 'Fase 2: Planeación';
+          if (n <= 7) return 'Fase 3: Ejecución';
+          return 'Fase 4: Evaluación';
+        }
+        return selectedPhase === ALL_PHASES_VIEW ? phases[1] : selectedPhase;
+      };
+
+      // ── Buscar actividades existentes buscando en TODAS las fases ───────────
+      // (no filtramos por selectedPhase para que el re-import siempre reutilice
+      //  las actividades semilla correctas independientemente del filtro activo)
       const existingByDetail = new Map<string, GradeActivity>();
-      // Cargar primero las globales (menor prioridad)
-      activitiesInPhase
-        .filter(a => a.group === '')
-        .forEach(activity => {
-          const key = getActivityCanonicalKey(activity);
-          existingByDetail.set(key, activity);
-        });
-      // Luego las de la ficha seleccionada (mayor prioridad, sobreescribe globales)
+      activities.filter(a => a.group === '').forEach(activity => {
+        existingByDetail.set(getActivityCanonicalKey(activity), activity);
+      });
       if (!isAllFichas) {
-        activitiesInPhase
-          .filter(a => a.group === selectedFicha)
-          .forEach(activity => {
-            const key = getActivityCanonicalKey(activity);
-            existingByDetail.set(key, activity);
-          });
+        activities.filter(a => a.group === selectedFicha).forEach(activity => {
+          existingByDetail.set(getActivityCanonicalKey(activity), activity); // ficha overrides global
+        });
       }
 
-      // Calcular siguiente número de EV disponible para esta ficha/fase
+      // Para calcular el siguiente número de EV sólo miramos la fase detectada
+      const activitiesInPhase = activities.filter(
+        a => (a.phase || phases[1]) === (selectedPhase === ALL_PHASES_VIEW ? phases[1] : selectedPhase)
+      );
       const existingEvNumbers = activitiesInPhase
         .filter(a => !isAllFichas ? (a.group === selectedFicha || a.group === '') : true)
         .map(a => { const m = a.name.match(/EV(\d+)/i); return m ? parseInt(m[1], 10) : 0; });
@@ -1973,12 +1982,13 @@ export const CalificacionesView: React.FC = () => {
       evidenceMap.forEach((entry, canonicalKey) => {
         let activity = existingByDetail.get(canonicalKey);
         if (!activity) {
-          // Crear actividad nueva para esta ficha
+          // Auto-detect phase from the evidence code in the column header
+          const autoPhase = detectPhaseFromCode(entry.baseName);
           activity = {
             id: generateId(),
             name: `EV${String(nextEvNumber).padStart(2, '0')}`,
             group: isAllFichas ? '' : selectedFicha,
-            phase: selectedPhase,
+            phase: autoPhase,
             maxScore: 100,
             detail: entry.baseName,
             createdAt: new Date().toISOString(),
@@ -2115,6 +2125,38 @@ export const CalificacionesView: React.FC = () => {
           });
         });
       });
+
+      // ── Limpiar calificaciones antiguas mal mapeadas ────────────────────────
+      // Antes de insertar, eliminamos todas las entradas que correspondan a los
+      // mismos estudiantes × cualquier actividad en las fases que cubre este Excel.
+      // Esto evita que queden notas "fantasma" en columnas incorrectas de pasos anteriores.
+      if (entries.length > 0) {
+        const importedStudentIds = new Set(entries.map(e => e.studentId));
+        // Detectar las fases que cubre este import (basadas en las actividades que se usaron)
+        const importedActivityIds = new Set(entries.map(e => e.activityId));
+        const importedPhases = new Set<string>();
+        activityColumns.forEach(({ activity }) => {
+          if (activity.phase) importedPhases.add(activity.phase);
+        });
+        if (importedPhases.size === 0) importedPhases.add(phases[1]); // fallback Fase 1
+        // Todos los IDs de actividades en esas fases (globales + ficha)
+        const allPhaseActIds = new Set(
+          activities
+            .filter(a => importedPhases.has(a.phase || '') &&
+              (!isAllFichas ? (a.group === selectedFicha || a.group === '') : true))
+            .map(a => a.id)
+        );
+        // Incluir también nuevas actividades recién creadas
+        newActivities.forEach(a => allPhaseActIds.add(a.id));
+        const beforeClean = getGrades();
+        const cleaned = beforeClean.filter(g =>
+          !(importedStudentIds.has(g.studentId) && allPhaseActIds.has(g.activityId) && !importedActivityIds.has(g.activityId))
+        );
+        if (cleaned.length < beforeClean.length) {
+          saveGrades(cleaned);
+          console.log(`[Import] Eliminadas ${beforeClean.length - cleaned.length} calificaciones desactualizadas de fases anteriores`);
+        }
+      }
 
       upsertGrades(entries);
 
