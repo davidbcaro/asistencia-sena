@@ -97,26 +97,34 @@ const callSaveAppData = (cloudKey: string, value: unknown): void => {
 /** Download app_data rows from Supabase; only restore if localStorage is empty for that key */
 export const syncAppDataFromCloud = async (): Promise<void> => {
   const client = getClient();
-  if (!client) return;
+  if (!client) { console.warn('[AppData] syncAppDataFromCloud: no Supabase client'); return; }
   try {
     const { data, error } = await client
       .from('app_data')
       .select('key, value_json');
-    if (error || !data) return;
-    let changed = false;
+    if (error) {
+      console.error('[AppData] syncAppDataFromCloud Supabase error:', error.message, error);
+      return;
+    }
+    if (!data) { console.warn('[AppData] syncAppDataFromCloud: null data returned'); return; }
+    console.log(`[AppData] syncAppDataFromCloud: fetched ${data.length} rows from app_data`);
+    let restored = 0;
     data.forEach(({ key, value_json }: { key: string; value_json: unknown }) => {
       const storageKey = APP_DATA_SYNC_KEYS[key];
       if (!storageKey) return;
       const local = localStorage.getItem(storageKey);
       if (_isEmptyValue(local)) {
         localStorage.setItem(storageKey, JSON.stringify(value_json));
-        changed = true;
+        restored++;
+        console.log(`[AppData] restored key "${key}" from cloud`);
       }
       // local has data → keep it (local wins)
     });
-    if (changed) window.dispatchEvent(new Event('asistenciapro-storage-update'));
+    console.log(`[AppData] syncAppDataFromCloud done: ${restored} keys restored from cloud`);
+    // Always dispatch — views should refresh regardless of whether any key changed
+    window.dispatchEvent(new Event('asistenciapro-storage-update'));
   } catch (e) {
-    console.warn('[AppData] syncAppDataFromCloud failed', e);
+    console.error('[AppData] syncAppDataFromCloud exception:', e);
   }
 };
 
@@ -1459,6 +1467,10 @@ export const syncFromCloud = async () => {
     // Always attempt upload — outside try/catch so a Supabase query error above
     // can never prevent local data from being persisted to the cloud.
     await uploadLocalAppDataToCloud();
+
+    // Fire a final notification so any views that mounted mid-sync (and may have
+    // missed earlier events) will reload all their data now that everything is in localStorage.
+    notifyChange();
 };
 
 // --- BACKUP & RESTORE SYSTEM ---
