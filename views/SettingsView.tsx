@@ -10,6 +10,7 @@ import {
     syncFromCloud,
     uploadLocalAppDataToCloud,
     forceDownloadAppDataFromCloud,
+    repairGradeActivityLinks,
     verifyInstructorPassword,
     saveInstructorPassword,
     sendStudentsToCloud,
@@ -142,6 +143,23 @@ export const SettingsView: React.FC = () => {
   // APP DATA FORCE DOWNLOAD: restaurar todo desde la nube (sobreescribe local)
   const [forceDownloadStatus, setForceDownloadStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [forceDownloadMsg, setForceDownloadMsg] = useState('');
+
+  // REPAIR GRADE LINKS
+  const [repairStatus, setRepairStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [repairMsg, setRepairMsg] = useState('');
+
+  const handleRepairGradeLinks = () => {
+    if (!window.confirm('⚠️ Esta función intenta re-vincular calificaciones huérfanas con las actividades actuales usando emparejamiento por orden de creación.\n\nSolo úsala si las calificaciones aparecen como "-" aunque existan datos.\n\n¿Continuar?')) return;
+    const result = repairGradeActivityLinks();
+    if (result.orphanedCount === 0) {
+      setRepairStatus('success');
+      setRepairMsg('No se encontraron calificaciones huérfanas. Los vínculos ya están correctos.');
+    } else {
+      setRepairStatus('success');
+      setRepairMsg(`✅ Reparadas ${result.repaired} calificaciones (${result.orphanedCount} IDs huérfanos → ${result.mappedCount} actividades actuales mapeadas). Recargando…`);
+      setTimeout(() => window.location.reload(), 1500);
+    }
+  };
 
   const handleForceDownload = async () => {
     if (!isSupabaseConfigured()) {
@@ -513,6 +531,29 @@ END $$;
                         {forceDownloadStatus === 'error' && <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
                         {forceDownloadStatus === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
                         <span>{forceDownloadMsg}</span>
+                    </div>
+                )}
+            </div>
+
+            {/* Repair grade links */}
+            <div className="mt-3 pt-3 border-t border-teal-200">
+                <p className="text-xs text-teal-700 mb-2 font-semibold">🔧 Reparar vínculos de calificaciones</p>
+                <p className="text-xs text-teal-600 mb-2">
+                    Si en Calificaciones todas las celdas muestran <strong>"-"</strong> aunque existan datos guardados, usa este botón. Re-vincula las calificaciones con las actividades actuales por orden de creación.
+                </p>
+                <button
+                    onClick={handleRepairGradeLinks}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-lg transition-colors"
+                >
+                    <AlertTriangle className="w-4 h-4" /> Reparar calificaciones huérfanas
+                </button>
+                {repairMsg && (
+                    <div className={`mt-2 p-3 rounded-lg text-xs font-semibold flex items-start gap-2 ${
+                        repairStatus === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                    }`}>
+                        {repairStatus === 'error' && <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                        {repairStatus === 'success' && <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                        <span>{repairMsg}</span>
                     </div>
                 )}
             </div>

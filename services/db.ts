@@ -1206,6 +1206,64 @@ export const deleteGradeEntry = (studentId: string, activityId: string) => {
     }
 };
 
+/**
+ * Repair broken grade↔activity links caused by activities being recreated with new UUIDs.
+ *
+ * Strategy: sorts orphaned activityIds by the earliest grade.updatedAt for each id
+ * (proxy for when that activity was first used), then sorts current activities by createdAt,
+ * and maps them positionally. Saves the repaired grades and uploads to cloud.
+ *
+ * Returns { repaired, orphanedCount, mappedCount } for UI feedback.
+ */
+export const repairGradeActivityLinks = (): { repaired: number; orphanedCount: number; mappedCount: number } => {
+    const activities = getGradeActivities();
+    const grades = getGrades();
+
+    const knownIds = new Set(activities.map(a => a.id));
+
+    // Collect unique orphaned IDs (present in grades, absent in activities)
+    const orphanedEarliestDate: Record<string, string> = {};
+    grades.forEach(g => {
+        if (!knownIds.has(g.activityId)) {
+            const prev = orphanedEarliestDate[g.activityId];
+            if (!prev || g.updatedAt < prev) {
+                orphanedEarliestDate[g.activityId] = g.updatedAt;
+            }
+        }
+    });
+
+    const orphanedIds = Object.keys(orphanedEarliestDate);
+    if (orphanedIds.length === 0) return { repaired: 0, orphanedCount: 0, mappedCount: 0 };
+
+    // Sort orphaned IDs by earliest usage date (approximates creation order)
+    const sortedOrphaned = [...orphanedIds].sort(
+        (a, b) => (orphanedEarliestDate[a] || '').localeCompare(orphanedEarliestDate[b] || '')
+    );
+
+    // Sort current activities by createdAt
+    const sortedActivities = [...activities].sort(
+        (a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')
+    );
+
+    // Build positional mapping: orphanedId → currentActivity.id
+    const idMap: Record<string, string> = {};
+    const mapLen = Math.min(sortedOrphaned.length, sortedActivities.length);
+    for (let i = 0; i < mapLen; i++) {
+        idMap[sortedOrphaned[i]] = sortedActivities[i].id;
+    }
+
+    // Apply mapping
+    let repaired = 0;
+    const updatedGrades = grades.map(g => {
+        const newId = idMap[g.activityId];
+        if (newId) { repaired++; return { ...g, activityId: newId }; }
+        return g;
+    });
+
+    saveGrades(updatedGrades);
+    return { repaired, orphanedCount: orphanedIds.length, mappedCount: mapLen };
+};
+
 // --- RAP NOTES ---
 export type RapNotes = Record<string, Record<string, string>>;
 export type RapColumns = Record<string, string[]>;
