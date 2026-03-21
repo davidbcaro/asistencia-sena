@@ -75,6 +75,8 @@ const ADDITIVE_MERGE_KEYS = new Set([
   'sofia_juicio_entries',
   'sofia_juicio_history',
   'sofia_student_estados',
+  'grades',
+  'grade_activities',
 ]);
 
 /**
@@ -124,6 +126,37 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
   } catch {
     // On any parse/merge error, fall back to local
   }
+
+  try {
+    if (key === 'grades') {
+      // Array<GradeEntry {studentId, activityId, score, letter, updatedAt}>
+      // Merge by studentId+activityId, keep the entry with the later updatedAt
+      const cloudArr = Array.isArray(cloud) ? (cloud as Array<{ studentId: string; activityId: string; updatedAt?: string }>) : [];
+      const localArr = Array.isArray(local) ? (local as Array<{ studentId: string; activityId: string; updatedAt?: string }>) : [];
+      const map = new Map<string, typeof cloudArr[0]>();
+      cloudArr.forEach(e => map.set(`${e.studentId}-${e.activityId}`, e));
+      localArr.forEach(e => {
+        const k = `${e.studentId}-${e.activityId}`;
+        const existing = map.get(k);
+        if (!existing || (e.updatedAt ?? '') > (existing.updatedAt ?? '')) map.set(k, e);
+      });
+      return Array.from(map.values());
+    }
+
+    if (key === 'grade_activities') {
+      // Array<GradeActivity {id, name, group, phase, ...createdAt}>
+      // Union by id — keep all activities from both sides; if same id, local wins
+      const cloudArr = Array.isArray(cloud) ? (cloud as Array<{ id: string }>) : [];
+      const localArr = Array.isArray(local) ? (local as Array<{ id: string }>) : [];
+      const map = new Map<string, typeof cloudArr[0]>();
+      cloudArr.forEach(e => map.set(e.id, e));
+      localArr.forEach(e => map.set(e.id, e)); // local wins on conflict
+      return Array.from(map.values());
+    }
+  } catch {
+    // On any parse/merge error, fall back to local
+  }
+
   return local;
 };
 
