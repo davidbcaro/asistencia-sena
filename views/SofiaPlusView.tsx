@@ -227,16 +227,28 @@ export const SofiaPlusView: React.FC = () => {
   useEffect(() => { setCurrentPage(1); }, [selectedFicha, searchTerm, filterStatus, filterJuicio, sortOrder, sortDirection]);
 
   // ---------------------------------------------------------------------------
-  // Computed: sorted RAP columns
+  // Computed: sorted RAP columns (filtered by selected ficha when applicable)
   // ---------------------------------------------------------------------------
   const rapColumns = useMemo(() => {
-    return (Object.values(rapDefs) as RapDefinition[]).sort((a, b) => {
+    const allRaps = (Object.values(rapDefs) as RapDefinition[]).sort((a, b) => {
       const oa = getCompetenciaOrder(a.competenciaName);
       const ob = getCompetenciaOrder(b.competenciaName);
       if (oa !== ob) return oa - ob;
       return parseInt(a.rapId, 10) - parseInt(b.rapId, 10);
     });
-  }, [rapDefs]);
+
+    if (selectedFicha === 'Todas') return allRaps;
+
+    // When a specific ficha is selected, only show RAPs that have entries for that ficha
+    const fichaRapIds = new Set<string>();
+    Object.values(juicioEntries).forEach(entry => {
+      if (entry.fichaCode === selectedFicha) fichaRapIds.add(entry.rapId);
+    });
+
+    // Fall back to showing all RAPs if no entries exist yet for this ficha
+    if (fichaRapIds.size === 0) return allRaps;
+    return allRaps.filter(r => fichaRapIds.has(r.rapId));
+  }, [rapDefs, selectedFicha, juicioEntries]);
 
   // Grouped by competencia for double header row
   const competenciaGroups = useMemo(() => {
@@ -519,16 +531,24 @@ export const SofiaPlusView: React.FC = () => {
             {showFichaFilter && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowFichaFilter(false)} />
-                <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 p-4">
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Ficha</label>
-                  <select
-                    value={selectedFicha}
-                    onChange={e => { setSelectedFicha(e.target.value); setShowFichaFilter(false); }}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-64 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedFicha('Todas'); setShowFichaFilter(false); }}
+                    className={`w-full text-left px-3 py-2 text-sm ${selectedFicha === 'Todas' ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
                   >
-                    <option value="Todas">Todas las fichas</option>
-                    {fichas.map(f => <option key={f.id} value={f.code}>{f.code} - {f.program}</option>)}
-                  </select>
+                    Todas las fichas
+                  </button>
+                  {fichas.map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => { setSelectedFicha(f.code); setShowFichaFilter(false); }}
+                      className={`w-full text-left px-3 py-2 text-sm ${selectedFicha === f.code ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                    >
+                      {f.code} - {f.program}
+                    </button>
+                  ))}
                 </div>
               </>
             )}
