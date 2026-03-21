@@ -358,6 +358,29 @@ export const PlaneacionSemanalView: React.FC = () => {
     persist({ ...planeacion, hiddenCards: next });
   }, [planeacion, persist]);
 
+  // ── Row span plan ────────────────────────────────────────────────────────
+  // For each row, compute which cells render with colspan=1 or colspan=2.
+  // A cell at weekIdx W gets span=2 if any of its cards has duration=2 AND W+1 < TOTAL_WEEKS.
+  // The following week (W+1) is then "consumed" and skipped.
+  const planRow = useCallback((rowKey: string, isTecnica: boolean): Array<{ weekIdx: number; span: 1 | 2 }> => {
+    const result: Array<{ weekIdx: number; span: 1 | 2 }> = [];
+    const consumed = new Set<number>();
+    const durations = planeacion.cardDurations ?? {};
+    for (let w = 0; w < TOTAL_WEEKS; w++) {
+      if (consumed.has(w)) continue;
+      const labels   = planeacion.transversalCells[`${rowKey}::${w}`] ?? [];
+      const assigned = isTecnica ? activities.filter(a => planeacion.tecnicaAssignments[a.id] === w) : [];
+      const hasSpan2 = w + 1 < TOTAL_WEEKS && (
+        labels.some(lbl   => (durations[`lbl::${rowKey}::${lbl}`]   ?? 1) === 2) ||
+        assigned.some(a   => (durations[`act::${a.id}`]             ?? 1) === 2)
+      );
+      const span: 1 | 2 = hasSpan2 ? 2 : 1;
+      result.push({ weekIdx: w, span });
+      if (span === 2) consumed.add(w + 1);
+    }
+    return result;
+  }, [planeacion, activities]);
+
   // ── Derived geometry ────────────────────────────────────────────────────
   const weeks = useMemo(() => Array.from({ length: TOTAL_WEEKS }, (_, i) => i), []);
   const phaseSpans = useMemo(() => {
@@ -501,13 +524,13 @@ export const PlaneacionSemanalView: React.FC = () => {
                   style={{ color: '#7A6500', minHeight: 60, backgroundColor: hoveredRow === 'Técnica' ? TECNICA_COLOR + '28' : 'white' }}>
                   Técnica
                 </td>
-                {weeks.map(w => {
+                {planRow('Técnica', true).map(({ weekIdx: w, span }) => {
                   const ck     = cellKey('Técnica', w);
                   const isOver = dragOverCell === ck;
                   const assigned   = activities.filter(a => planeacion.tecnicaAssignments[a.id] === w);
                   const textLabels = getLabels('Técnica', w);
                   return (
-                    <td key={w}
+                    <td key={w} colSpan={span}
                       className="border-b border-r border-gray-200 align-top p-1 cursor-pointer transition-colors"
                       style={{
                         minHeight: 60,
@@ -575,13 +598,13 @@ export const PlaneacionSemanalView: React.FC = () => {
                     style={{ minHeight: 60, color: row.color, backgroundColor: hoveredRow === row.key ? row.color + '28' : 'white' }}>
                     {row.label}
                   </td>
-                  {weeks.map(w => {
+                  {planRow(row.key, false).map(({ weekIdx: w, span }) => {
                     const ck     = cellKey(row.key, w);
                     const labels = getLabels(row.key, w);
                     const isOver = dragOverCell === ck;
                     const isEdit = editingCell === ck;
                     return (
-                      <td key={w}
+                      <td key={w} colSpan={span}
                         className="border-b border-r border-gray-200 align-top p-1 cursor-pointer transition-colors"
                         style={{
                           minHeight: 60,
