@@ -64,6 +64,69 @@ const APP_DATA_SYNC_KEYS: Record<string, string> = {
 const _isEmptyValue = (raw: string | null | undefined): boolean =>
   !raw || raw === 'null' || raw === '[]' || raw === '{}' || raw === '' || raw === 'undefined';
 
+/**
+ * Keys whose cloud values should be MERGED (additive union) with local values
+ * instead of the default "local wins if non-empty" strategy.
+ * This ensures data uploaded from Computer A is never silently overwritten by
+ * Computer B opening the app with its own older local copy.
+ */
+const ADDITIVE_MERGE_KEYS = new Set([
+  'sofia_rap_defs',
+  'sofia_juicio_entries',
+  'sofia_juicio_history',
+  'sofia_student_estados',
+]);
+
+/**
+ * Merge a local value with a cloud value for an additive-sync key.
+ * - Record types: union of all keys; where both sides have the same key,
+ *   keep the entry whose `updatedAt` is more recent (or local if no timestamp).
+ * - Array types (history): union deduplicated by `historyId`.
+ */
+const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown => {
+  try {
+    if (key === 'sofia_juicio_history') {
+      // Array<JuicioRapHistoryEntry> – union by historyId
+      const cloudArr = Array.isArray(cloud) ? (cloud as Array<{ historyId: string }>) : [];
+      const localArr = Array.isArray(local) ? (local as Array<{ historyId: string }>) : [];
+      const seen = new Set(cloudArr.map(e => e.historyId));
+      const extras = localArr.filter(e => !seen.has(e.historyId));
+      return [...cloudArr, ...extras];
+    }
+
+    // All other sofia keys are Record<string, object>
+    const cloudObj = (cloud && typeof cloud === 'object' && !Array.isArray(cloud))
+      ? (cloud as Record<string, unknown>) : {};
+    const localObj = (local && typeof local === 'object' && !Array.isArray(local))
+      ? (local as Record<string, unknown>) : {};
+
+    if (key === 'sofia_juicio_entries') {
+      // Record<`${studentId}-${rapId}`, JuicioRapEntry> – keep entry with later updatedAt
+      const merged: Record<string, unknown> = { ...cloudObj };
+      Object.entries(localObj).forEach(([k, localEntry]) => {
+        const cloudEntry = merged[k] as { updatedAt?: string } | undefined;
+        const localTs = (localEntry as { updatedAt?: string })?.updatedAt ?? '';
+        const cloudTs = cloudEntry?.updatedAt ?? '';
+        if (!cloudEntry || localTs > cloudTs) merged[k] = localEntry;
+      });
+      return merged;
+    }
+
+    if (key === 'sofia_rap_defs') {
+      // Record<rapId, RapDefinition> – simple union (cloud fills gaps, local additions survive)
+      return { ...cloudObj, ...localObj };
+    }
+
+    if (key === 'sofia_student_estados') {
+      // Record<studentId, string> – cloud wins per key (most recent upload source)
+      return { ...localObj, ...cloudObj };
+    }
+  } catch {
+    // On any parse/merge error, fall back to local
+  }
+  return local;
+};
+
 /** Safe JSON.parse — returns fallback on any parse error (e.g. when localStorage has "undefined" string) */
 const safeParseJSON = <T>(raw: string | null | undefined, fallback: T): T => {
   if (_isEmptyValue(raw)) return fallback;
@@ -171,14 +234,30 @@ export const syncAppDataFromCloud = async (force = false): Promise<void> => {
       const storageKey = APP_DATA_SYNC_KEYS[key];
       if (!storageKey) return;
       const local = localStorage.getItem(storageKey);
+      const incoming = JSON.stringify(value_json);
+
       // force=true → always overwrite. force=false → only overwrite if local is empty.
       if (force || _isEmptyValue(local)) {
-        const incoming = JSON.stringify(value_json);
         // Never restore an explicitly empty value from cloud (would erase real local data)
         if (!force && _isEmptyValue(incoming)) return;
         localStorage.setItem(storageKey, incoming);
         restored++;
         console.log(`[AppData] ${force ? 'force-restored' : 'restored'} key "${key}" from cloud`);
+      } else if (!force && ADDITIVE_MERGE_KEYS.has(key) && !_isEmptyValue(incoming)) {
+        // Additive-merge keys: combine local + cloud so data from multiple machines is preserved.
+        // This prevents Computer B from silently overwriting Computer A's Sofia uploads.
+        try {
+          const localParsed = JSON.parse(local!);
+          const merged = _mergeAdditiveKey(key, localParsed, value_json);
+          const mergedStr = JSON.stringify(merged);
+          if (mergedStr !== local) {
+            localStorage.setItem(storageKey, mergedStr);
+            restored++;
+            console.log(`[AppData] merged (additive) key "${key}" from cloud`);
+          }
+        } catch {
+          // Parse error: keep local unchanged
+        }
       }
     });
     console.log(`[AppData] syncAppDataFromCloud done: ${restored} keys written to localStorage`);
