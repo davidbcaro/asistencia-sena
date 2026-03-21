@@ -39,14 +39,12 @@ const TRANSVERSAL_ROWS = [
   { key: 'TICs',              label: "TIC's",              color: '#4CAF50' }, // Green
   { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#F44336' }, // Red
   { key: 'Matemáticas',       label: 'Matemáticas',        color: '#F48FB1' }, // Pink
-  { key: 'Comunicación',      label: 'Comunicación / Ética / Derechos', color: '#9C27B0' }, // Purple (shared)
+  { key: 'Comunicación',      label: 'Comunicación / Ética / Derechos', color: '#9C27B0' }, // Purple
   { key: 'Investigación',     label: 'Investigación',      color: '#FF9800' }, // Orange
   { key: 'Ambiente',          label: 'Ambiente',           color: '#2196F3' }, // Blue
   { key: 'Emprendimiento',    label: 'Emprendimiento',     color: '#009688' }, // Teal
   { key: 'EducaciónFísica',   label: 'Edu. Física',        color: '#9E9E9E' }, // Gray
   { key: 'CienciasNaturales', label: 'Ciencias Naturales', color: '#BDBDBD' }, // Light gray
-  { key: 'DerechosTrabajo',   label: 'Derechos Trabajo',   color: '#9C27B0' }, // Purple (same as Comunicación)
-  { key: 'Ética',             label: 'Ética',              color: '#9C27B0' }, // Purple (same)
 ] as const;
 
 // ─── Default data seeded from the Excel ─────────────────────────────────────
@@ -152,17 +150,17 @@ const DEFAULT_TRANSVERSAL: Record<string, string> = {
   'Emprendimiento::93': 'Taller identificación problema',
   'Emprendimiento::94': 'Prototipo de la solución',
   'Emprendimiento::95': 'Taller negociación y modelo negocio',
-  // Derechos Trabajo – Guía 11
-  'DerechosTrabajo::96':  'Taller derechos trabajo',
-  'DerechosTrabajo::97':  'Informe trabajo decente',
-  'DerechosTrabajo::98':  'Infografía sobre la huelga',
-  'DerechosTrabajo::99':  'Cuadro comparativo derecho de petición',
-  'DerechosTrabajo::100': 'Presentación derechos trabajo',
-  // Ética – Guía 12
-  'Ética::102': 'Presentación proyecto de vida',
-  'Ética::103': 'Diagrama de sistemas',
-  'Ética::104': 'Estrategia uso racional recursos',
-  'Ética::105': 'Solución del caso. Cultura de paz',
+  // Derechos Trabajo – Guía 11 (parte de Comunicación / Ética / Derechos)
+  'Comunicación::96':  'Taller derechos trabajo',
+  'Comunicación::97':  'Informe trabajo decente',
+  'Comunicación::98':  'Infografía sobre la huelga',
+  'Comunicación::99':  'Cuadro comparativo derecho de petición',
+  'Comunicación::100': 'Presentación derechos trabajo',
+  // Ética – Guía 12 (parte de Comunicación / Ética / Derechos)
+  'Comunicación::102': 'Presentación proyecto de vida',
+  'Comunicación::103': 'Diagrama de sistemas',
+  'Comunicación::104': 'Estrategia uso racional recursos',
+  'Comunicación::105': 'Solución del caso. Cultura de paz',
 };
 
 /** Build the default seeded data for a ficha that has no planeación yet */
@@ -225,6 +223,25 @@ export const PlaneacionSemanalView: React.FC = () => {
       savePlaneacionSemanal(allPlan);
       setPlaneacion(def);
     } else {
+      // Migrate legacy DerechosTrabajo:: and Ética:: keys → Comunicación::
+      const fichaData = allPlan[fichaId ?? ''];
+      if (fichaData) {
+        let migrated = false;
+        const cells = { ...fichaData.transversalCells };
+        Object.keys(cells).forEach(k => {
+          if (k.startsWith('DerechosTrabajo::') || k.startsWith('Ética::')) {
+            const newKey = k.replace(/^(DerechosTrabajo|Ética)::/, 'Comunicación::');
+            if (!cells[newKey]) cells[newKey] = cells[k];
+            else cells[newKey] = [...cells[newKey], ...cells[k]];
+            delete cells[k];
+            migrated = true;
+          }
+        });
+        if (migrated) {
+          allPlan[fichaId ?? ''] = { ...fichaData, transversalCells: cells };
+          savePlaneacionSemanal(allPlan);
+        }
+      }
       setPlaneacion(allPlan[fichaId ?? ''] ?? EMPTY_DATA);
     }
   }, [fichaId]);
