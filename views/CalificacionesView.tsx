@@ -1271,24 +1271,13 @@ export const CalificacionesView: React.FC = () => {
   };
 
   const getJuicioEstado = (studentId: string, studentGroup?: string): '-' | 'orange' | 'green' => {
+    // Sin filtro de fase o sin filtro de ficha: no mostrar juicio
+    if (selectedPhase === ALL_PHASES_VIEW || selectedFicha === 'Todas') return '-';
+
     const phaseKey = getRapKeyForStudent(studentGroup);
-
-    // Fase específica: solo leer la clave exacta de esa fase, sin fallback a otras fases
-    if (selectedPhase !== ALL_PHASES_VIEW) {
-      if (!phaseKey) return '-';
-      const v = (juiciosEvaluativos[phaseKey] || {})[studentId];
-      return (v === 'orange' || v === 'green') ? v : '-';
-    }
-
-    // Vista "Todas las fases": agregar el estado más alto encontrado en cualquier fase
-    const keys = getJuicioKeys(studentGroup);
-    let best: '-' | 'orange' | 'green' = '-';
-    for (const k of keys) {
-      const v = (juiciosEvaluativos[k] || {})[studentId];
-      if (v === 'green') return 'green'; // green es el estado más alto
-      if (v === 'orange') best = 'orange';
-    }
-    return best;
+    if (!phaseKey) return '-';
+    const v = (juiciosEvaluativos[phaseKey] || {})[studentId];
+    return (v === 'orange' || v === 'green') ? v : '-';
   };
 
   const buildReportData = () => {
@@ -2834,7 +2823,7 @@ export const CalificacionesView: React.FC = () => {
                   >
                     {(() => {
                       const estado = getJuicioEstado(student.id, student.group);
-                      if (estado === '-') return <span className="text-gray-400 text-sm">—</span>;
+                      if (estado === '-') return <span className="text-gray-400 text-sm">-</span>;
                       if (estado === 'orange') return (
                         <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold tracking-wide leading-none whitespace-nowrap">
                           PE
@@ -2891,7 +2880,7 @@ export const CalificacionesView: React.FC = () => {
                               : { backgroundColor: '#f9fafb', color: '#9ca3af' }),
                           }}
                         >
-                          {phaseTotal || '—'}
+                          {phaseTotal || '-'}
                         </td>
                       </React.Fragment>
                     );
