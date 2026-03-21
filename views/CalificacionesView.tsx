@@ -1272,24 +1272,21 @@ export const CalificacionesView: React.FC = () => {
 
   const getJuicioEstado = (studentId: string, studentGroup?: string): '-' | 'orange' | 'green' => {
     const phaseKey = getRapKeyForStudent(studentGroup);
-    // Primary: phase-specific key
-    if (phaseKey) {
+
+    // Fase específica: solo leer la clave exacta de esa fase, sin fallback a otras fases
+    if (selectedPhase !== ALL_PHASES_VIEW) {
+      if (!phaseKey) return '-';
       const v = (juiciosEvaluativos[phaseKey] || {})[studentId];
-      if (v === 'orange' || v === 'green') return v;
+      return (v === 'orange' || v === 'green') ? v : '-';
     }
-    // Fallback: search all candidate keys (legacy ficha-only + all phase keys)
-    // In specific-phase view: only check legacy key to avoid cross-phase bleed
-    // In all-phases view: aggregate across all phases (return highest state found)
+
+    // Vista "Todas las fases": agregar el estado más alto encontrado en cualquier fase
     const keys = getJuicioKeys(studentGroup);
     let best: '-' | 'orange' | 'green' = '-';
     for (const k of keys) {
-      if (k === phaseKey) continue; // already checked above
       const v = (juiciosEvaluativos[k] || {})[studentId];
-      if (v === 'green') return 'green'; // green is the highest state
-      if (v === 'orange') {
-        if (selectedPhase === ALL_PHASES_VIEW) { best = 'orange'; continue; }
-        return 'orange'; // in specific-phase view, return on first match
-      }
+      if (v === 'green') return 'green'; // green es el estado más alto
+      if (v === 'orange') best = 'orange';
     }
     return best;
   };
