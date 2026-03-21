@@ -695,7 +695,7 @@ const GridCard: React.FC<GridCardProps> = ({
     draggable
     onDragStart={e => { e.stopPropagation(); onDragStart(); }}
     className="relative flex flex-col gap-0.5 rounded px-2 py-1 cursor-grab active:cursor-grabbing border group w-full transition-opacity"
-    style={{ backgroundColor: color + '22', borderColor: color + '66', opacity: hidden ? 0.3 : isDragging ? 0.35 : 1 }}
+    style={{ backgroundColor: color + '22', borderColor: tc + '99', opacity: hidden ? 0.3 : isDragging ? 0.35 : 1 }}
     title={activity.name}
   >
     {/* Top bar */}
@@ -762,7 +762,7 @@ const TransLabel: React.FC<TransLabelProps> = ({
     draggable
     onDragStart={e => { e.stopPropagation(); onDragStart(); }}
     className="relative flex flex-col gap-0.5 rounded px-2 py-1 group cursor-grab active:cursor-grabbing w-full transition-opacity"
-    style={{ backgroundColor: color + '28', border: `1px solid ${color}55`, opacity: hidden ? 0.3 : isDragging ? 0.3 : 1 }}
+    style={{ backgroundColor: color + '28', border: `1px solid ${tc}99`, opacity: hidden ? 0.3 : isDragging ? 0.3 : 1 }}
     title={label}
   >
     {/* Top bar */}
