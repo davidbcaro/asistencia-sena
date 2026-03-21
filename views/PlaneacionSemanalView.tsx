@@ -33,7 +33,7 @@ const WEEK_END_DATES: string[] = Array.from({ length: TOTAL_WEEKS }, (_, i) => {
 });
 
 // ─── Transversal rows (colors match PLANEACION SEMANAL GRD legend) ──────────
-const TECNICA_COLOR = '#F9D000'; // Yellow — Técnica row
+const TECNICA_COLOR = '#ffff00'; // Yellow — Técnica row
 
 const TRANSVERSAL_ROWS = [
   { key: 'TICs',              label: "TIC's",              color: '#4CAF50' }, // Green
@@ -521,7 +521,7 @@ export const PlaneacionSemanalView: React.FC = () => {
               {/* ── Técnica row ── */}
               <tr onMouseEnter={() => setHoveredRow('Técnica')} onMouseLeave={() => setHoveredRow(null)}>
                 <td className="sticky left-0 z-20 border-b border-r border-gray-200 font-bold px-2 text-[11px] align-middle transition-colors"
-                  style={{ color: '#7A6500', minHeight: 60, backgroundColor: hoveredRow === 'Técnica' ? TECNICA_COLOR + '28' : 'white' }}>
+                  style={{ color: '#999900', minHeight: 60, backgroundColor: hoveredRow === 'Técnica' ? TECNICA_COLOR + '28' : 'white' }}>
                   Técnica
                 </td>
                 {planRow('Técnica', true).map(({ weekIdx: w, span }) => {
@@ -548,6 +548,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                           const aSeg = phaseForActivity(a);
                           const key = actKey(a.id);
                           return <GridCard key={a.id} activity={a} color={aSeg.color}
+                            textColor={aSeg.color === TECNICA_COLOR ? '#808000' : undefined}
                             cardKey={key}
                             duration={getDuration(key)}
                             hidden={isHidden(key)}
@@ -562,7 +563,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                         })}
                         {textLabels.map((lbl, idx) => {
                           const key = lblKey('Técnica', lbl);
-                          return <TransLabel key={idx} label={lbl} color={'#7A6500'}
+                          return <TransLabel key={idx} label={lbl} color={TECNICA_COLOR} textColor="#808000"
                             cardKey={key}
                             duration={getDuration(key)}
                             hidden={isHidden(key)}
@@ -672,6 +673,7 @@ const SidebarCard: React.FC<SidebarCardProps> = ({ activity, color, onDragStart,
 interface GridCardProps {
   activity: GradeActivity;
   color: string;
+  textColor?: string;
   cardKey: string;
   duration: 1 | 2;
   hidden: boolean;
@@ -684,9 +686,11 @@ interface GridCardProps {
   onToggleDurationPicker: () => void;
 }
 const GridCard: React.FC<GridCardProps> = ({
-  activity, color, duration, hidden, durationOpen,
+  activity, color, textColor, duration, hidden, durationOpen,
   onDragStart, isDragging, onRemove, onToggleHidden, onSetDuration, onToggleDurationPicker,
-}) => (
+}) => {
+  const tc = textColor ?? color;
+  return (
   <div
     draggable
     onDragStart={e => { e.stopPropagation(); onDragStart(); }}
@@ -696,21 +700,21 @@ const GridCard: React.FC<GridCardProps> = ({
   >
     {/* Top bar */}
     <div className="flex items-start gap-1" onClick={e => { e.stopPropagation(); onToggleDurationPicker(); }}>
-      <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color }} />
-      <span className="flex-1 text-[11px] font-medium leading-snug break-words" style={{ color, wordBreak: 'break-word', whiteSpace: 'normal' }}>
+      <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color: tc }} />
+      <span className="flex-1 text-[11px] font-medium leading-snug break-words" style={{ color: tc, wordBreak: 'break-word', whiteSpace: 'normal' }}>
         {activity.name}
       </span>
       {duration === 2 && (
-        <span className="text-[9px] font-bold px-1 rounded flex-shrink-0 leading-none py-0.5" style={{ backgroundColor: color + '44', color }}>2S</span>
+        <span className="text-[9px] font-bold px-1 rounded flex-shrink-0 leading-none py-0.5" style={{ backgroundColor: color + '44', color: tc }}>2S</span>
       )}
       <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-        style={{ color }}
+        style={{ color: tc }}
         onClick={e => { e.stopPropagation(); onToggleHidden(); }}
         title={hidden ? 'Mostrar' : 'Ocultar'}>
         {hidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
       </button>
       <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-        style={{ color }}
+        style={{ color: tc }}
         onClick={e => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
         title="Quitar de esta semana">
         <X className="w-3 h-3" />
@@ -722,7 +726,7 @@ const GridCard: React.FC<GridCardProps> = ({
         {([1, 2] as const).map(d => (
           <button key={d}
             className="text-[9px] font-bold px-1.5 py-0.5 rounded border transition-colors"
-            style={{ backgroundColor: duration === d ? color : 'transparent', borderColor: color, color: duration === d ? '#fff' : color }}
+            style={{ backgroundColor: duration === d ? tc : 'transparent', borderColor: tc, color: duration === d ? '#fff' : tc }}
             onClick={e => { e.stopPropagation(); onSetDuration(d); }}>
             {d}S
           </button>
@@ -730,11 +734,13 @@ const GridCard: React.FC<GridCardProps> = ({
       </div>
     )}
   </div>
-);
+  );
+};
 
 interface TransLabelProps {
   label: string;
   color: string;
+  textColor?: string;
   cardKey: string;
   duration: 1 | 2;
   hidden: boolean;
@@ -747,9 +753,11 @@ interface TransLabelProps {
   onToggleDurationPicker: () => void;
 }
 const TransLabel: React.FC<TransLabelProps> = ({
-  label, color, duration, hidden, durationOpen,
+  label, color, textColor, duration, hidden, durationOpen,
   isDragging, onDragStart, onRemove, onToggleHidden, onSetDuration, onToggleDurationPicker,
-}) => (
+}) => {
+  const tc = textColor ?? color;
+  return (
   <div
     draggable
     onDragStart={e => { e.stopPropagation(); onDragStart(); }}
@@ -759,21 +767,21 @@ const TransLabel: React.FC<TransLabelProps> = ({
   >
     {/* Top bar */}
     <div className="flex items-start gap-1" onClick={e => { e.stopPropagation(); onToggleDurationPicker(); }}>
-      <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color }} />
-      <span className="flex-1 text-[11px] font-medium leading-snug break-words" style={{ color, wordBreak: 'break-word', whiteSpace: 'normal' }}>
+      <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color: tc }} />
+      <span className="flex-1 text-[11px] font-medium leading-snug break-words" style={{ color: tc, wordBreak: 'break-word', whiteSpace: 'normal' }}>
         {label}
       </span>
       {duration === 2 && (
-        <span className="text-[9px] font-bold px-1 rounded flex-shrink-0 leading-none py-0.5" style={{ backgroundColor: color + '44', color }}>2S</span>
+        <span className="text-[9px] font-bold px-1 rounded flex-shrink-0 leading-none py-0.5" style={{ backgroundColor: color + '44', color: tc }}>2S</span>
       )}
       <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-        style={{ color }}
+        style={{ color: tc }}
         onClick={e => { e.stopPropagation(); onToggleHidden(); }}
         title={hidden ? 'Mostrar' : 'Ocultar'}>
         {hidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
       </button>
       <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-        style={{ color }}
+        style={{ color: tc }}
         onClick={e => { e.stopPropagation(); onRemove(e); }}
         title="Eliminar">
         <X className="w-3 h-3" />
@@ -785,7 +793,7 @@ const TransLabel: React.FC<TransLabelProps> = ({
         {([1, 2] as const).map(d => (
           <button key={d}
             className="text-[9px] font-bold px-1.5 py-0.5 rounded border transition-colors"
-            style={{ backgroundColor: duration === d ? color : 'transparent', borderColor: color, color: duration === d ? '#fff' : color }}
+            style={{ backgroundColor: duration === d ? tc : 'transparent', borderColor: tc, color: duration === d ? '#fff' : tc }}
             onClick={e => { e.stopPropagation(); onSetDuration(d); }}>
             {d}S
           </button>
@@ -793,4 +801,5 @@ const TransLabel: React.FC<TransLabelProps> = ({
       </div>
     )}
   </div>
-);
+  );
+};
