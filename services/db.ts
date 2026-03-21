@@ -85,6 +85,20 @@ const _cleanupCorruptLocalStorage = (): void => {
 /** Debounced timers per cloud key */
 const _cloudTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
+/**
+ * Timestamp (ms) of the last LOCAL write for each storageKey.
+ * Used by the Realtime listener to avoid overwriting freshly-written local data
+ * with a stale echo from the cloud (race-condition guard).
+ * Grace window: 15 seconds after a local write, Realtime events for that key are ignored.
+ */
+const _localLastWrite: Record<string, number> = {};
+const REALTIME_GRACE_MS = 15_000;
+
+/** Mark a storageKey as recently written locally so the Realtime echo is ignored. */
+const _markLocalWrite = (storageKey: string): void => {
+  _localLastWrite[storageKey] = Date.now();
+};
+
 /** Fire-and-forget: upsert a single key into app_data via Edge Function (debounced 400ms).
  *  IMPORTANT: skips upload if value serializes to an empty array/object — prevents
  *  accidentally overwriting real cloud data with empty local state.
@@ -93,6 +107,10 @@ const callSaveAppData = (cloudKey: string, value: unknown): void => {
   // Guard: never upload empty values to the cloud
   const serialized = JSON.stringify(value);
   if (_isEmptyValue(serialized)) return;
+
+  // Mark the corresponding storageKey as recently written so the Realtime echo is ignored
+  const storageKeyForCloud = APP_DATA_SYNC_KEYS[cloudKey];
+  if (storageKeyForCloud) _markLocalWrite(storageKeyForCloud);
 
   clearTimeout(_cloudTimers[cloudKey]);
   _cloudTimers[cloudKey] = setTimeout(async () => {
@@ -1645,6 +1663,14 @@ export const subscribeToRealtime = () => {
                 if (!key) return;
                 const storageKey = APP_DATA_SYNC_KEYS[key];
                 if (!storageKey) return;
+                // Grace-period guard: ignore Realtime echoes for keys written locally
+                // in the last REALTIME_GRACE_MS ms to prevent overwriting fresh user data
+                // with a stale cloud echo (race condition with uploadLocalAppDataToCloud).
+                const lastWrite = _localLastWrite[storageKey] ?? 0;
+                if (Date.now() - lastWrite < REALTIME_GRACE_MS) {
+                    console.log(`[Realtime] Ignoring app_data echo for recently-written key: ${key}`);
+                    return;
+                }
                 const currentLocal = localStorage.getItem(storageKey);
                 const incoming = JSON.stringify(value_json);
                 if (currentLocal !== incoming) {
@@ -1885,7 +1911,9 @@ export const getSofiaRapDefs = (): Record<string, RapDefinition> => {
 
 export const saveSofiaRapDefs = (defs: Record<string, RapDefinition>) => {
   localStorage.setItem(STORAGE_KEYS.SOFIA_RAP_DEFS, JSON.stringify(defs));
+  _markLocalWrite(STORAGE_KEYS.SOFIA_RAP_DEFS);
   callSaveAppData('sofia_rap_defs', defs);
+  notifyChange();
 };
 
 export const getSofiaJuicioEntries = (): Record<string, JuicioRapEntry> => {
@@ -1898,6 +1926,7 @@ export const upsertSofiaJuicioEntries = (entries: JuicioRapEntry[]) => {
     existing[`${e.studentId}-${e.rapId}`] = e;
   });
   localStorage.setItem(STORAGE_KEYS.SOFIA_JUICIO_ENTRIES, JSON.stringify(existing));
+  _markLocalWrite(STORAGE_KEYS.SOFIA_JUICIO_ENTRIES);
   notifyChange();
   callSaveAppData('sofia_juicio_entries', existing);
 };
@@ -1914,6 +1943,7 @@ export const appendSofiaJuicioHistory = (entries: JuicioRapHistoryEntry[]) => {
   if (newEntries.length === 0) return;
   const updated = [...existing, ...newEntries];
   localStorage.setItem(STORAGE_KEYS.SOFIA_JUICIO_HISTORY, JSON.stringify(updated));
+  _markLocalWrite(STORAGE_KEYS.SOFIA_JUICIO_HISTORY);
   callSaveAppData('sofia_juicio_history', updated);
 };
 
@@ -1925,6 +1955,7 @@ export const upsertSofiaStudentEstados = (map: Record<string, string>) => {
   const existing = getSofiaStudentEstados();
   const merged = { ...existing, ...map };
   localStorage.setItem(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS, JSON.stringify(merged));
+  _markLocalWrite(STORAGE_KEYS.SOFIA_STUDENT_ESTADOS);
   notifyChange();
   callSaveAppData('sofia_student_estados', merged);
 };
