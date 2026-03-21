@@ -9,6 +9,8 @@ import {
   addGradeActivity,
   clearGradesForPhase,
   deleteGradeActivity,
+  getHiddenGradeActivityIds,
+  saveHiddenGradeActivityIds,
   deleteGradeEntry,
   getFichas,
   getGradeActivities,
@@ -466,6 +468,8 @@ export const CalificacionesView: React.FC = () => {
   const [activityName, setActivityName] = useState('');
   const [editingActivity, setEditingActivity] = useState<GradeActivity | null>(null);
   const [activityToDelete, setActivityToDelete] = useState<GradeActivity | null>(null);
+  const [hiddenActivityIds, setHiddenActivityIds] = useState<Set<string>>(new Set());
+  const [showHiddenActivities, setShowHiddenActivities] = useState(false);
   const [uploadError, setUploadError] = useState<string>('');
   const [uploadInfo, setUploadInfo] = useState<string>('');
   const [editingCell, setEditingCell] = useState<{ studentId: string; activityId: string } | null>(null);
@@ -525,6 +529,18 @@ export const CalificacionesView: React.FC = () => {
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
   };
 
+  const toggleHideActivity = (activity: GradeActivity) => {
+    const newSet = new Set(hiddenActivityIds);
+    if (newSet.has(activity.id)) {
+      newSet.delete(activity.id);
+    } else {
+      newSet.add(activity.id);
+    }
+    const ids = Array.from(newSet);
+    saveHiddenGradeActivityIds(ids);
+    setHiddenActivityIds(newSet);
+  };
+
   const handleSort = (column: 'lastname' | 'firstname') => {
     if (sortOrder === column) {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
@@ -554,6 +570,7 @@ export const CalificacionesView: React.FC = () => {
     setRapColumns(loadedRapColumns);
     setJuiciosEvaluativos(loadedJuicios);
     setEvidenceCompMap(getEvidenceCompMap());
+    setHiddenActivityIds(new Set(getHiddenGradeActivityIds()));
     if (loadedFichas.length > 0 && selectedFichaRef.current === '') {
       setSelectedFicha('Todas');
     }
@@ -899,9 +916,11 @@ export const CalificacionesView: React.FC = () => {
       activitiesForFicha.filter(activity => {
         const normalized = normalizeHeader(activity.name);
         const headerKey = normalizeHeaderKey(activity.name);
-        return !EXCLUDED_ACTIVITY_HEADERS.has(normalized) && !BASE_COMPUTED_HEADERS.has(headerKey);
+        if (EXCLUDED_ACTIVITY_HEADERS.has(normalized) || BASE_COMPUTED_HEADERS.has(headerKey)) return false;
+        if (!showHiddenActivities && hiddenActivityIds.has(activity.id)) return false;
+        return true;
       }),
-    [activitiesForFicha]
+    [activitiesForFicha, hiddenActivityIds, showHiddenActivities]
   );
 
   /** Groups visibleActivities by phase in order. Used to compute per-phase totals. */
@@ -2390,6 +2409,17 @@ export const CalificacionesView: React.FC = () => {
                 />
               </label>
 
+              {hiddenActivityIds.size > 0 && (
+                <button
+                  onClick={() => setShowHiddenActivities(p => !p)}
+                  title={showHiddenActivities ? 'Volver a ocultar las evidencias ocultas' : `Ver las ${hiddenActivityIds.size} evidencia${hiddenActivityIds.size !== 1 ? 's' : ''} oculta${hiddenActivityIds.size !== 1 ? 's' : ''}`}
+                  className={`inline-flex items-center justify-center space-x-1.5 border px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm ${showHiddenActivities ? 'bg-amber-100 hover:bg-amber-200 text-amber-700 border-amber-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 border-gray-300'}`}
+                >
+                  {showHiddenActivities ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                  <span>{showHiddenActivities ? 'Ocultar' : `${hiddenActivityIds.size} oculta${hiddenActivityIds.size !== 1 ? 's' : ''}`}</span>
+                </button>
+              )}
+
               {selectedPhase !== ALL_PHASES_VIEW && gradesCountForSelectedPhase > 0 && (
                 <button
                   onClick={() => setClearPhaseConfirm(selectedPhase)}
@@ -2679,14 +2709,16 @@ export const CalificacionesView: React.FC = () => {
                       const total = studentsForFicha.length;
                       const pct = total > 0 ? Math.round((approved / total) * 100) : 0;
                       return (
-                        <th key={activity.id} className="px-4 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle bg-gray-50" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                        <th key={activity.id} className={`px-4 py-2 font-semibold text-sm border-r border-l border-gray-200 align-middle ${hiddenActivityIds.has(activity.id) ? 'bg-amber-50 text-amber-400' : 'bg-gray-50 text-gray-600'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                           {compEntry?.aaKey && (
                             <div className="text-[10px] text-teal-400 font-medium leading-tight mb-0.5 text-center">{compEntry.aaKey}</div>
                           )}
                           <div className="flex items-center gap-2 justify-center">
                             <button type="button" onClick={() => openActivityDetail(activity)} className="hover:text-gray-900 underline decoration-dotted">{getActivityShortLabel(activity.name)}</button>
                             <button onClick={() => openEditActivity(activity)} className="text-gray-400 hover:text-teal-600" title="Editar actividad"><Pencil className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => setActivityToDelete(activity)} className="text-gray-400 hover:text-red-600" title="Eliminar actividad"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => toggleHideActivity(activity)} className={hiddenActivityIds.has(activity.id) ? 'text-amber-400 hover:text-teal-500' : 'text-gray-400 hover:text-amber-500'} title={hiddenActivityIds.has(activity.id) ? 'Mostrar evidencia' : 'Ocultar evidencia'}>
+                              {hiddenActivityIds.has(activity.id) ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                            </button>
                           </div>
                           {total > 0 && (
                             <div className="mt-1 flex flex-col items-center gap-0.5" title={`${approved} de ${total} aprendices aprobaron`}>

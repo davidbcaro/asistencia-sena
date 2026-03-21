@@ -27,6 +27,7 @@ const STORAGE_KEYS = {
   PMA_DETAILS: 'asistenciapro_pma_details',
   CANCELACION_DETAILS: 'asistenciapro_cancelacion_details',
   RETIRO_DETAILS: 'asistenciapro_retiro_details',
+  HIDDEN_GRADE_ACTIVITIES: 'asistenciapro_hidden_grade_activities',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -59,6 +60,7 @@ const APP_DATA_SYNC_KEYS: Record<string, string> = {
   sofia_juicio_entries:        STORAGE_KEYS.SOFIA_JUICIO_ENTRIES,
   sofia_juicio_history:        STORAGE_KEYS.SOFIA_JUICIO_HISTORY,
   sofia_student_estados:       STORAGE_KEYS.SOFIA_STUDENT_ESTADOS,
+  hidden_grade_activities:     STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES,
 };
 
 const _isEmptyValue = (raw: string | null | undefined): boolean =>
@@ -77,6 +79,7 @@ const ADDITIVE_MERGE_KEYS = new Set([
   'sofia_student_estados',
   'grades',
   'grade_activities',
+  'hidden_grade_activities',
 ]);
 
 /**
@@ -152,6 +155,13 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
       cloudArr.forEach(e => map.set(e.id, e));
       localArr.forEach(e => map.set(e.id, e)); // local wins on conflict
       return Array.from(map.values());
+    }
+
+    if (key === 'hidden_grade_activities') {
+      // Array<string> of activity IDs — union: if hidden on any device, stays hidden
+      const cloudArr = Array.isArray(cloud) ? (cloud as string[]) : [];
+      const localArr = Array.isArray(local) ? (local as string[]) : [];
+      return Array.from(new Set([...cloudArr, ...localArr]));
     }
   } catch {
     // On any parse/merge error, fall back to local
@@ -1301,6 +1311,17 @@ export const deleteGradeActivity = (activityId: string) => {
     saveGradeActivities(current);
     const grades = getGrades().filter(g => g.activityId !== activityId);
     saveGrades(grades);
+};
+
+export const getHiddenGradeActivityIds = (): string[] => {
+    return safeParseJSON<string[]>(localStorage.getItem(STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES), []);
+};
+
+export const saveHiddenGradeActivityIds = (ids: string[]): void => {
+    localStorage.setItem(STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES, JSON.stringify(ids));
+    _markLocalWrite(STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES);
+    callSaveAppData('hidden_grade_activities', ids);
+    notifyChange();
 };
 
 export const getGrades = (): GradeEntry[] => {
