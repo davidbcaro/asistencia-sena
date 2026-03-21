@@ -20,12 +20,16 @@ const TOTAL_WEEKS = PHASE_SEGMENTS.reduce((s, p) => s + p.count, 0); // 106
 const WEEK_PHASE_MAP: typeof PHASE_SEGMENTS[number][] = [];
 for (const seg of PHASE_SEGMENTS) for (let i = 0; i < seg.count; i++) WEEK_PHASE_MAP.push(seg);
 
-// Week start dates: base 29/09/2025, +7 days each (matches the Excel exactly)
+// Week start & end dates: base 29/09/2025, +7 days each (matches the Excel exactly)
 const BASE_DATE = new Date('2025-09-29T00:00:00');
+const fmt = (d: Date) =>
+  `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+
 const WEEK_START_DATES: string[] = Array.from({ length: TOTAL_WEEKS }, (_, i) => {
-  const d = new Date(BASE_DATE);
-  d.setDate(d.getDate() + i * 7);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  const d = new Date(BASE_DATE); d.setDate(d.getDate() + i * 7); return fmt(d);
+});
+const WEEK_END_DATES: string[] = Array.from({ length: TOTAL_WEEKS }, (_, i) => {
+  const d = new Date(BASE_DATE); d.setDate(d.getDate() + i * 7 + 6); return fmt(d);
 });
 
 // ─── Transversal rows (colors match PLANEACION SEMANAL GRD legend) ──────────
@@ -454,11 +458,13 @@ export const PlaneacionSemanalView: React.FC = () => {
                 {weeks.map(w => {
                   const seg = WEEK_PHASE_MAP[w];
                   return (
-                    <th key={w} className="border-b border-r border-gray-200 text-center"
-                      style={{ backgroundColor: seg.color + '14', height: DATE_H + 18 }}>
-                      <div className="flex flex-col items-center leading-none gap-0.5">
-                        <span className="font-bold text-[10px]" style={{ color: seg.color }}>{weekLabel(w)}</span>
-                        <span className="text-[9px] text-gray-400 font-normal">{WEEK_START_DATES[w]}</span>
+                    <th key={w} className="border-b border-r border-gray-200 text-center px-1"
+                      style={{ backgroundColor: seg.color + '14' }}>
+                      <div className="flex flex-col items-center leading-none gap-1 py-1">
+                        <span className="font-bold text-[11px]" style={{ color: seg.color }}>{weekLabel(w)}</span>
+                        <span className="text-[10px] text-gray-500 font-normal whitespace-nowrap">
+                          {WEEK_START_DATES[w]} — {WEEK_END_DATES[w]}
+                        </span>
                       </div>
                     </th>
                   );
