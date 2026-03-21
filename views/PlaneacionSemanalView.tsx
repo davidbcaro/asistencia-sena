@@ -28,19 +28,21 @@ const WEEK_START_DATES: string[] = Array.from({ length: TOTAL_WEEKS }, (_, i) =>
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 });
 
-// ─── Transversal rows ────────────────────────────────────────────────────────
+// ─── Transversal rows (colors match PLANEACION SEMANAL GRD legend) ──────────
+const TECNICA_COLOR = '#F9D000'; // Yellow — Técnica row
+
 const TRANSVERSAL_ROWS = [
-  { key: 'TICs',              label: 'TICs',               color: '#27AE60' },
-  { key: 'Matemáticas',       label: 'Matemáticas',        color: '#E74B7A' },
-  { key: 'CienciasNaturales', label: 'Ciencias Naturales', color: '#4A90C4' },
-  { key: 'Comunicación',      label: 'Comunicación',       color: '#A569BD' },
-  { key: 'Investigación',     label: 'Investigación',      color: '#E67E22' },
-  { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#E74C3C' },
-  { key: 'EducaciónFísica',   label: 'Educación Física',   color: '#95A5A6' },
-  { key: 'Ambiente',          label: 'Ambiente',           color: '#2980B9' },
-  { key: 'Emprendimiento',    label: 'Emprendimiento',     color: '#16A085' },
-  { key: 'DerechosTrabajo',   label: 'Derechos Trabajo',   color: '#7D6608' },
-  { key: 'Ética',             label: 'Ética',              color: '#6C3483' },
+  { key: 'TICs',              label: "TIC's",              color: '#4CAF50' }, // Green
+  { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#F44336' }, // Red
+  { key: 'Matemáticas',       label: 'Matemáticas',        color: '#F48FB1' }, // Pink
+  { key: 'Comunicación',      label: 'Comunicación / Ética / Derechos', color: '#9C27B0' }, // Purple (shared)
+  { key: 'Investigación',     label: 'Investigación',      color: '#FF9800' }, // Orange
+  { key: 'Ambiente',          label: 'Ambiente',           color: '#2196F3' }, // Blue
+  { key: 'Emprendimiento',    label: 'Emprendimiento',     color: '#009688' }, // Teal
+  { key: 'EducaciónFísica',   label: 'Edu. Física',        color: '#9E9E9E' }, // Gray
+  { key: 'CienciasNaturales', label: 'Ciencias Naturales', color: '#BDBDBD' }, // Light gray
+  { key: 'DerechosTrabajo',   label: 'Derechos Trabajo',   color: '#9C27B0' }, // Purple (same as Comunicación)
+  { key: 'Ética',             label: 'Ética',              color: '#9C27B0' }, // Purple (same)
 ] as const;
 
 // ─── Default data seeded from the Excel ─────────────────────────────────────
@@ -174,11 +176,10 @@ const buildDefaultData = (): PlaneacionSemanalFichaData => {
 };
 
 const EMPTY_DATA: PlaneacionSemanalFichaData = { tecnicaAssignments: {}, transversalCells: {} };
-const CELL_W    = 72;  // px per week column
-const ROW_H     = 68;  // px per data row
-const DATE_H    = 22;  // px for the date header sub-row
-const PHASE_H   = 28;  // px for phase header row
-const LABEL_W   = 130; // px for row label column
+const CELL_W  = 200; // px per week column (fixed)
+const DATE_H  = 22;  // px for the date header sub-row
+const PHASE_H = 28;  // px for phase header row
+const LABEL_W = 150; // px for row label column
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export const PlaneacionSemanalView: React.FC = () => {
@@ -190,6 +191,7 @@ export const PlaneacionSemanalView: React.FC = () => {
   const [planeacion, setPlaneacion] = useState<PlaneacionSemanalFichaData>(EMPTY_DATA);
 
   const [dragActivityId, setDragActivityId] = useState<string | null>(null);
+  const [dragLabel,      setDragLabel]      = useState<{ rowKey: string; weekIdx: number; labelIdx: number; text: string } | null>(null);
   const [dragOverCell,   setDragOverCell]   = useState<string | null>(null);
 
   const [editingCell,  setEditingCell]  = useState<string | null>(null);
@@ -252,20 +254,43 @@ export const PlaneacionSemanalView: React.FC = () => {
   }, [unassigned]);
 
   // ── DnD ─────────────────────────────────────────────────────────────────
-  const onDragStart     = (id: string) => setDragActivityId(id);
-  const onDragLeave     = ()            => setDragOverCell(null);
+  const onDragStartActivity = (id: string) => { setDragActivityId(id); setDragLabel(null); };
+  const onDragStartLabel    = (rowKey: string, weekIdx: number, labelIdx: number, text: string) => {
+    setDragLabel({ rowKey, weekIdx, labelIdx, text });
+    setDragActivityId(null);
+  };
+  const onDragLeave = () => setDragOverCell(null);
 
-  const onDragOverCell  = (e: React.DragEvent, key: string) => {
-    e.preventDefault();
-    setDragOverCell(key);
+  const onDragOverCell = (e: React.DragEvent, rowKey: string, weekIdx: number) => {
+    const ck = cellKey(rowKey, weekIdx);
+    // Allow drop if: activity dragging (only Técnica row) or label from same row
+    if (dragActivityId && rowKey === 'Técnica') { e.preventDefault(); setDragOverCell(ck); return; }
+    if (dragLabel && dragLabel.rowKey === rowKey) { e.preventDefault(); setDragOverCell(ck); return; }
   };
 
-  const onDropToWeek = (e: React.DragEvent, w: number) => {
+  const onDropToCell = (e: React.DragEvent, rowKey: string, toWeekIdx: number) => {
     e.preventDefault();
     setDragOverCell(null);
-    if (!dragActivityId) return;
-    persist({ ...planeacion, tecnicaAssignments: { ...planeacion.tecnicaAssignments, [dragActivityId]: w } });
-    setDragActivityId(null);
+    // Activity drop → only Técnica row
+    if (dragActivityId && rowKey === 'Técnica') {
+      persist({ ...planeacion, tecnicaAssignments: { ...planeacion.tecnicaAssignments, [dragActivityId]: toWeekIdx } });
+      setDragActivityId(null);
+      return;
+    }
+    // Label drop → same row, different week
+    if (dragLabel && dragLabel.rowKey === rowKey) {
+      if (dragLabel.weekIdx === toWeekIdx) { setDragLabel(null); return; }
+      const fromCk = cellKey(dragLabel.rowKey, dragLabel.weekIdx);
+      const toCk   = cellKey(rowKey, toWeekIdx);
+      const fromArr = [...(planeacion.transversalCells[fromCk] ?? [])];
+      fromArr.splice(dragLabel.labelIdx, 1);
+      const toArr = [...(planeacion.transversalCells[toCk] ?? []), dragLabel.text];
+      const cells = { ...planeacion.transversalCells };
+      if (fromArr.length === 0) delete cells[fromCk]; else cells[fromCk] = fromArr;
+      cells[toCk] = toArr;
+      persist({ ...planeacion, transversalCells: cells });
+      setDragLabel(null);
+    }
   };
 
   const onDropToPanel = (e: React.DragEvent) => {
@@ -356,7 +381,7 @@ export const PlaneacionSemanalView: React.FC = () => {
         {/* ── Sidebar ── */}
         <aside
           className={`w-52 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-y-auto transition-colors ${dragOverCell === 'panel' ? 'bg-blue-50 ring-2 ring-inset ring-blue-300' : ''}`}
-          onDragOver={e => onDragOverCell(e, 'panel')}
+          onDragOver={e => { if (dragActivityId) { e.preventDefault(); setDragOverCell('panel'); } }}
           onDragLeave={onDragLeave}
           onDrop={onDropToPanel}
         >
@@ -377,7 +402,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                   <div className="space-y-1">
                     {acts.map(a => (
                       <SidebarCard key={a.id} activity={a} color={seg.color}
-                        onDragStart={() => onDragStart(a.id)} isDragging={dragActivityId === a.id} />
+                        onDragStart={() => onDragStartActivity(a.id)} isDragging={dragActivityId === a.id} />
                     ))}
                   </div>
                 </div>
@@ -443,45 +468,46 @@ export const PlaneacionSemanalView: React.FC = () => {
             <tbody>
               {/* ── Técnica row ── */}
               <tr>
-                <td className="sticky left-0 z-20 bg-white border-b border-r border-gray-200 font-bold text-gray-700 px-2 text-[11px]"
-                  style={{ height: ROW_H }}>
+                <td className="sticky left-0 z-20 border-b border-r border-gray-200 font-bold px-2 text-[11px] align-middle"
+                  style={{ backgroundColor: TECNICA_COLOR + '44', color: '#7A6500', minHeight: 60 }}>
                   Técnica
                 </td>
                 {weeks.map(w => {
-                  const seg  = WEEK_PHASE_MAP[w];
-                  const ck   = `tecnica::${w}`;
+                  const ck     = cellKey('Técnica', w);
                   const isOver = dragOverCell === ck;
-                  const assigned = activities.filter(a => planeacion.tecnicaAssignments[a.id] === w);
+                  const assigned   = activities.filter(a => planeacion.tecnicaAssignments[a.id] === w);
                   const textLabels = getLabels('Técnica', w);
                   return (
                     <td key={w}
-                      className="border-b border-r border-gray-100 align-top p-0.5 cursor-pointer transition-colors"
+                      className="border-b border-r border-gray-200 align-top p-1 cursor-pointer transition-colors"
                       style={{
-                        height: ROW_H,
-                        backgroundColor: isOver ? seg.color + '28' : undefined,
-                        outline: isOver ? `2px dashed ${seg.color}` : undefined,
+                        minHeight: 60,
+                        backgroundColor: isOver ? TECNICA_COLOR + '66' : TECNICA_COLOR + '22',
+                        outline: isOver ? `2px dashed ${TECNICA_COLOR}` : undefined,
                         outlineOffset: -2,
                       }}
-                      onDragOver={e => onDragOverCell(e, ck)}
+                      onDragOver={e => onDragOverCell(e, 'Técnica', w)}
                       onDragLeave={onDragLeave}
-                      onDrop={e => onDropToWeek(e, w)}
+                      onDrop={e => onDropToCell(e, 'Técnica', w)}
                       onClick={() => { if (!editingCell) startEditCell('Técnica', w); }}
                     >
-                      <div className="flex flex-col gap-0.5 h-full overflow-hidden">
+                      <div className="flex flex-col gap-1">
                         {assigned.map(a => {
                           const aSeg = phaseForActivity(a);
                           return <GridCard key={a.id} activity={a} color={aSeg.color}
-                            onDragStart={() => onDragStart(a.id)} isDragging={dragActivityId === a.id}
+                            onDragStart={() => onDragStartActivity(a.id)} isDragging={dragActivityId === a.id}
                             onRemove={() => unassignActivity(a.id)} />;
                         })}
                         {textLabels.map((lbl, idx) => (
-                          <TransLabel key={idx} label={lbl} color={seg.color}
+                          <TransLabel key={idx} label={lbl} color={'#7A6500'}
+                            isDragging={dragLabel?.rowKey === 'Técnica' && dragLabel.weekIdx === w && dragLabel.labelIdx === idx}
+                            onDragStart={() => onDragStartLabel('Técnica', w, idx, lbl)}
                             onRemove={e => { e.stopPropagation(); removeLabel('Técnica', w, idx); }} />
                         ))}
-                        {editingCell === cellKey('Técnica', w) && (
+                        {editingCell === ck && (
                           <input ref={editInputRef}
                             className="w-full text-[10px] rounded border px-1 py-0.5 outline-none"
-                            style={{ borderColor: seg.color }}
+                            style={{ borderColor: TECNICA_COLOR }}
                             value={editingValue}
                             onChange={e => setEditingValue(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') { setEditingCell(null); setEditingValue(''); } }}
@@ -497,22 +523,34 @@ export const PlaneacionSemanalView: React.FC = () => {
               {/* ── Transversal rows ── */}
               {TRANSVERSAL_ROWS.map(row => (
                 <tr key={row.key}>
-                  <td className="sticky left-0 z-20 bg-white border-b border-r border-gray-200 font-semibold px-2 text-[11px]"
-                    style={{ height: ROW_H, color: row.color }}>
+                  <td className="sticky left-0 z-20 bg-white border-b border-r border-gray-200 font-semibold px-2 text-[11px] align-middle"
+                    style={{ minHeight: 60, color: row.color }}>
                     {row.label}
                   </td>
                   {weeks.map(w => {
-                    const labels   = getLabels(row.key, w);
-                    const isEdit   = editingCell === cellKey(row.key, w);
+                    const ck     = cellKey(row.key, w);
+                    const labels = getLabels(row.key, w);
+                    const isOver = dragOverCell === ck;
+                    const isEdit = editingCell === ck;
                     return (
                       <td key={w}
-                        className="border-b border-r border-gray-100 align-top p-0.5 cursor-pointer hover:bg-gray-50 transition-colors"
-                        style={{ height: ROW_H }}
+                        className="border-b border-r border-gray-200 align-top p-1 cursor-pointer transition-colors"
+                        style={{
+                          minHeight: 60,
+                          backgroundColor: isOver ? row.color + '33' : undefined,
+                          outline: isOver ? `2px dashed ${row.color}` : undefined,
+                          outlineOffset: -2,
+                        }}
+                        onDragOver={e => onDragOverCell(e, row.key, w)}
+                        onDragLeave={onDragLeave}
+                        onDrop={e => onDropToCell(e, row.key, w)}
                         onClick={() => { if (!isEdit) startEditCell(row.key, w); }}
                       >
-                        <div className="flex flex-col gap-0.5 h-full overflow-hidden">
+                        <div className="flex flex-col gap-1">
                           {labels.map((lbl, idx) => (
                             <TransLabel key={idx} label={lbl} color={row.color}
+                              isDragging={dragLabel?.rowKey === row.key && dragLabel.weekIdx === w && dragLabel.labelIdx === idx}
+                              onDragStart={() => onDragStartLabel(row.key, w, idx, lbl)}
                               onRemove={e => { e.stopPropagation(); removeLabel(row.key, w, idx); }} />
                           ))}
                           {isEdit && (
@@ -554,27 +592,51 @@ const SidebarCard: React.FC<SidebarCardProps> = ({ activity, color, onDragStart,
 interface GridCardProps { activity: GradeActivity; color: string; onDragStart: () => void; isDragging: boolean; onRemove: () => void; }
 const GridCard: React.FC<GridCardProps> = ({ activity, color, onDragStart, isDragging, onRemove }) => (
   <div draggable onDragStart={onDragStart}
-    className="relative flex items-start gap-0.5 rounded px-1 py-0.5 cursor-grab active:cursor-grabbing border group transition-opacity"
-    style={{ backgroundColor: color + '22', borderColor: color + '66', opacity: isDragging ? 0.35 : 1, fontSize: 9 }}
+    className="flex items-start gap-1 rounded px-2 py-1 cursor-grab active:cursor-grabbing border group transition-opacity w-full"
+    style={{ backgroundColor: color + '22', borderColor: color + '66', opacity: isDragging ? 0.35 : 1 }}
     title={activity.name}>
-    <GripVertical className="w-2.5 h-2.5 mt-0.5 flex-shrink-0 text-gray-300" />
-    <span className="font-medium leading-tight line-clamp-2 flex-1" style={{ color }}>{activity.name}</span>
-    <button className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
+    <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color }} />
+    <span className="flex-1 text-[11px] font-medium leading-snug break-words" style={{ color, wordBreak: 'break-word', whiteSpace: 'normal' }}>{activity.name}</span>
+    <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
       style={{ color }} onClick={e => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
       title="Quitar de esta semana">
-      <X className="w-2.5 h-2.5" />
+      <X className="w-3 h-3" />
     </button>
   </div>
 );
 
-interface TransLabelProps { label: string; color: string; onRemove: (e: React.MouseEvent) => void; }
-const TransLabel: React.FC<TransLabelProps> = ({ label, color, onRemove }) => (
-  <span className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 leading-none group w-full"
-    style={{ backgroundColor: color + '22', color, fontSize: 9, border: `1px solid ${color}40` }}
-    title={label}>
-    <span className="truncate flex-1">{label}</span>
-    <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" onClick={onRemove}>
-      <X className="w-2 h-2" />
+interface TransLabelProps {
+  label: string;
+  color: string;
+  isDragging?: boolean;
+  onDragStart: () => void;
+  onRemove: (e: React.MouseEvent) => void;
+}
+const TransLabel: React.FC<TransLabelProps> = ({ label, color, isDragging, onDragStart, onRemove }) => (
+  <div
+    draggable
+    onDragStart={onDragStart}
+    className="flex items-start gap-1 rounded px-2 py-1 group cursor-grab active:cursor-grabbing w-full transition-opacity"
+    style={{
+      backgroundColor: color + '28',
+      border: `1px solid ${color}55`,
+      opacity: isDragging ? 0.3 : 1,
+    }}
+    title={label}
+  >
+    <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color }} />
+    <span
+      className="flex-1 text-[11px] font-medium leading-snug break-words"
+      style={{ color, wordBreak: 'break-word', whiteSpace: 'normal' }}
+    >
+      {label}
+    </span>
+    <button
+      className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
+      style={{ color }}
+      onClick={onRemove}
+    >
+      <X className="w-3 h-3" />
     </button>
-  </span>
+  </div>
 );
