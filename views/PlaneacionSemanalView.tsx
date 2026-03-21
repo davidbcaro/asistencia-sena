@@ -190,6 +190,7 @@ export const PlaneacionSemanalView: React.FC = () => {
   const [activities, setActivities] = useState<GradeActivity[]>([]);
   const [planeacion, setPlaneacion] = useState<PlaneacionSemanalFichaData>(EMPTY_DATA);
 
+  const [hoveredRow,     setHoveredRow]     = useState<string | null>(null);
   const [dragActivityId, setDragActivityId] = useState<string | null>(null);
   const [dragLabel,      setDragLabel]      = useState<{ rowKey: string; weekIdx: number; labelIdx: number; text: string } | null>(null);
   const [dragOverCell,   setDragOverCell]   = useState<string | null>(null);
@@ -467,9 +468,9 @@ export const PlaneacionSemanalView: React.FC = () => {
 
             <tbody>
               {/* ── Técnica row ── */}
-              <tr>
-                <td className="sticky left-0 z-20 border-b border-r border-gray-200 font-bold px-2 text-[11px] align-middle"
-                  style={{ backgroundColor: TECNICA_COLOR + '44', color: '#7A6500', minHeight: 60 }}>
+              <tr onMouseEnter={() => setHoveredRow('Técnica')} onMouseLeave={() => setHoveredRow(null)}>
+                <td className="sticky left-0 z-20 border-b border-r border-gray-200 font-bold px-2 text-[11px] align-middle transition-colors"
+                  style={{ color: '#7A6500', minHeight: 60, backgroundColor: hoveredRow === 'Técnica' ? TECNICA_COLOR + '28' : 'white' }}>
                   Técnica
                 </td>
                 {weeks.map(w => {
@@ -482,7 +483,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                       className="border-b border-r border-gray-200 align-top p-1 cursor-pointer transition-colors"
                       style={{
                         minHeight: 60,
-                        backgroundColor: isOver ? TECNICA_COLOR + '66' : TECNICA_COLOR + '22',
+                        backgroundColor: isOver ? TECNICA_COLOR + '44' : hoveredRow === 'Técnica' ? TECNICA_COLOR + '20' : 'white',
                         outline: isOver ? `2px dashed ${TECNICA_COLOR}` : undefined,
                         outlineOffset: -2,
                       }}
@@ -522,9 +523,9 @@ export const PlaneacionSemanalView: React.FC = () => {
 
               {/* ── Transversal rows ── */}
               {TRANSVERSAL_ROWS.map(row => (
-                <tr key={row.key}>
-                  <td className="sticky left-0 z-20 border-b border-r border-gray-200 font-semibold px-2 text-[11px] align-middle"
-                    style={{ minHeight: 60, color: row.color, backgroundColor: row.color + '33' }}>
+                <tr key={row.key} onMouseEnter={() => setHoveredRow(row.key)} onMouseLeave={() => setHoveredRow(null)}>
+                  <td className="sticky left-0 z-20 border-b border-r border-gray-200 font-semibold px-2 text-[11px] align-middle transition-colors"
+                    style={{ minHeight: 60, color: row.color, backgroundColor: hoveredRow === row.key ? row.color + '28' : 'white' }}>
                     {row.label}
                   </td>
                   {weeks.map(w => {
@@ -537,7 +538,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                         className="border-b border-r border-gray-200 align-top p-1 cursor-pointer transition-colors"
                         style={{
                           minHeight: 60,
-                          backgroundColor: isOver ? row.color + '55' : row.color + '18',
+                          backgroundColor: isOver ? row.color + '44' : hoveredRow === row.key ? row.color + '20' : 'white',
                           outline: isOver ? `2px dashed ${row.color}` : undefined,
                           outlineOffset: -2,
                         }}
