@@ -25,7 +25,7 @@ const BASE_DATE = new Date('2025-09-29T00:00:00');
 const WEEK_START_DATES: string[] = Array.from({ length: TOTAL_WEEKS }, (_, i) => {
   const d = new Date(BASE_DATE);
   d.setDate(d.getDate() + i * 7);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 });
 
 // ─── Transversal rows (colors match PLANEACION SEMANAL GRD legend) ──────────
@@ -448,7 +448,7 @@ export const PlaneacionSemanalView: React.FC = () => {
               <tr>
                 <th className="sticky left-0 z-30 bg-gray-50 border-b border-r border-gray-300 px-2 text-[9px] font-semibold text-gray-400 uppercase"
                   style={{ height: DATE_H + 18 }}>
-                  Inicio
+                  Fecha semanal
                 </th>
                 {weeks.map(w => {
                   const seg = WEEK_PHASE_MAP[w];
@@ -523,8 +523,8 @@ export const PlaneacionSemanalView: React.FC = () => {
               {/* ── Transversal rows ── */}
               {TRANSVERSAL_ROWS.map(row => (
                 <tr key={row.key}>
-                  <td className="sticky left-0 z-20 bg-white border-b border-r border-gray-200 font-semibold px-2 text-[11px] align-middle"
-                    style={{ minHeight: 60, color: row.color }}>
+                  <td className="sticky left-0 z-20 border-b border-r border-gray-200 font-semibold px-2 text-[11px] align-middle"
+                    style={{ minHeight: 60, color: row.color, backgroundColor: row.color + '33' }}>
                     {row.label}
                   </td>
                   {weeks.map(w => {
@@ -537,7 +537,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                         className="border-b border-r border-gray-200 align-top p-1 cursor-pointer transition-colors"
                         style={{
                           minHeight: 60,
-                          backgroundColor: isOver ? row.color + '33' : undefined,
+                          backgroundColor: isOver ? row.color + '55' : row.color + '18',
                           outline: isOver ? `2px dashed ${row.color}` : undefined,
                           outlineOffset: -2,
                         }}
