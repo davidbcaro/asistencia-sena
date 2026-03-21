@@ -92,6 +92,10 @@ export interface PlaneacionSemanalFichaData {
   tecnicaAssignments: Record<string, number>;
   /** `${transversalKey}::${weekIndex}` → array of text labels written by the instructor */
   transversalCells: Record<string, string[]>;
+  /** cardKey → weeks duration (1 or 2). cardKey = "act::${activityId}" | "lbl::${rowKey}::${text}" */
+  cardDurations: Record<string, 1 | 2>;
+  /** cardKeys that are hidden (faded/semi-transparent, still in their cell) */
+  hiddenCards: string[];
 }
 
 /** fichaId → planeación data for that ficha */

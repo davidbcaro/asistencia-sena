@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, GripVertical, X } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, GripVertical, X } from 'lucide-react';
 import { GradeActivity, PlaneacionSemanalFichaData } from '../types';
 import { getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
 
@@ -176,10 +176,14 @@ const buildDefaultData = (): PlaneacionSemanalFichaData => {
   Object.entries(DEFAULT_TRANSVERSAL).forEach(([key, label]) => {
     transversalCells[key] = [label];
   });
-  return { tecnicaAssignments: {}, transversalCells };
+  return { tecnicaAssignments: {}, transversalCells, cardDurations: {}, hiddenCards: [] };
 };
 
-const EMPTY_DATA: PlaneacionSemanalFichaData = { tecnicaAssignments: {}, transversalCells: {} };
+const EMPTY_DATA: PlaneacionSemanalFichaData = { tecnicaAssignments: {}, transversalCells: {}, cardDurations: {}, hiddenCards: [] };
+
+// ─── Card key helpers ────────────────────────────────────────────────────────
+const actKey = (id: string)                   => `act::${id}`;
+const lblKey = (rowKey: string, text: string) => `lbl::${rowKey}::${text}`;
 const CELL_W  = 200; // px per week column (fixed)
 const DATE_H  = 22;  // px for the date header sub-row
 const PHASE_H = 28;  // px for phase header row
@@ -199,8 +203,9 @@ export const PlaneacionSemanalView: React.FC = () => {
   const [dragLabel,      setDragLabel]      = useState<{ rowKey: string; weekIdx: number; labelIdx: number; text: string } | null>(null);
   const [dragOverCell,   setDragOverCell]   = useState<string | null>(null);
 
-  const [editingCell,  setEditingCell]  = useState<string | null>(null);
-  const [editingValue, setEditingValue] = useState('');
+  const [editingCell,       setEditingCell]       = useState<string | null>(null);
+  const [editingValue,      setEditingValue]      = useState('');
+  const [openDurationCard,  setOpenDurationCard]  = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   // ── Load ────────────────────────────────────────────────────────────────
@@ -336,6 +341,23 @@ export const PlaneacionSemanalView: React.FC = () => {
     persist({ ...planeacion, transversalCells: cells });
   };
 
+  // ── Duration & visibility ────────────────────────────────────────────────
+  const getDuration = useCallback((key: string): 1 | 2 =>
+    (planeacion.cardDurations?.[key] ?? 1) as 1 | 2, [planeacion.cardDurations]);
+
+  const setCardDuration = useCallback((key: string, d: 1 | 2) => {
+    persist({ ...planeacion, cardDurations: { ...(planeacion.cardDurations ?? {}), [key]: d } });
+  }, [planeacion, persist]);
+
+  const isHidden = useCallback((key: string): boolean =>
+    (planeacion.hiddenCards ?? []).includes(key), [planeacion.hiddenCards]);
+
+  const toggleHidden = useCallback((key: string) => {
+    const arr = planeacion.hiddenCards ?? [];
+    const next = arr.includes(key) ? arr.filter(k => k !== key) : [...arr, key];
+    persist({ ...planeacion, hiddenCards: next });
+  }, [planeacion, persist]);
+
   // ── Derived geometry ────────────────────────────────────────────────────
   const weeks = useMemo(() => Array.from({ length: TOTAL_WEEKS }, (_, i) => i), []);
   const phaseSpans = useMemo(() => {
@@ -425,7 +447,7 @@ export const PlaneacionSemanalView: React.FC = () => {
         </aside>
 
         {/* ── Grid ── */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto" onClick={() => setOpenDurationCard(null)}>
           <table className="border-collapse text-xs select-none"
             style={{ minWidth: CELL_W * TOTAL_WEEKS + LABEL_W }}>
             <colgroup>
@@ -501,16 +523,35 @@ export const PlaneacionSemanalView: React.FC = () => {
                       <div className="flex flex-col gap-1">
                         {assigned.map(a => {
                           const aSeg = phaseForActivity(a);
+                          const key = actKey(a.id);
                           return <GridCard key={a.id} activity={a} color={aSeg.color}
-                            onDragStart={() => onDragStartActivity(a.id)} isDragging={dragActivityId === a.id}
-                            onRemove={() => unassignActivity(a.id)} />;
+                            cardKey={key}
+                            duration={getDuration(key)}
+                            hidden={isHidden(key)}
+                            durationOpen={openDurationCard === key}
+                            onDragStart={() => { setOpenDurationCard(null); onDragStartActivity(a.id); }}
+                            isDragging={dragActivityId === a.id}
+                            onRemove={() => unassignActivity(a.id)}
+                            onToggleHidden={() => toggleHidden(key)}
+                            onSetDuration={d => setCardDuration(key, d)}
+                            onToggleDurationPicker={() => setOpenDurationCard(openDurationCard === key ? null : key)}
+                          />;
                         })}
-                        {textLabels.map((lbl, idx) => (
-                          <TransLabel key={idx} label={lbl} color={'#7A6500'}
+                        {textLabels.map((lbl, idx) => {
+                          const key = lblKey('Técnica', lbl);
+                          return <TransLabel key={idx} label={lbl} color={'#7A6500'}
+                            cardKey={key}
+                            duration={getDuration(key)}
+                            hidden={isHidden(key)}
+                            durationOpen={openDurationCard === key}
                             isDragging={dragLabel?.rowKey === 'Técnica' && dragLabel.weekIdx === w && dragLabel.labelIdx === idx}
-                            onDragStart={() => onDragStartLabel('Técnica', w, idx, lbl)}
-                            onRemove={e => { e.stopPropagation(); removeLabel('Técnica', w, idx); }} />
-                        ))}
+                            onDragStart={() => { setOpenDurationCard(null); onDragStartLabel('Técnica', w, idx, lbl); }}
+                            onRemove={e => { e.stopPropagation(); removeLabel('Técnica', w, idx); }}
+                            onToggleHidden={() => toggleHidden(key)}
+                            onSetDuration={d => setCardDuration(key, d)}
+                            onToggleDurationPicker={() => setOpenDurationCard(openDurationCard === key ? null : key)}
+                          />;
+                        })}
                         {editingCell === ck && (
                           <input ref={editInputRef}
                             className="w-full text-[10px] rounded border px-1 py-0.5 outline-none"
@@ -554,12 +595,21 @@ export const PlaneacionSemanalView: React.FC = () => {
                         onClick={() => { if (!isEdit) startEditCell(row.key, w); }}
                       >
                         <div className="flex flex-col gap-1">
-                          {labels.map((lbl, idx) => (
-                            <TransLabel key={idx} label={lbl} color={row.color}
+                          {labels.map((lbl, idx) => {
+                            const key = lblKey(row.key, lbl);
+                            return <TransLabel key={idx} label={lbl} color={row.color}
+                              cardKey={key}
+                              duration={getDuration(key)}
+                              hidden={isHidden(key)}
+                              durationOpen={openDurationCard === key}
                               isDragging={dragLabel?.rowKey === row.key && dragLabel.weekIdx === w && dragLabel.labelIdx === idx}
-                              onDragStart={() => onDragStartLabel(row.key, w, idx, lbl)}
-                              onRemove={e => { e.stopPropagation(); removeLabel(row.key, w, idx); }} />
-                          ))}
+                              onDragStart={() => { setOpenDurationCard(null); onDragStartLabel(row.key, w, idx, lbl); }}
+                              onRemove={e => { e.stopPropagation(); removeLabel(row.key, w, idx); }}
+                              onToggleHidden={() => toggleHidden(key)}
+                              onSetDuration={d => setCardDuration(key, d)}
+                              onToggleDurationPicker={() => setOpenDurationCard(openDurationCard === key ? null : key)}
+                            />;
+                          })}
                           {isEdit && (
                             <input ref={editInputRef}
                               className="w-full text-[10px] rounded border px-1 py-0.5 outline-none"
@@ -596,54 +646,128 @@ const SidebarCard: React.FC<SidebarCardProps> = ({ activity, color, onDragStart,
   </div>
 );
 
-interface GridCardProps { activity: GradeActivity; color: string; onDragStart: () => void; isDragging: boolean; onRemove: () => void; }
-const GridCard: React.FC<GridCardProps> = ({ activity, color, onDragStart, isDragging, onRemove }) => (
-  <div draggable onDragStart={onDragStart}
-    className="flex items-start gap-1 rounded px-2 py-1 cursor-grab active:cursor-grabbing border group transition-opacity w-full"
-    style={{ backgroundColor: color + '22', borderColor: color + '66', opacity: isDragging ? 0.35 : 1 }}
-    title={activity.name}>
-    <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color }} />
-    <span className="flex-1 text-[11px] font-medium leading-snug break-words" style={{ color, wordBreak: 'break-word', whiteSpace: 'normal' }}>{activity.name}</span>
-    <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
-      style={{ color }} onClick={e => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
-      title="Quitar de esta semana">
-      <X className="w-3 h-3" />
-    </button>
+interface GridCardProps {
+  activity: GradeActivity;
+  color: string;
+  cardKey: string;
+  duration: 1 | 2;
+  hidden: boolean;
+  durationOpen: boolean;
+  onDragStart: () => void;
+  isDragging: boolean;
+  onRemove: () => void;
+  onToggleHidden: () => void;
+  onSetDuration: (d: 1 | 2) => void;
+  onToggleDurationPicker: () => void;
+}
+const GridCard: React.FC<GridCardProps> = ({
+  activity, color, duration, hidden, durationOpen,
+  onDragStart, isDragging, onRemove, onToggleHidden, onSetDuration, onToggleDurationPicker,
+}) => (
+  <div
+    draggable
+    onDragStart={e => { e.stopPropagation(); onDragStart(); }}
+    className="relative flex flex-col gap-0.5 rounded px-2 py-1 cursor-grab active:cursor-grabbing border group w-full transition-opacity"
+    style={{ backgroundColor: color + '22', borderColor: color + '66', opacity: hidden ? 0.3 : isDragging ? 0.35 : 1 }}
+    title={activity.name}
+  >
+    {/* Top bar */}
+    <div className="flex items-start gap-1" onClick={e => { e.stopPropagation(); onToggleDurationPicker(); }}>
+      <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color }} />
+      <span className="flex-1 text-[11px] font-medium leading-snug break-words" style={{ color, wordBreak: 'break-word', whiteSpace: 'normal' }}>
+        {activity.name}
+      </span>
+      {duration === 2 && (
+        <span className="text-[9px] font-bold px-1 rounded flex-shrink-0 leading-none py-0.5" style={{ backgroundColor: color + '44', color }}>2S</span>
+      )}
+      <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+        style={{ color }}
+        onClick={e => { e.stopPropagation(); onToggleHidden(); }}
+        title={hidden ? 'Mostrar' : 'Ocultar'}>
+        {hidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+      </button>
+      <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+        style={{ color }}
+        onClick={e => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
+        title="Quitar de esta semana">
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+    {/* Duration picker */}
+    {durationOpen && (
+      <div className="flex gap-1 mt-0.5" onClick={e => e.stopPropagation()}>
+        {([1, 2] as const).map(d => (
+          <button key={d}
+            className="text-[9px] font-bold px-1.5 py-0.5 rounded border transition-colors"
+            style={{ backgroundColor: duration === d ? color : 'transparent', borderColor: color, color: duration === d ? '#fff' : color }}
+            onClick={e => { e.stopPropagation(); onSetDuration(d); }}>
+            {d}S
+          </button>
+        ))}
+      </div>
+    )}
   </div>
 );
 
 interface TransLabelProps {
   label: string;
   color: string;
+  cardKey: string;
+  duration: 1 | 2;
+  hidden: boolean;
+  durationOpen: boolean;
   isDragging?: boolean;
   onDragStart: () => void;
   onRemove: (e: React.MouseEvent) => void;
+  onToggleHidden: () => void;
+  onSetDuration: (d: 1 | 2) => void;
+  onToggleDurationPicker: () => void;
 }
-const TransLabel: React.FC<TransLabelProps> = ({ label, color, isDragging, onDragStart, onRemove }) => (
+const TransLabel: React.FC<TransLabelProps> = ({
+  label, color, duration, hidden, durationOpen,
+  isDragging, onDragStart, onRemove, onToggleHidden, onSetDuration, onToggleDurationPicker,
+}) => (
   <div
     draggable
-    onDragStart={onDragStart}
-    className="flex items-start gap-1 rounded px-2 py-1 group cursor-grab active:cursor-grabbing w-full transition-opacity"
-    style={{
-      backgroundColor: color + '28',
-      border: `1px solid ${color}55`,
-      opacity: isDragging ? 0.3 : 1,
-    }}
+    onDragStart={e => { e.stopPropagation(); onDragStart(); }}
+    className="relative flex flex-col gap-0.5 rounded px-2 py-1 group cursor-grab active:cursor-grabbing w-full transition-opacity"
+    style={{ backgroundColor: color + '28', border: `1px solid ${color}55`, opacity: hidden ? 0.3 : isDragging ? 0.3 : 1 }}
     title={label}
   >
-    <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color }} />
-    <span
-      className="flex-1 text-[11px] font-medium leading-snug break-words"
-      style={{ color, wordBreak: 'break-word', whiteSpace: 'normal' }}
-    >
-      {label}
-    </span>
-    <button
-      className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
-      style={{ color }}
-      onClick={onRemove}
-    >
-      <X className="w-3 h-3" />
-    </button>
+    {/* Top bar */}
+    <div className="flex items-start gap-1" onClick={e => { e.stopPropagation(); onToggleDurationPicker(); }}>
+      <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color }} />
+      <span className="flex-1 text-[11px] font-medium leading-snug break-words" style={{ color, wordBreak: 'break-word', whiteSpace: 'normal' }}>
+        {label}
+      </span>
+      {duration === 2 && (
+        <span className="text-[9px] font-bold px-1 rounded flex-shrink-0 leading-none py-0.5" style={{ backgroundColor: color + '44', color }}>2S</span>
+      )}
+      <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+        style={{ color }}
+        onClick={e => { e.stopPropagation(); onToggleHidden(); }}
+        title={hidden ? 'Mostrar' : 'Ocultar'}>
+        {hidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+      </button>
+      <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+        style={{ color }}
+        onClick={e => { e.stopPropagation(); onRemove(e); }}
+        title="Eliminar">
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+    {/* Duration picker */}
+    {durationOpen && (
+      <div className="flex gap-1 mt-0.5" onClick={e => e.stopPropagation()}>
+        {([1, 2] as const).map(d => (
+          <button key={d}
+            className="text-[9px] font-bold px-1.5 py-0.5 rounded border transition-colors"
+            style={{ backgroundColor: duration === d ? color : 'transparent', borderColor: color, color: duration === d ? '#fff' : color }}
+            onClick={e => { e.stopPropagation(); onSetDuration(d); }}>
+            {d}S
+          </button>
+        ))}
+      </div>
+    )}
   </div>
 );

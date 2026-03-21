@@ -168,9 +168,14 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
     }
 
     if (key === 'planeacion_semanal') {
-      // Record<fichaId, { tecnicaAssignments, transversalCells }>
+      // Record<fichaId, PlaneacionSemanalFichaData>
       // Deep merge per fichaId: local wins per individual assignment/cell key
-      type FichaData = { tecnicaAssignments?: Record<string, number>; transversalCells?: Record<string, string[]> };
+      type FichaData = {
+        tecnicaAssignments?: Record<string, number>;
+        transversalCells?: Record<string, string[]>;
+        cardDurations?: Record<string, 1 | 2>;
+        hiddenCards?: string[];
+      };
       const cloudRec = (cloud && typeof cloud === 'object' && !Array.isArray(cloud))
         ? (cloud as Record<string, FichaData>) : {};
       const localRec = (local && typeof local === 'object' && !Array.isArray(local))
@@ -180,7 +185,9 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
         const cloudFicha = merged[fichaId] ?? {};
         merged[fichaId] = {
           tecnicaAssignments: { ...(cloudFicha.tecnicaAssignments ?? {}), ...(localFicha.tecnicaAssignments ?? {}) },
-          transversalCells:   { ...(cloudFicha.transversalCells ?? {}),   ...(localFicha.transversalCells ?? {}) },
+          transversalCells:   { ...(cloudFicha.transversalCells   ?? {}), ...(localFicha.transversalCells   ?? {}) },
+          cardDurations:      { ...(cloudFicha.cardDurations       ?? {}), ...(localFicha.cardDurations       ?? {}) },
+          hiddenCards: Array.from(new Set([...(cloudFicha.hiddenCards ?? []), ...(localFicha.hiddenCards ?? [])])),
         };
       });
       return merged;
