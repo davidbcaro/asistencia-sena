@@ -7,6 +7,7 @@ import { AlertTriangle, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FileDown,
 import { Ficha, GradeActivity, GradeEntry, Student } from '../types';
 import {
   addGradeActivity,
+  clearGradesForPhase,
   deleteGradeActivity,
   deleteGradeEntry,
   getFichas,
@@ -502,6 +503,7 @@ export const CalificacionesView: React.FC = () => {
   const [showAllStudents, setShowAllStudents] = useState(false);
   const [activityDetailModal, setActivityDetailModal] = useState<GradeActivity | null>(null);
   const [activityDetailText, setActivityDetailText] = useState('');
+  const [clearPhaseConfirm, setClearPhaseConfirm] = useState<string | null>(null);
   const [studentDetailModal, setStudentDetailModal] = useState<Student | null>(null);
   const [evidenceCompMap, setEvidenceCompMap] = useState<EvidenceCompMapData>({});
   const [studentDetailObservation, setStudentDetailObservation] = useState('');
@@ -809,6 +811,13 @@ export const CalificacionesView: React.FC = () => {
 
   const hasSearchTerm = searchTerm.trim() !== '';
   const showAllFichasColumns = selectedFicha === 'Todas' || hasSearchTerm;
+
+  /** Número de notas guardadas para la fase actualmente seleccionada (0 si es ALL_PHASES_VIEW). */
+  const gradesCountForSelectedPhase = useMemo(() => {
+    if (selectedPhase === ALL_PHASES_VIEW) return 0;
+    const phaseIds = new Set(activities.filter(a => a.phase === selectedPhase).map(a => a.id));
+    return grades.filter(g => phaseIds.has(g.activityId)).length;
+  }, [activities, grades, selectedPhase]);
 
   /**
    * En vista "Todas": construye una lista de actividades representativas
@@ -2380,7 +2389,18 @@ export const CalificacionesView: React.FC = () => {
                   }}
                 />
               </label>
-              
+
+              {selectedPhase !== ALL_PHASES_VIEW && gradesCountForSelectedPhase > 0 && (
+                <button
+                  onClick={() => setClearPhaseConfirm(selectedPhase)}
+                  title={`Eliminar las ${gradesCountForSelectedPhase} calificaciones de ${selectedPhase}`}
+                  className="inline-flex items-center justify-center space-x-1.5 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm"
+                >
+                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Limpiar notas</span>
+                </button>
+              )}
+
               <div className="relative">
                 <button
                   onClick={() => setShowExport(prev => !prev)}
@@ -3016,6 +3036,41 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                 className="flex-1 bg-red-600 text-white py-2.5 rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
               >
                 Sí, eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {clearPhaseConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setClearPhaseConfirm(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Limpiar calificaciones</h3>
+            <p className="text-sm text-gray-600 mb-1">
+              ¿Eliminar todas las calificaciones de <strong>{clearPhaseConfirm}</strong>?
+            </p>
+            <p className="text-xs text-gray-500 mb-6">
+              Las actividades y evidencias se conservan. Solo se borran las notas ({gradesCountForSelectedPhase} entradas).
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setClearPhaseConfirm(null)}
+                className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  clearGradesForPhase(clearPhaseConfirm);
+                  setClearPhaseConfirm(null);
+                  loadData();
+                }}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm"
+              >
+                Sí, limpiar
               </button>
             </div>
           </div>

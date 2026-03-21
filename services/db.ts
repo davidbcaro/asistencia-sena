@@ -1207,6 +1207,23 @@ export const deleteGradeEntry = (studentId: string, activityId: string) => {
 };
 
 /**
+ * Elimina SOLO las entradas de calificación (GradeEntry) de todas las actividades
+ * cuya phase === targetPhase. No elimina las actividades en sí, solo sus notas.
+ * Retorna el número de entradas eliminadas.
+ */
+export const clearGradesForPhase = (targetPhase: string): number => {
+    const activities = getGradeActivities();
+    const phaseActivityIds = new Set(
+        activities.filter(a => a.phase === targetPhase).map(a => a.id)
+    );
+    const current = getGrades();
+    const updated = current.filter(g => !phaseActivityIds.has(g.activityId));
+    const removed = current.length - updated.length;
+    if (removed > 0) saveGrades(updated);
+    return removed;
+};
+
+/**
  * Repair broken grade↔activity links caused by activities being recreated with new UUIDs.
  *
  * Strategy: sorts orphaned activityIds by the earliest grade.updatedAt for each id
