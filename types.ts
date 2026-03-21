@@ -87,6 +87,16 @@ export interface GradeEntry {
   updatedAt: string;
 }
 
+export interface PlaneacionSemanalFichaData {
+  /** GradeActivity.id → 0-based global weekIndex (0 = W1 … 95 = W96). Absent = sin asignar. */
+  tecnicaAssignments: Record<string, number>;
+  /** `${transversalKey}::${weekIndex}` → array of text labels written by the instructor */
+  transversalCells: Record<string, string[]>;
+}
+
+/** fichaId → planeación data for that ficha */
+export type PlaneacionSemanalData = Record<string, PlaneacionSemanalFichaData>;
+
 // Stats for charts
 export interface AttendanceStats {
   date: string;

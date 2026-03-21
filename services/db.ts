@@ -1,5 +1,5 @@
 import { createClient, RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { Student, Ficha, AttendanceRecord, EmailDraft, EmailSettings, ClassSession, GradeActivity, GradeEntry, RapDefinition, JuicioRapEntry, JuicioRapHistoryEntry } from '../types';
+import { Student, Ficha, AttendanceRecord, EmailDraft, EmailSettings, ClassSession, GradeActivity, GradeEntry, RapDefinition, JuicioRapEntry, JuicioRapHistoryEntry, PlaneacionSemanalData } from '../types';
 
 const STORAGE_KEYS = {
   STUDENTS: 'asistenciapro_students',
@@ -28,6 +28,7 @@ const STORAGE_KEYS = {
   CANCELACION_DETAILS: 'asistenciapro_cancelacion_details',
   RETIRO_DETAILS: 'asistenciapro_retiro_details',
   HIDDEN_GRADE_ACTIVITIES: 'asistenciapro_hidden_grade_activities',
+  PLANEACION_SEMANAL: 'asistenciapro_planeacion_semanal',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -61,6 +62,7 @@ const APP_DATA_SYNC_KEYS: Record<string, string> = {
   sofia_juicio_history:        STORAGE_KEYS.SOFIA_JUICIO_HISTORY,
   sofia_student_estados:       STORAGE_KEYS.SOFIA_STUDENT_ESTADOS,
   hidden_grade_activities:     STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES,
+  planeacion_semanal:          STORAGE_KEYS.PLANEACION_SEMANAL,
 };
 
 const _isEmptyValue = (raw: string | null | undefined): boolean =>
@@ -80,6 +82,7 @@ const ADDITIVE_MERGE_KEYS = new Set([
   'grades',
   'grade_activities',
   'hidden_grade_activities',
+  'planeacion_semanal',
 ]);
 
 /**
@@ -162,6 +165,25 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
       const cloudArr = Array.isArray(cloud) ? (cloud as string[]) : [];
       const localArr = Array.isArray(local) ? (local as string[]) : [];
       return Array.from(new Set([...cloudArr, ...localArr]));
+    }
+
+    if (key === 'planeacion_semanal') {
+      // Record<fichaId, { tecnicaAssignments, transversalCells }>
+      // Deep merge per fichaId: local wins per individual assignment/cell key
+      type FichaData = { tecnicaAssignments?: Record<string, number>; transversalCells?: Record<string, string[]> };
+      const cloudRec = (cloud && typeof cloud === 'object' && !Array.isArray(cloud))
+        ? (cloud as Record<string, FichaData>) : {};
+      const localRec = (local && typeof local === 'object' && !Array.isArray(local))
+        ? (local as Record<string, FichaData>) : {};
+      const merged: Record<string, FichaData> = { ...cloudRec };
+      Object.entries(localRec).forEach(([fichaId, localFicha]) => {
+        const cloudFicha = merged[fichaId] ?? {};
+        merged[fichaId] = {
+          tecnicaAssignments: { ...(cloudFicha.tecnicaAssignments ?? {}), ...(localFicha.tecnicaAssignments ?? {}) },
+          transversalCells:   { ...(cloudFicha.transversalCells ?? {}),   ...(localFicha.transversalCells ?? {}) },
+        };
+      });
+      return merged;
     }
   } catch {
     // On any parse/merge error, fall back to local
@@ -1321,6 +1343,16 @@ export const saveHiddenGradeActivityIds = (ids: string[]): void => {
     localStorage.setItem(STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES, JSON.stringify(ids));
     _markLocalWrite(STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES);
     callSaveAppData('hidden_grade_activities', ids);
+    notifyChange();
+};
+
+export const getPlaneacionSemanal = (): PlaneacionSemanalData =>
+    safeParseJSON<PlaneacionSemanalData>(localStorage.getItem(STORAGE_KEYS.PLANEACION_SEMANAL), {});
+
+export const savePlaneacionSemanal = (data: PlaneacionSemanalData): void => {
+    localStorage.setItem(STORAGE_KEYS.PLANEACION_SEMANAL, JSON.stringify(data));
+    _markLocalWrite(STORAGE_KEYS.PLANEACION_SEMANAL);
+    callSaveAppData('planeacion_semanal', data);
     notifyChange();
 };
 
