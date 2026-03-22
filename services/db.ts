@@ -176,6 +176,7 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
         cardDurations?: Record<string, 1 | 2>;
         hiddenCards?: string[];
         weekDateOverrides?: Record<number, string>;
+        phaseWeekCounts?: Record<string, number>;
       };
       const cloudRec = (cloud && typeof cloud === 'object' && !Array.isArray(cloud))
         ? (cloud as Record<string, FichaData>) : {};
@@ -190,6 +191,7 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
           cardDurations:      { ...(cloudFicha.cardDurations       ?? {}), ...(localFicha.cardDurations       ?? {}) },
           hiddenCards:        Array.from(new Set([...(cloudFicha.hiddenCards ?? []), ...(localFicha.hiddenCards ?? [])])),
           weekDateOverrides:  { ...(cloudFicha.weekDateOverrides  ?? {}), ...(localFicha.weekDateOverrides  ?? {}) },
+          phaseWeekCounts:    { ...(cloudFicha.phaseWeekCounts    ?? {}), ...(localFicha.phaseWeekCounts    ?? {}) },
         };
       });
       return merged;

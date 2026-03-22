@@ -32,14 +32,15 @@ const parseIso = (iso: string): Date => {
   return new Date(y, m - 1, d);
 };
 
-/** Build effective start & end dates for all 106 weeks, honouring overrides.
- *  overrides: weekIndex → ISO date (YYYY-MM-DD) for that week's start. */
-const buildWeekDates = (overrides: Record<number, string> = {}): { starts: string[]; ends: string[]; isos: string[] } => {
+/** Build effective start & end dates, honouring overrides.
+ *  overrides: weekIndex → ISO date (YYYY-MM-DD) for that week's start.
+ *  totalWeeks: how many weeks to generate (defaults to TOTAL_WEEKS). */
+const buildWeekDates = (overrides: Record<number, string> = {}, totalWeeks = TOTAL_WEEKS): { starts: string[]; ends: string[]; isos: string[] } => {
   const starts: string[] = [];
   const ends:   string[] = [];
-  const isos:   string[] = []; // ISO for the <input type="date"> value
+  const isos:   string[] = [];
   let cur = new Date(BASE_DATE);
-  for (let w = 0; w < TOTAL_WEEKS; w++) {
+  for (let w = 0; w < totalWeeks; w++) {
     if (overrides[w]) cur = parseIso(overrides[w]);
     const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
     isos.push(iso);
@@ -50,9 +51,6 @@ const buildWeekDates = (overrides: Record<number, string> = {}): { starts: strin
   }
   return { starts, ends, isos };
 };
-
-// Default dates (no overrides) used before data loads
-const DEFAULT_DATES = buildWeekDates({});
 
 // ─── Transversal rows (colors match PLANEACION SEMANAL GRD legend) ──────────
 const TECNICA_COLOR = '#ffff00'; // Yellow — Técnica row
@@ -196,10 +194,10 @@ const buildDefaultData = (): PlaneacionSemanalFichaData => {
   Object.entries(DEFAULT_TRANSVERSAL).forEach(([key, label]) => {
     transversalCells[key] = [label];
   });
-  return { tecnicaAssignments: {}, transversalCells, cardDurations: {}, hiddenCards: [], weekDateOverrides: {} };
+  return { tecnicaAssignments: {}, transversalCells, cardDurations: {}, hiddenCards: [], weekDateOverrides: {}, phaseWeekCounts: {} };
 };
 
-const EMPTY_DATA: PlaneacionSemanalFichaData = { tecnicaAssignments: {}, transversalCells: {}, cardDurations: {}, hiddenCards: [], weekDateOverrides: {} };
+const EMPTY_DATA: PlaneacionSemanalFichaData = { tecnicaAssignments: {}, transversalCells: {}, cardDurations: {}, hiddenCards: [], weekDateOverrides: {}, phaseWeekCounts: {} };
 
 // ─── Card key helpers ────────────────────────────────────────────────────────
 const actKey = (id: string)                   => `act::${id}`;
@@ -227,14 +225,34 @@ export const PlaneacionSemanalView: React.FC = () => {
   const [editingValue,      setEditingValue]      = useState('');
   const [openDurationCard,  setOpenDurationCard]  = useState<string | null>(null);
   const [datePickerWeek,    setDatePickerWeek]    = useState<number | null>(null);
+  const [editingPhase,      setEditingPhase]      = useState<string | null>(null);
   const editInputRef    = useRef<HTMLInputElement>(null);
   const dateInputRef    = useRef<HTMLInputElement>(null);
   const datePopoverRef  = useRef<HTMLDivElement>(null);
+  const phasePopoverRef = useRef<HTMLDivElement>(null);
 
-  // ── Computed week dates (recalculate whenever overrides change) ──────────
+  // ── Effective phase segments (custom counts override PHASE_SEGMENTS defaults) ─
+  const effectiveSegments = useMemo(() =>
+    PHASE_SEGMENTS.map(seg => ({
+      ...seg,
+      count: (planeacion.phaseWeekCounts ?? {})[seg.phase] ?? seg.count,
+    })),
+  [planeacion.phaseWeekCounts]);
+
+  const effectiveTotalWeeks = useMemo(() =>
+    effectiveSegments.reduce((s, p) => s + p.count, 0),
+  [effectiveSegments]);
+
+  const effectiveWeekPhaseMap = useMemo(() => {
+    const map: (typeof effectiveSegments)[number][] = [];
+    for (const seg of effectiveSegments) for (let i = 0; i < seg.count; i++) map.push(seg);
+    return map;
+  }, [effectiveSegments]);
+
+  // ── Computed week dates (recalculate whenever overrides or phase counts change) ─
   const weekDates = useMemo(
-    () => buildWeekDates(planeacion.weekDateOverrides ?? {}),
-    [planeacion.weekDateOverrides],
+    () => buildWeekDates(planeacion.weekDateOverrides ?? {}, effectiveTotalWeeks),
+    [planeacion.weekDateOverrides, effectiveTotalWeeks],
   );
 
   // ── Load ────────────────────────────────────────────────────────────────
@@ -300,10 +318,20 @@ export const PlaneacionSemanalView: React.FC = () => {
       if (datePopoverRef.current && datePopoverRef.current.contains(e.target as Node)) return;
       setDatePickerWeek(null);
     };
-    // Use setTimeout so the click that opened the popover doesn't immediately close it
     const t = setTimeout(() => document.addEventListener('click', handler), 0);
     return () => { clearTimeout(t); document.removeEventListener('click', handler); };
   }, [datePickerWeek]);
+
+  // Close phase editor on any click outside its popover
+  useEffect(() => {
+    if (editingPhase === null) return;
+    const handler = (e: MouseEvent) => {
+      if (phasePopoverRef.current && phasePopoverRef.current.contains(e.target as Node)) return;
+      setEditingPhase(null);
+    };
+    const t = setTimeout(() => document.addEventListener('click', handler), 0);
+    return () => { clearTimeout(t); document.removeEventListener('click', handler); };
+  }, [editingPhase]);
 
   // ── Persist ─────────────────────────────────────────────────────────────
   const persist = useCallback((updated: PlaneacionSemanalFichaData) => {
@@ -421,6 +449,19 @@ export const PlaneacionSemanalView: React.FC = () => {
     setDatePickerWeek(null);
   }, [planeacion, persist]);
 
+  // ── Phase week count ─────────────────────────────────────────────────────
+  const setPhaseWeekCount = useCallback((phase: string, count: number) => {
+    const clamped = Math.max(1, Math.min(200, Math.round(count)));
+    const counts = { ...(planeacion.phaseWeekCounts ?? {}), [phase]: clamped };
+    persist({ ...planeacion, phaseWeekCounts: counts });
+  }, [planeacion, persist]);
+
+  const clearPhaseWeekCount = useCallback((phase: string) => {
+    const counts = { ...(planeacion.phaseWeekCounts ?? {}) };
+    delete counts[phase];
+    persist({ ...planeacion, phaseWeekCounts: counts });
+  }, [planeacion, persist]);
+
   // ── Duration & visibility ────────────────────────────────────────────────
   const getDuration = useCallback((key: string): 1 | 2 =>
     (planeacion.cardDurations?.[key] ?? 1) as 1 | 2, [planeacion.cardDurations]);
@@ -446,41 +487,44 @@ export const PlaneacionSemanalView: React.FC = () => {
     const result: Array<{ weekIdx: number; span: 1 | 2 }> = [];
     const consumed = new Set<number>();
     const durations = planeacion.cardDurations ?? {};
-    for (let w = 0; w < TOTAL_WEEKS; w++) {
+    for (let w = 0; w < effectiveTotalWeeks; w++) {
       if (consumed.has(w)) continue;
       const labels   = planeacion.transversalCells[`${rowKey}::${w}`] ?? [];
       const assigned = isTecnica ? activities.filter(a => planeacion.tecnicaAssignments[a.id] === w) : [];
-      const hasSpan2 = w + 1 < TOTAL_WEEKS && (
-        labels.some(lbl   => (durations[`lbl::${rowKey}::${lbl}`]   ?? 1) === 2) ||
-        assigned.some(a   => (durations[`act::${a.id}`]             ?? 1) === 2)
+      const hasSpan2 = w + 1 < effectiveTotalWeeks && (
+        labels.some(lbl => (durations[`lbl::${rowKey}::${lbl}`] ?? 1) === 2) ||
+        assigned.some(a  => (durations[`act::${a.id}`]          ?? 1) === 2)
       );
       const span: 1 | 2 = hasSpan2 ? 2 : 1;
       result.push({ weekIdx: w, span });
       if (span === 2) consumed.add(w + 1);
     }
     return result;
-  }, [planeacion, activities]);
+  }, [planeacion, activities, effectiveTotalWeeks]);
 
-  // ── Derived geometry ────────────────────────────────────────────────────
-  const weeks = useMemo(() => Array.from({ length: TOTAL_WEEKS }, (_, i) => i), []);
+  // ── Derived geometry (based on effective segments) ───────────────────────
+  const weeks = useMemo(
+    () => Array.from({ length: effectiveTotalWeeks }, (_, i) => i),
+    [effectiveTotalWeeks],
+  );
   const phaseSpans = useMemo(() => {
     let idx = 0;
-    return PHASE_SEGMENTS.map(seg => {
+    return effectiveSegments.map(seg => {
       const span = { ...seg, start: idx };
       idx += seg.count;
       return span;
     });
-  }, []);
+  }, [effectiveSegments]);
 
   // Week label within its phase: S1, S2, …
-  const weekLabel = (w: number): string => {
+  const weekLabel = useCallback((w: number): string => {
     let offset = w;
-    for (const seg of PHASE_SEGMENTS) {
+    for (const seg of effectiveSegments) {
       if (offset < seg.count) return `S${offset + 1}`;
       offset -= seg.count;
     }
     return `W${w + 1}`;
-  };
+  }, [effectiveSegments]);
 
   const phaseForActivity = (a: GradeActivity) =>
     PHASE_SEGMENTS.find(s => s.phase === a.phase) ?? PHASE_SEGMENTS[1];
@@ -500,7 +544,7 @@ export const PlaneacionSemanalView: React.FC = () => {
             Planeación Semanal — Ficha {ficha.code}
           </h2>
           <p className="text-xs text-gray-500">
-            {ficha.program} · {TOTAL_WEEKS} semanas · {activities.length} evidencia(s) técnica(s)
+            {ficha.program} · {effectiveTotalWeeks} semanas · {activities.length} evidencia(s) técnica(s)
           </p>
         </div>
       </div>
@@ -552,7 +596,7 @@ export const PlaneacionSemanalView: React.FC = () => {
         {/* ── Grid ── */}
         <div className="flex-1 overflow-auto" onClick={() => { setOpenDurationCard(null); setDatePickerWeek(null); }}>
           <table className="border-collapse text-xs select-none"
-            style={{ minWidth: CELL_W * TOTAL_WEEKS + LABEL_W }}>
+            style={{ minWidth: CELL_W * effectiveTotalWeeks + LABEL_W }}>
             <colgroup>
               <col style={{ width: LABEL_W, minWidth: LABEL_W }} />
               {weeks.map(w => <col key={w} style={{ width: CELL_W, minWidth: CELL_W }} />)}
@@ -565,13 +609,67 @@ export const PlaneacionSemanalView: React.FC = () => {
                   style={{ height: PHASE_H }}>
                   Fase / Semana
                 </th>
-                {phaseSpans.map(span => (
-                  <th key={span.phase} colSpan={span.count}
-                    className="border-b border-r border-gray-400 text-center font-bold text-[11px] tracking-wide"
-                    style={{ backgroundColor: span.color, color: span.text, height: PHASE_H }}>
-                    {span.phase.replace('Fase ', '').replace('Fase Inducción', 'Inducción')} ({span.count}s)
-                  </th>
-                ))}
+                {phaseSpans.map(span => {
+                  const isEditingThis = editingPhase === span.phase;
+                  const defaultCount  = PHASE_SEGMENTS.find(s => s.phase === span.phase)?.count ?? span.count;
+                  const hasOverride   = (planeacion.phaseWeekCounts ?? {})[span.phase] !== undefined;
+                  return (
+                    <th key={span.phase} colSpan={span.count}
+                      className="border-b border-r border-gray-400 text-center font-bold text-[11px] tracking-wide relative cursor-pointer select-none"
+                      style={{ backgroundColor: span.color, color: span.text, height: PHASE_H }}
+                      onClick={e => { e.stopPropagation(); setEditingPhase(isEditingThis ? null : span.phase); }}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {span.phase.replace('Fase ', '').replace('Fase Inducción', 'Inducción')}
+                        <span className="opacity-80">({span.count}s)</span>
+                        <span className="text-[10px] opacity-60">✏</span>
+                      </span>
+
+                      {/* Phase week count popover */}
+                      {isEditingThis && (
+                        <div
+                          ref={phasePopoverRef}
+                          className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 p-3 flex flex-col gap-2 min-w-[210px]"
+                          style={{ color: '#374151' }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <p className="text-[11px] font-bold text-center" style={{ color: span.color }}>
+                            {span.phase}
+                          </p>
+                          <div className="flex items-center gap-2 justify-center">
+                            <button
+                              className="w-7 h-7 rounded-full border flex items-center justify-center text-base font-bold hover:bg-gray-100 transition-colors"
+                              style={{ borderColor: span.color, color: span.color }}
+                              onClick={() => setPhaseWeekCount(span.phase, span.count - 1)}
+                            >−</button>
+                            <input
+                              type="number" min={1} max={200}
+                              value={span.count}
+                              onChange={e => setPhaseWeekCount(span.phase, parseInt(e.target.value) || 1)}
+                              className="w-14 text-center text-sm font-bold border rounded px-1 py-0.5 outline-none"
+                              style={{ borderColor: span.color, color: span.color }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                            <button
+                              className="w-7 h-7 rounded-full border flex items-center justify-center text-base font-bold hover:bg-gray-100 transition-colors"
+                              style={{ borderColor: span.color, color: span.color }}
+                              onClick={() => setPhaseWeekCount(span.phase, span.count + 1)}
+                            >+</button>
+                          </div>
+                          <p className="text-[10px] text-gray-400 text-center">semanas en esta fase</p>
+                          {hasOverride && (
+                            <button
+                              className="text-[10px] text-red-500 hover:text-red-700 underline text-center"
+                              onClick={() => { clearPhaseWeekCount(span.phase); setEditingPhase(null); }}
+                            >
+                              Restablecer ({defaultCount}s por defecto)
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
 
               {/* ── Week number + date row ── */}
@@ -581,7 +679,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                   Fecha semanal
                 </th>
                 {weeks.map(w => {
-                  const seg      = WEEK_PHASE_MAP[w];
+                  const seg      = effectiveWeekPhaseMap[w];
                   const hasOverride = !!(planeacion.weekDateOverrides ?? {})[w];
                   const isOpen   = datePickerWeek === w;
                   return (

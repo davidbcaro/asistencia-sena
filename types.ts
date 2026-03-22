@@ -99,6 +99,8 @@ export interface PlaneacionSemanalFichaData {
   /** weekIndex → ISO date string (YYYY-MM-DD) override for that week's start date.
    *  All subsequent weeks recalculate from this anchor (+7 days each). */
   weekDateOverrides: Record<number, string>;
+  /** phaseName → custom week count (overrides PHASE_SEGMENTS default) */
+  phaseWeekCounts: Record<string, number>;
 }
 
 /** fichaId → planeación data for that ficha */
