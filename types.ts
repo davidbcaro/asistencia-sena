@@ -96,6 +96,9 @@ export interface PlaneacionSemanalFichaData {
   cardDurations: Record<string, 1 | 2>;
   /** cardKeys that are hidden (faded/semi-transparent, still in their cell) */
   hiddenCards: string[];
+  /** weekIndex → ISO date string (YYYY-MM-DD) override for that week's start date.
+   *  All subsequent weeks recalculate from this anchor (+7 days each). */
+  weekDateOverrides: Record<number, string>;
 }
 
 /** fichaId → planeación data for that ficha */

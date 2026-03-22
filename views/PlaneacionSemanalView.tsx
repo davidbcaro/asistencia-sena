@@ -20,17 +20,39 @@ const TOTAL_WEEKS = PHASE_SEGMENTS.reduce((s, p) => s + p.count, 0); // 106
 const WEEK_PHASE_MAP: typeof PHASE_SEGMENTS[number][] = [];
 for (const seg of PHASE_SEGMENTS) for (let i = 0; i < seg.count; i++) WEEK_PHASE_MAP.push(seg);
 
-// Week start & end dates: base 29/09/2025, +7 days each (matches the Excel exactly)
+// Week dates: base 29/09/2025. Overrides shift subsequent weeks automatically.
 const BASE_DATE = new Date('2025-09-29T00:00:00');
+
 const fmt = (d: Date) =>
   `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 
-const WEEK_START_DATES: string[] = Array.from({ length: TOTAL_WEEKS }, (_, i) => {
-  const d = new Date(BASE_DATE); d.setDate(d.getDate() + i * 7); return fmt(d);
-});
-const WEEK_END_DATES: string[] = Array.from({ length: TOTAL_WEEKS }, (_, i) => {
-  const d = new Date(BASE_DATE); d.setDate(d.getDate() + i * 7 + 6); return fmt(d);
-});
+/** Parse YYYY-MM-DD (from <input type="date">) into a local Date */
+const parseIso = (iso: string): Date => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
+/** Build effective start & end dates for all 106 weeks, honouring overrides.
+ *  overrides: weekIndex → ISO date (YYYY-MM-DD) for that week's start. */
+const buildWeekDates = (overrides: Record<number, string> = {}): { starts: string[]; ends: string[]; isos: string[] } => {
+  const starts: string[] = [];
+  const ends:   string[] = [];
+  const isos:   string[] = []; // ISO for the <input type="date"> value
+  let cur = new Date(BASE_DATE);
+  for (let w = 0; w < TOTAL_WEEKS; w++) {
+    if (overrides[w]) cur = parseIso(overrides[w]);
+    const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+    isos.push(iso);
+    starts.push(fmt(cur));
+    const end = new Date(cur); end.setDate(end.getDate() + 6);
+    ends.push(fmt(end));
+    cur = new Date(cur); cur.setDate(cur.getDate() + 7);
+  }
+  return { starts, ends, isos };
+};
+
+// Default dates (no overrides) used before data loads
+const DEFAULT_DATES = buildWeekDates({});
 
 // ─── Transversal rows (colors match PLANEACION SEMANAL GRD legend) ──────────
 const TECNICA_COLOR = '#ffff00'; // Yellow — Técnica row
@@ -174,10 +196,10 @@ const buildDefaultData = (): PlaneacionSemanalFichaData => {
   Object.entries(DEFAULT_TRANSVERSAL).forEach(([key, label]) => {
     transversalCells[key] = [label];
   });
-  return { tecnicaAssignments: {}, transversalCells, cardDurations: {}, hiddenCards: [] };
+  return { tecnicaAssignments: {}, transversalCells, cardDurations: {}, hiddenCards: [], weekDateOverrides: {} };
 };
 
-const EMPTY_DATA: PlaneacionSemanalFichaData = { tecnicaAssignments: {}, transversalCells: {}, cardDurations: {}, hiddenCards: [] };
+const EMPTY_DATA: PlaneacionSemanalFichaData = { tecnicaAssignments: {}, transversalCells: {}, cardDurations: {}, hiddenCards: [], weekDateOverrides: {} };
 
 // ─── Card key helpers ────────────────────────────────────────────────────────
 const actKey = (id: string)                   => `act::${id}`;
@@ -204,7 +226,15 @@ export const PlaneacionSemanalView: React.FC = () => {
   const [editingCell,       setEditingCell]       = useState<string | null>(null);
   const [editingValue,      setEditingValue]      = useState('');
   const [openDurationCard,  setOpenDurationCard]  = useState<string | null>(null);
-  const editInputRef = useRef<HTMLInputElement>(null);
+  const [datePickerWeek,    setDatePickerWeek]    = useState<number | null>(null);
+  const editInputRef    = useRef<HTMLInputElement>(null);
+  const dateInputRef    = useRef<HTMLInputElement>(null);
+
+  // ── Computed week dates (recalculate whenever overrides change) ──────────
+  const weekDates = useMemo(
+    () => buildWeekDates(planeacion.weekDateOverrides ?? {}),
+    [planeacion.weekDateOverrides],
+  );
 
   // ── Load ────────────────────────────────────────────────────────────────
   const loadData = useCallback(() => {
@@ -255,6 +285,13 @@ export const PlaneacionSemanalView: React.FC = () => {
   useEffect(() => {
     if (editingCell && editInputRef.current) editInputRef.current.focus();
   }, [editingCell]);
+
+  useEffect(() => {
+    if (datePickerWeek !== null && dateInputRef.current) {
+      dateInputRef.current.showPicker?.();
+      dateInputRef.current.focus();
+    }
+  }, [datePickerWeek]);
 
   // ── Persist ─────────────────────────────────────────────────────────────
   const persist = useCallback((updated: PlaneacionSemanalFichaData) => {
@@ -357,6 +394,20 @@ export const PlaneacionSemanalView: React.FC = () => {
     if (arr.length === 0) delete cells[k]; else cells[k] = arr;
     persist({ ...planeacion, transversalCells: cells });
   };
+
+  // ── Week date overrides ──────────────────────────────────────────────────
+  const setWeekDateOverride = useCallback((weekIdx: number, isoDate: string) => {
+    const overrides = { ...(planeacion.weekDateOverrides ?? {}), [weekIdx]: isoDate };
+    persist({ ...planeacion, weekDateOverrides: overrides });
+    setDatePickerWeek(null);
+  }, [planeacion, persist]);
+
+  const clearWeekDateOverride = useCallback((weekIdx: number) => {
+    const overrides = { ...(planeacion.weekDateOverrides ?? {}) };
+    delete overrides[weekIdx];
+    persist({ ...planeacion, weekDateOverrides: overrides });
+    setDatePickerWeek(null);
+  }, [planeacion, persist]);
 
   // ── Duration & visibility ────────────────────────────────────────────────
   const getDuration = useCallback((key: string): 1 | 2 =>
@@ -487,7 +538,7 @@ export const PlaneacionSemanalView: React.FC = () => {
         </aside>
 
         {/* ── Grid ── */}
-        <div className="flex-1 overflow-auto" onClick={() => setOpenDurationCard(null)}>
+        <div className="flex-1 overflow-auto" onClick={() => { setOpenDurationCard(null); setDatePickerWeek(null); }}>
           <table className="border-collapse text-xs select-none"
             style={{ minWidth: CELL_W * TOTAL_WEEKS + LABEL_W }}>
             <colgroup>
@@ -518,16 +569,54 @@ export const PlaneacionSemanalView: React.FC = () => {
                   Fecha semanal
                 </th>
                 {weeks.map(w => {
-                  const seg = WEEK_PHASE_MAP[w];
+                  const seg      = WEEK_PHASE_MAP[w];
+                  const hasOverride = !!(planeacion.weekDateOverrides ?? {})[w];
+                  const isOpen   = datePickerWeek === w;
                   return (
-                    <th key={w} className="border-b border-r border-gray-200 text-center px-1"
+                    <th key={w} className="border-b border-r border-gray-200 text-center px-1 relative"
                       style={{ backgroundColor: seg.color + '14' }}>
                       <div className="flex flex-col items-center leading-none gap-1 py-1">
                         <span className="font-bold text-[11px]" style={{ color: seg.color }}>{weekLabel(w)}</span>
-                        <span className="text-[10px] text-gray-500 font-normal whitespace-nowrap">
-                          {WEEK_START_DATES[w]} — {WEEK_END_DATES[w]}
-                        </span>
+                        {/* Clickable date — opens datepicker */}
+                        <button
+                          className="text-[10px] font-normal whitespace-nowrap rounded px-0.5 transition-colors hover:bg-black/10"
+                          style={{ color: hasOverride ? seg.color : '#6b7280', fontWeight: hasOverride ? 700 : 400 }}
+                          title="Cambiar fecha de inicio"
+                          onClick={e => { e.stopPropagation(); setDatePickerWeek(isOpen ? null : w); }}
+                        >
+                          {weekDates.starts[w]} — {weekDates.ends[w]}
+                        </button>
                       </div>
+                      {/* Datepicker popover */}
+                      {isOpen && (
+                        <div
+                          className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 p-3 flex flex-col gap-2 min-w-[200px]"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <p className="text-[10px] font-bold text-gray-600 text-center">Inicio semana {weekLabel(w)}</p>
+                          <input
+                            ref={dateInputRef}
+                            type="date"
+                            className="text-xs border border-gray-300 rounded px-2 py-1 w-full outline-none focus:border-blue-400"
+                            defaultValue={weekDates.isos[w]}
+                            onChange={e => e.target.value && setWeekDateOverride(w, e.target.value)}
+                          />
+                          {hasOverride && (
+                            <button
+                              className="text-[10px] text-red-500 hover:text-red-700 underline text-center"
+                              onClick={() => clearWeekDateOverride(w)}
+                            >
+                              Restablecer fecha automática
+                            </button>
+                          )}
+                          <button
+                            className="text-[10px] text-gray-400 hover:text-gray-600 text-center"
+                            onClick={() => setDatePickerWeek(null)}
+                          >
+                            Cerrar
+                          </button>
+                        </div>
+                      )}
                     </th>
                   );
                 })}
