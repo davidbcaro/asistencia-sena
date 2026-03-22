@@ -229,6 +229,7 @@ export const PlaneacionSemanalView: React.FC = () => {
   const [datePickerWeek,    setDatePickerWeek]    = useState<number | null>(null);
   const editInputRef    = useRef<HTMLInputElement>(null);
   const dateInputRef    = useRef<HTMLInputElement>(null);
+  const datePopoverRef  = useRef<HTMLDivElement>(null);
 
   // ── Computed week dates (recalculate whenever overrides change) ──────────
   const weekDates = useMemo(
@@ -288,9 +289,20 @@ export const PlaneacionSemanalView: React.FC = () => {
 
   useEffect(() => {
     if (datePickerWeek !== null && dateInputRef.current) {
-      dateInputRef.current.showPicker?.();
       dateInputRef.current.focus();
     }
+  }, [datePickerWeek]);
+
+  // Close date picker on any click outside the popover
+  useEffect(() => {
+    if (datePickerWeek === null) return;
+    const handler = (e: MouseEvent) => {
+      if (datePopoverRef.current && datePopoverRef.current.contains(e.target as Node)) return;
+      setDatePickerWeek(null);
+    };
+    // Use setTimeout so the click that opened the popover doesn't immediately close it
+    const t = setTimeout(() => document.addEventListener('click', handler), 0);
+    return () => { clearTimeout(t); document.removeEventListener('click', handler); };
   }, [datePickerWeek]);
 
   // ── Persist ─────────────────────────────────────────────────────────────
@@ -590,6 +602,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                       {/* Datepicker popover */}
                       {isOpen && (
                         <div
+                          ref={datePopoverRef}
                           className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 p-3 flex flex-col gap-2 min-w-[200px]"
                           onClick={e => e.stopPropagation()}
                         >
