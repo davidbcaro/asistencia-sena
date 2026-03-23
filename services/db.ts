@@ -1849,7 +1849,29 @@ export const subscribeToRealtime = () => {
                 }
                 const currentLocal = localStorage.getItem(storageKey);
                 const incoming = JSON.stringify(value_json);
-                if (currentLocal !== incoming) {
+                if (currentLocal === incoming) return; // already up-to-date
+
+                if (ADDITIVE_MERGE_KEYS.has(key) && !_isEmptyValue(currentLocal) && !_isEmptyValue(incoming)) {
+                    // For additive-merge keys: merge instead of blind overwrite.
+                    // This prevents Computer B's stale subset from erasing Computer A's fuller dataset.
+                    try {
+                        const localParsed = JSON.parse(currentLocal!);
+                        const merged = _mergeAdditiveKey(key, localParsed, value_json);
+                        const mergedStr = JSON.stringify(merged);
+                        if (mergedStr !== currentLocal) {
+                            localStorage.setItem(storageKey, mergedStr);
+                            window.dispatchEvent(new Event('asistenciapro-storage-update'));
+                            console.log(`[Realtime] Additive-merged key "${key}" from cloud`);
+                        }
+                    } catch {
+                        // Parse error — fall back to blind overwrite only if incoming is not empty
+                        if (!_isEmptyValue(incoming)) {
+                            localStorage.setItem(storageKey, incoming);
+                            window.dispatchEvent(new Event('asistenciapro-storage-update'));
+                        }
+                    }
+                } else if (!_isEmptyValue(incoming)) {
+                    // Non-additive key OR local is empty: take cloud value as-is (never overwrite with empty)
                     localStorage.setItem(storageKey, incoming);
                     window.dispatchEvent(new Event('asistenciapro-storage-update'));
                 }
