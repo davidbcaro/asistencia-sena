@@ -369,7 +369,7 @@ export const FichasView: React.FC = () => {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Código Ficha</label>
-                        <input 
+                        <input
                             type="text"
                             className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.code}
@@ -378,7 +378,7 @@ export const FichasView: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Programa</label>
-                        <input 
+                        <input
                             type="text"
                             className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.program}
@@ -387,71 +387,40 @@ export const FichasView: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                        <input 
+                        <input
                             type="text"
                             className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
                             value={editForm.description}
                             onChange={e => setEditForm({...editForm, description: e.target.value})}
                         />
                     </div>
-                    <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-4">
-                        <p className="text-sm font-semibold text-gray-800">Datos del cronograma</p>
-                        <p className="text-xs text-gray-500">Opcional: personaliza el cronograma para esta ficha.</p>
-                        <div className="mt-3 grid grid-cols-1 gap-3">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Nombre completo del programa</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                    value={editForm.cronogramaProgramName}
-                                    onChange={e => setEditForm({...editForm, cronogramaProgramName: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Centro / Regional</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                    value={editForm.cronogramaCenter}
-                                    onChange={e => setEditForm({...editForm, cronogramaCenter: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha de inicio</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                    value={editForm.cronogramaStartDate}
-                                    onChange={e => setEditForm({...editForm, cronogramaStartDate: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Inicio de formación</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                    value={editForm.cronogramaTrainingStartDate}
-                                    onChange={e => setEditForm({...editForm, cronogramaTrainingStartDate: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Fecha fin</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                    value={editForm.cronogramaEndDate}
-                                    onChange={e => setEditForm({...editForm, cronogramaEndDate: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">URL cronograma descargable</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                    value={editForm.cronogramaDownloadUrl}
-                                    onChange={e => setEditForm({...editForm, cronogramaDownloadUrl: e.target.value})}
-                                />
-                            </div>
+                    <div className="grid grid-cols-1 gap-3">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de inicio</label>
+                            <input
+                                type="date"
+                                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                value={editForm.cronogramaStartDate}
+                                onChange={e => setEditForm({...editForm, cronogramaStartDate: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha inicio de formación</label>
+                            <input
+                                type="date"
+                                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                value={editForm.cronogramaTrainingStartDate}
+                                onChange={e => setEditForm({...editForm, cronogramaTrainingStartDate: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha fin</label>
+                            <input
+                                type="date"
+                                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                value={editForm.cronogramaEndDate}
+                                onChange={e => setEditForm({...editForm, cronogramaEndDate: e.target.value})}
+                            />
                         </div>
                     </div>
                     
