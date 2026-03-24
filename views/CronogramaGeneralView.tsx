@@ -52,6 +52,7 @@ const FASES: FaseCronograma[] = [
             rapTitulo: '240201530-01. Identificar la dinámica organizacional del SENA y el rol de la formación profesional integral de acuerdo con su proyecto de vida y el desarrollo profesional.',
             evidencias: [
               { id: 'AA1-EV01', descripcion: 'Infografía.' },
+              { id: 'AA2-EV01', descripcion: 'Cuestionario.' },
               { id: 'AA2-EV02', descripcion: 'Cuestionario.' },
             ],
           },
