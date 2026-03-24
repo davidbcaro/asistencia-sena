@@ -761,6 +761,61 @@ const TIPO_BADGE: Record<TipoEvidencia, { bg: string; text: string; label: strin
   desempeño:    { bg: '#ffedd5', text: '#9a3412', label: 'Desempeño' },
 };
 
+// ─── AREA CLASSIFICATION (matching PlaneacionSemanalView colors) ──────────────
+
+type AreaKey = 'Técnica' | 'TICs' | 'Bilingüismo' | 'Matemáticas' | 'Comunicación' | 'Investigación' | 'Ambiente' | 'Emprendimiento' | 'EducaciónFísica' | 'CienciasNaturales';
+
+const AREAS: Record<AreaKey, { label: string; color: string; bg: string; text: string }> = {
+  Técnica:          { label: 'Técnica',                       color: '#f59e0b', bg: '#fefce8', text: '#92400e' },
+  TICs:             { label: "TIC's",                         color: '#4CAF50', bg: '#f0fdf4', text: '#14532d' },
+  Bilingüismo:      { label: 'Bilingüismo',                   color: '#F44336', bg: '#fff1f2', text: '#9f1239' },
+  Matemáticas:      { label: 'Matemáticas',                   color: '#F48FB1', bg: '#fdf2f8', text: '#831843' },
+  Comunicación:     { label: 'Comunicación / Ética / Derechos', color: '#9C27B0', bg: '#faf5ff', text: '#581c87' },
+  Investigación:    { label: 'Investigación',                 color: '#FF9800', bg: '#fff7ed', text: '#7c2d12' },
+  Ambiente:         { label: 'Ambiente',                      color: '#2196F3', bg: '#eff6ff', text: '#1e3a8a' },
+  Emprendimiento:   { label: 'Emprendimiento',                color: '#009688', bg: '#f0fdfa', text: '#134e4a' },
+  EducaciónFísica:  { label: 'Edu. Física',                   color: '#9E9E9E', bg: '#f9fafb', text: '#374151' },
+  CienciasNaturales:{ label: 'Ciencias Naturales',            color: '#78909C', bg: '#f8fafc', text: '#334155' },
+};
+
+const COMPETENCY_TO_AREA: Record<string, AreaKey> = {
+  // Técnica — redes, seguridad, infraestructura
+  '220501014': 'Técnica',
+  '220501104': 'Técnica',
+  '220501107': 'Técnica',
+  '220501091': 'Técnica',
+  '220501105': 'Técnica',
+  '220501106': 'Técnica',
+  // TIC's
+  '220501046': 'TICs',
+  // Bilingüismo
+  '240202501': 'Bilingüismo',
+  // Matemáticas
+  '240201528': 'Matemáticas',
+  // Comunicación / Ética / Derechos
+  '240201524': 'Comunicación',
+  '210201501': 'Comunicación',
+  '240201526': 'Comunicación',
+  // Investigación
+  '240201064': 'Investigación',
+  // Ambiente / SST
+  '220601501': 'Ambiente',
+  // Emprendimiento
+  '240201529': 'Emprendimiento',
+  // Edu. Física
+  '230101507': 'EducaciónFísica',
+  // Ciencias Naturales
+  '220201501': 'CienciasNaturales',
+};
+
+/** Extracts competency code from evidence ID like "GA1-220501014-AA1-EV01" → "220501014" */
+const getArea = (evId: string): typeof AREAS[AreaKey] => {
+  const match = evId.match(/GA\d+-(\d+)-/);
+  const code = match?.[1] ?? '';
+  const key: AreaKey = COMPETENCY_TO_AREA[code] ?? 'Técnica';
+  return AREAS[key];
+};
+
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 const fmt = (iso: string) => {
@@ -982,18 +1037,35 @@ export const CronogramaGeneralView: React.FC = () => {
                         {aa.evidencias.map((ev) => {
                           const entry = getEntry(ev.id);
                           const badge = TIPO_BADGE[ev.tipo];
+                          const area = getArea(ev.id);
                           return (
                             <div
                               key={ev.id}
                               style={{
-                                background: '#fafafa',
-                                border: '1px solid #e5e7eb',
+                                background: area.bg,
+                                border: `1px solid ${area.color}44`,
+                                borderLeft: `4px solid ${area.color}`,
                                 borderRadius: 8,
                                 padding: '12px 14px',
                               }}
                             >
                               {/* Evidence header */}
-                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                                {/* Area badge */}
+                                <span style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  background: area.color,
+                                  color: '#ffffff',
+                                  padding: '2px 8px',
+                                  borderRadius: 4,
+                                  whiteSpace: 'nowrap',
+                                  flexShrink: 0,
+                                  marginTop: 1,
+                                }}>
+                                  {area.label}
+                                </span>
+                                {/* Tipo badge */}
                                 <span style={{
                                   fontSize: 10,
                                   fontWeight: 700,
@@ -1008,7 +1080,7 @@ export const CronogramaGeneralView: React.FC = () => {
                                 }}>
                                   {badge.label}
                                 </span>
-                                <div>
+                                <div style={{ flex: 1, minWidth: 200 }}>
                                   <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginRight: 6 }}>{ev.id}.</span>
                                   <span style={{ fontSize: 13, color: '#374151' }}>{ev.descripcion}</span>
                                 </div>
