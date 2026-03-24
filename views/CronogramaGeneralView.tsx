@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronRight, Calendar, User } from 'lucide-react';
 import { Ficha, CronogramaGeneralEntry, CronogramaGeneralData } from '../types';
@@ -10,7 +10,7 @@ type TipoEvidencia = 'conocimiento' | 'producto' | 'desempeño';
 
 interface Evidencia {
   id: string;
-  tipo: TipoEvidencia;
+  tipo?: TipoEvidencia;  // undefined = sin tipo específico (ej. Inducción)
   descripcion: string;
 }
 
@@ -36,6 +36,29 @@ interface FaseCronograma {
 }
 
 const FASES: FaseCronograma[] = [
+  {
+    nombre: 'Inducción',
+    color: '#f59e0b',
+    textColor: '#ffffff',
+    actividadesProyecto: [
+      {
+        codigo: 'AP-IND',
+        titulo: 'Contextualización e Inducción al Programa SENA',
+        actividades: [
+          {
+            codigo: 'AA1-Senología',
+            titulo: 'AA1: Contextualización Senología.',
+            rap: '240201530-01',
+            rapTitulo: '240201530-01. Identificar la dinámica organizacional del SENA y el rol de la formación profesional integral de acuerdo con su proyecto de vida y el desarrollo profesional.',
+            evidencias: [
+              { id: 'AA1-EV01', descripcion: 'Infografía.' },
+              { id: 'AA2-EV02', descripcion: 'Cuestionario.' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
   {
     nombre: 'Análisis',
     color: '#0d9488',
@@ -808,12 +831,59 @@ const COMPETENCY_TO_AREA: Record<string, AreaKey> = {
   '220201501': 'CienciasNaturales',
 };
 
-/** Extracts competency code from evidence ID like "GA1-220501014-AA1-EV01" → "220501014" */
-const getArea = (evId: string): typeof AREAS[AreaKey] => {
+/** Extracts competency code from evidence ID like "GA1-220501014-AA1-EV01" → area config, or null if no match */
+const getArea = (evId: string): typeof AREAS[AreaKey] | null => {
   const match = evId.match(/GA\d+-(\d+)-/);
-  const code = match?.[1] ?? '';
+  if (!match) return null;  // IDs sin código de competencia (ej. Inducción)
+  const code = match[1];
   const key: AreaKey = COMPETENCY_TO_AREA[code] ?? 'Técnica';
   return AREAS[key];
+};
+
+// ─── STATS HELPERS ────────────────────────────────────────────────────────────
+
+interface PhaseStats {
+  total: number;
+  configured: number;
+  byArea: { area: typeof AREAS[AreaKey] | null; label: string; color: string; count: number }[];
+  byTipo: { label: string; bg: string; text: string; count: number }[];
+}
+
+const GENERAL_TAB_IDX = FASES.length; // índice virtual del tab "General"
+
+const computePhaseStats = (fase: FaseCronograma, entries: CronogramaGeneralEntry[]): PhaseStats => {
+  const allEvs = fase.actividadesProyecto.flatMap(ap => ap.actividades.flatMap(aa => aa.evidencias));
+  const total = allEvs.length;
+  const configured = allEvs.filter(ev => {
+    const e = entries.find(x => x.id === ev.id);
+    return e && (e.fechaInicio || e.fechaFin || e.instructor);
+  }).length;
+
+  // By area
+  const areaMap = new Map<string, { area: typeof AREAS[AreaKey] | null; label: string; color: string; count: number }>();
+  allEvs.forEach(ev => {
+    const area = getArea(ev.id);
+    const key = area ? area.label : 'Sin clasificar';
+    if (!areaMap.has(key)) {
+      areaMap.set(key, { area, label: key, color: area ? area.color : '#9ca3af', count: 0 });
+    }
+    areaMap.get(key)!.count++;
+  });
+  const byArea = Array.from(areaMap.values()).sort((a, b) => b.count - a.count);
+
+  // By tipo
+  const tipoMap = new Map<string, { label: string; bg: string; text: string; count: number }>();
+  allEvs.forEach(ev => {
+    const key = ev.tipo ?? 'sin tipo';
+    if (!tipoMap.has(key)) {
+      const badge = ev.tipo ? TIPO_BADGE[ev.tipo] : { bg: '#f3f4f6', text: '#6b7280', label: 'Sin tipo' };
+      tipoMap.set(key, { ...badge, count: 0 });
+    }
+    tipoMap.get(key)!.count++;
+  });
+  const byTipo = Array.from(tipoMap.values()).sort((a, b) => b.count - a.count);
+
+  return { total, configured, byArea, byTipo };
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -863,6 +933,7 @@ export const CronogramaGeneralView: React.FC = () => {
 
   // Expand all APs of active phase by default when switching tabs
   useEffect(() => {
+    if (activePhase >= FASES.length) return; // General tab — no APs to expand
     const fase = FASES[activePhase];
     const keys = new Set(fase.actividadesProyecto.map(ap => `${activePhase}::${ap.codigo}`));
     setExpandedAPs(keys);
@@ -901,13 +972,25 @@ export const CronogramaGeneralView: React.FC = () => {
     });
   };
 
-  const fase = FASES[activePhase];
+  const fase = activePhase < FASES.length ? FASES[activePhase] : null;
 
-  // Count filled entries for progress indicator
+  // Global progress
   const totalEvidencias = FASES.reduce((sum, f) =>
     sum + f.actividadesProyecto.reduce((s, ap) =>
       s + ap.actividades.reduce((ss, aa) => ss + aa.evidencias.length, 0), 0), 0);
   const filledEntries = entries.filter(e => e.fechaInicio || e.fechaFin || e.instructor).length;
+
+  // Stats for active phase
+  const phaseStats = useMemo(
+    () => fase ? computePhaseStats(fase, entries) : null,
+    [fase, entries]
+  );
+
+  // Stats for all phases (used in General tab)
+  const allPhaseStats = useMemo(
+    () => FASES.map(f => ({ fase: f, stats: computePhaseStats(f, entries) })),
+    [entries]
+  );
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 32px' }}>
@@ -941,7 +1024,7 @@ export const CronogramaGeneralView: React.FC = () => {
       </div>
 
       {/* Phase tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
         {FASES.map((f, idx) => (
           <button
             key={f.nombre}
@@ -962,9 +1045,277 @@ export const CronogramaGeneralView: React.FC = () => {
             {f.nombre}
           </button>
         ))}
+        {/* General tab */}
+        <button
+          onClick={() => setActivePhase(GENERAL_TAB_IDX)}
+          style={{
+            padding: '8px 20px',
+            borderRadius: 8,
+            border: activePhase === GENERAL_TAB_IDX ? 'none' : '1px dashed #d1d5db',
+            cursor: 'pointer',
+            fontWeight: 600,
+            fontSize: 14,
+            background: activePhase === GENERAL_TAB_IDX ? '#1f2937' : '#f9fafb',
+            color: activePhase === GENERAL_TAB_IDX ? '#ffffff' : '#6b7280',
+            boxShadow: activePhase === GENERAL_TAB_IDX ? '0 2px 8px #1f293755' : 'none',
+            transition: 'all 0.15s',
+          }}
+        >
+          Resumen General
+        </button>
       </div>
 
+      {/* Phase stats bar */}
+      {phaseStats && fase && (
+        <div style={{
+          background: `${fase.color}0d`,
+          border: `1px solid ${fase.color}33`,
+          borderRadius: 10,
+          padding: '12px 16px',
+          marginBottom: 16,
+          display: 'flex',
+          gap: 16,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}>
+          {/* Total + configured */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: fase.color }}>
+              {phaseStats.total} evidencias
+            </span>
+            <span style={{ fontSize: 11, color: '#9ca3af' }}>·</span>
+            <span style={{ fontSize: 12, color: '#6b7280' }}>
+              {phaseStats.configured} configuradas
+            </span>
+            {phaseStats.total > 0 && (
+              <span style={{
+                fontSize: 11, fontWeight: 700,
+                background: phaseStats.configured === phaseStats.total ? '#dcfce7' : '#f3f4f6',
+                color: phaseStats.configured === phaseStats.total ? '#166534' : '#6b7280',
+                padding: '1px 7px', borderRadius: 20,
+              }}>
+                {Math.round(phaseStats.configured / phaseStats.total * 100)}%
+              </span>
+            )}
+          </div>
+          <div style={{ width: 1, height: 20, background: `${fase.color}44`, flexShrink: 0 }} />
+          {/* By tipo */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>Tipo:</span>
+            {phaseStats.byTipo.map(t => (
+              <span key={t.label} style={{
+                fontSize: 11, fontWeight: 700,
+                background: t.bg, color: t.text,
+                padding: '2px 8px', borderRadius: 4,
+              }}>
+                {t.label}: {t.count}
+              </span>
+            ))}
+          </div>
+          <div style={{ width: 1, height: 20, background: `${fase.color}44`, flexShrink: 0 }} />
+          {/* By area */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>Área:</span>
+            {phaseStats.byArea.map(a => (
+              <span key={a.label} style={{
+                fontSize: 11, fontWeight: 700,
+                background: a.color,
+                color: '#ffffff',
+                padding: '2px 8px', borderRadius: 4,
+              }}>
+                {a.label}: {a.count}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── GENERAL (consolidated) VIEW ─────────────────────────────────────── */}
+      {activePhase === GENERAL_TAB_IDX && (
+        <div>
+          {/* Grand total card */}
+          <div style={{
+            background: 'linear-gradient(135deg, #1f2937 0%, #374151 100%)',
+            borderRadius: 12,
+            padding: '20px 24px',
+            marginBottom: 20,
+            color: 'white',
+            display: 'flex',
+            gap: 32,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}>
+            <div>
+              <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 2 }}>TOTAL GENERAL</div>
+              <div style={{ fontSize: 32, fontWeight: 800 }}>{totalEvidencias}</div>
+              <div style={{ fontSize: 12, opacity: 0.7 }}>evidencias en el programa</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 2 }}>CONFIGURADAS</div>
+              <div style={{ fontSize: 32, fontWeight: 800 }}>{filledEntries}</div>
+              <div style={{ fontSize: 12, opacity: 0.7 }}>
+                {totalEvidencias > 0 ? Math.round(filledEntries / totalEvidencias * 100) : 0}% completado
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 2 }}>PENDIENTES</div>
+              <div style={{ fontSize: 32, fontWeight: 800 }}>{totalEvidencias - filledEntries}</div>
+              <div style={{ fontSize: 12, opacity: 0.7 }}>por configurar</div>
+            </div>
+            {/* Progress bar */}
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ height: 8, background: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${totalEvidencias > 0 ? filledEntries / totalEvidencias * 100 : 0}%`,
+                  background: '#4ade80',
+                  borderRadius: 4,
+                  transition: 'width 0.3s',
+                }} />
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>Progreso global</div>
+            </div>
+          </div>
+
+          {/* Per-phase cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16, marginBottom: 24 }}>
+            {allPhaseStats.map(({ fase: f, stats }) => (
+              <div key={f.nombre} style={{
+                border: `1px solid ${f.color}44`,
+                borderTop: `4px solid ${f.color}`,
+                borderRadius: 10,
+                padding: '16px',
+                background: 'white',
+              }}>
+                {/* Phase header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{
+                    fontWeight: 700, fontSize: 15, color: f.color,
+                  }}>
+                    {f.nombre}
+                  </span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>
+                      {stats.configured}/{stats.total}
+                    </span>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12,
+                      background: stats.configured === stats.total && stats.total > 0 ? '#dcfce7' : stats.configured > 0 ? '#fef9c3' : '#f3f4f6',
+                      color: stats.configured === stats.total && stats.total > 0 ? '#166534' : stats.configured > 0 ? '#854d0e' : '#6b7280',
+                    }}>
+                      {stats.total > 0 ? Math.round(stats.configured / stats.total * 100) : 0}%
+                    </span>
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div style={{ height: 6, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden', marginBottom: 12 }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${stats.total > 0 ? stats.configured / stats.total * 100 : 0}%`,
+                    background: f.color,
+                    borderRadius: 3,
+                    transition: 'width 0.3s',
+                  }} />
+                </div>
+                {/* By tipo */}
+                {stats.byTipo.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', marginBottom: 4, textTransform: 'uppercase' }}>Por tipo</div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {stats.byTipo.map(t => (
+                        <span key={t.label} style={{
+                          fontSize: 11, fontWeight: 600,
+                          background: t.bg, color: t.text,
+                          padding: '2px 8px', borderRadius: 4,
+                        }}>
+                          {t.label}: {t.count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* By area */}
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', marginBottom: 4, textTransform: 'uppercase' }}>Por área</div>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {stats.byArea.map(a => (
+                      <span key={a.label} style={{
+                        fontSize: 11, fontWeight: 600,
+                        background: a.color + '22',
+                        color: a.color === '#9ca3af' ? '#6b7280' : a.color,
+                        border: `1px solid ${a.color}55`,
+                        padding: '2px 8px', borderRadius: 4,
+                      }}>
+                        {a.label}: {a.count}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {/* Navigate button */}
+                <button
+                  onClick={() => setActivePhase(FASES.indexOf(f))}
+                  style={{
+                    marginTop: 12, width: '100%',
+                    padding: '6px', borderRadius: 6,
+                    border: `1px solid ${f.color}44`,
+                    background: `${f.color}0d`,
+                    color: f.color, fontWeight: 600, fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Ver {f.nombre} →
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Area consolidado global */}
+          <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '20px' }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: '#1f2937' }}>
+              Desglose por área — todas las fases
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+              {(() => {
+                const globalAreaMap = new Map<string, { color: string; total: number; configured: number }>();
+                FASES.forEach(f => {
+                  f.actividadesProyecto.forEach(ap => ap.actividades.forEach(aa => aa.evidencias.forEach(ev => {
+                    const area = getArea(ev.id);
+                    const key = area ? area.label : 'Sin clasificar';
+                    const color = area ? area.color : '#9ca3af';
+                    if (!globalAreaMap.has(key)) globalAreaMap.set(key, { color, total: 0, configured: 0 });
+                    globalAreaMap.get(key)!.total++;
+                    const entry = entries.find(e => e.id === ev.id);
+                    if (entry && (entry.fechaInicio || entry.fechaFin || entry.instructor)) {
+                      globalAreaMap.get(key)!.configured++;
+                    }
+                  })));
+                });
+                return Array.from(globalAreaMap.entries())
+                  .sort((a, b) => b[1].total - a[1].total)
+                  .map(([label, { color, total, configured }]) => (
+                    <div key={label} style={{
+                      padding: '12px 14px',
+                      borderRadius: 8,
+                      border: `1px solid ${color}44`,
+                      borderLeft: `4px solid ${color}`,
+                      background: color + '0d',
+                    }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 4 }}>{label}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: '#1f2937' }}>{total}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>{configured} configuradas · {total > 0 ? Math.round(configured / total * 100) : 0}%</div>
+                      <div style={{ height: 4, background: '#f3f4f6', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${total > 0 ? configured / total * 100 : 0}%`, background: color, borderRadius: 2 }} />
+                      </div>
+                    </div>
+                  ));
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Phase content */}
+      {activePhase < FASES.length && (
       <div>
         {fase.actividadesProyecto.map((ap) => {
           const apKey = `${activePhase}::${ap.codigo}`;
@@ -1036,50 +1387,54 @@ export const CronogramaGeneralView: React.FC = () => {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 12 }}>
                         {aa.evidencias.map((ev) => {
                           const entry = getEntry(ev.id);
-                          const badge = TIPO_BADGE[ev.tipo];
+                          const badge = ev.tipo ? TIPO_BADGE[ev.tipo] : null;
                           const area = getArea(ev.id);
                           return (
                             <div
                               key={ev.id}
                               style={{
-                                background: area.bg,
-                                border: `1px solid ${area.color}44`,
-                                borderLeft: `4px solid ${area.color}`,
+                                background: area ? area.bg : '#fafafa',
+                                border: area ? `1px solid ${area.color}44` : '1px solid #e5e7eb',
+                                borderLeft: area ? `4px solid ${area.color}` : '4px solid #d1d5db',
                                 borderRadius: 8,
                                 padding: '12px 14px',
                               }}
                             >
                               {/* Evidence header */}
                               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-                                {/* Area badge */}
-                                <span style={{
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  background: area.color,
-                                  color: '#ffffff',
-                                  padding: '2px 8px',
-                                  borderRadius: 4,
-                                  whiteSpace: 'nowrap',
-                                  flexShrink: 0,
-                                  marginTop: 1,
-                                }}>
-                                  {area.label}
-                                </span>
-                                {/* Tipo badge */}
-                                <span style={{
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  background: badge.bg,
-                                  color: badge.text,
-                                  padding: '2px 8px',
-                                  borderRadius: 4,
-                                  whiteSpace: 'nowrap',
-                                  flexShrink: 0,
-                                  marginTop: 1,
-                                  textTransform: 'uppercase',
-                                }}>
-                                  {badge.label}
-                                </span>
+                                {/* Area badge — solo si aplica */}
+                                {area && (
+                                  <span style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    background: area.color,
+                                    color: '#ffffff',
+                                    padding: '2px 8px',
+                                    borderRadius: 4,
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0,
+                                    marginTop: 1,
+                                  }}>
+                                    {area.label}
+                                  </span>
+                                )}
+                                {/* Tipo badge — solo si aplica */}
+                                {badge && (
+                                  <span style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    background: badge.bg,
+                                    color: badge.text,
+                                    padding: '2px 8px',
+                                    borderRadius: 4,
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0,
+                                    marginTop: 1,
+                                    textTransform: 'uppercase',
+                                  }}>
+                                    {badge.label}
+                                  </span>
+                                )}
                                 <div style={{ flex: 1, minWidth: 200 }}>
                                   <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginRight: 6 }}>{ev.id}.</span>
                                   <span style={{ fontSize: 13, color: '#374151' }}>{ev.descripcion}</span>
@@ -1173,6 +1528,7 @@ export const CronogramaGeneralView: React.FC = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };
