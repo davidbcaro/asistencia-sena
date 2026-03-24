@@ -6,11 +6,12 @@ import { getFichas, getCronogramaGeneral, saveCronogramaGeneral } from '../servi
 
 // ─── STATIC CURRICULUM DATA ──────────────────────────────────────────────────
 
-type TipoEvidencia = 'conocimiento' | 'producto' | 'desempeño';
+type TipoEvidencia = 'conocimiento' | 'producto' | 'desempeño' | 'inducción';
 
 interface Evidencia {
   id: string;
-  tipo?: TipoEvidencia;  // undefined = sin tipo específico (ej. Inducción)
+  tipo?: TipoEvidencia;
+  area?: AreaKey;  // override de área (para evidencias sin código de competencia)
   descripcion: string;
 }
 
@@ -51,9 +52,9 @@ const FASES: FaseCronograma[] = [
             rap: '240201530-01',
             rapTitulo: '240201530-01. Identificar la dinámica organizacional del SENA y el rol de la formación profesional integral de acuerdo con su proyecto de vida y el desarrollo profesional.',
             evidencias: [
-              { id: 'AA1-EV01', descripcion: 'Infografía.' },
-              { id: 'AA2-EV01', descripcion: 'Cuestionario.' },
-              { id: 'AA2-EV02', descripcion: 'Cuestionario.' },
+              { id: 'AA1-EV01', tipo: 'inducción' as const, area: 'EEF' as const, descripcion: 'Infografía.' },
+              { id: 'AA2-EV01', tipo: 'inducción' as const, area: 'EEF' as const, descripcion: 'Cuestionario.' },
+              { id: 'AA2-EV02', tipo: 'inducción' as const, area: 'EEF' as const, descripcion: 'Cuestionario.' },
             ],
           },
         ],
@@ -783,11 +784,12 @@ const TIPO_BADGE: Record<TipoEvidencia, { bg: string; text: string; label: strin
   conocimiento: { bg: '#dbeafe', text: '#1e40af', label: 'Conocimiento' },
   producto:     { bg: '#dcfce7', text: '#166534', label: 'Producto' },
   desempeño:    { bg: '#ffedd5', text: '#9a3412', label: 'Desempeño' },
+  inducción:    { bg: '#fef9c3', text: '#854d0e', label: 'Inducción' },
 };
 
 // ─── AREA CLASSIFICATION (matching PlaneacionSemanalView colors) ──────────────
 
-type AreaKey = 'Técnica' | 'TICs' | 'Bilingüismo' | 'Matemáticas' | 'Comunicación' | 'Investigación' | 'Ambiente' | 'Emprendimiento' | 'EducaciónFísica' | 'CienciasNaturales';
+type AreaKey = 'Técnica' | 'TICs' | 'Bilingüismo' | 'Matemáticas' | 'Comunicación' | 'Investigación' | 'Ambiente' | 'Emprendimiento' | 'EducaciónFísica' | 'CienciasNaturales' | 'EEF';
 
 const AREAS: Record<AreaKey, { label: string; color: string; bg: string; text: string }> = {
   Técnica:          { label: 'Técnica',                       color: '#f59e0b', bg: '#fefce8', text: '#92400e' },
@@ -800,6 +802,7 @@ const AREAS: Record<AreaKey, { label: string; color: string; bg: string; text: s
   Emprendimiento:   { label: 'Emprendimiento',                color: '#009688', bg: '#f0fdfa', text: '#134e4a' },
   EducaciónFísica:  { label: 'Edu. Física',                   color: '#9E9E9E', bg: '#f9fafb', text: '#374151' },
   CienciasNaturales:{ label: 'Ciencias Naturales',            color: '#78909C', bg: '#f8fafc', text: '#334155' },
+  EEF:              { label: 'EEF',                           color: '#8b5cf6', bg: '#f5f3ff', text: '#4c1d95' },
 };
 
 const COMPETENCY_TO_AREA: Record<string, AreaKey> = {
@@ -832,10 +835,20 @@ const COMPETENCY_TO_AREA: Record<string, AreaKey> = {
   '220201501': 'CienciasNaturales',
 };
 
-/** Extracts competency code from evidence ID like "GA1-220501014-AA1-EV01" → area config, or null if no match */
+/** Returns area config: uses ev.area override if present, otherwise extracts from competency code in ID */
+const getAreaForEv = (ev: Evidencia): typeof AREAS[AreaKey] | null => {
+  if (ev.area) return AREAS[ev.area];
+  const match = ev.id.match(/GA\d+-(\d+)-/);
+  if (!match) return null;
+  const code = match[1];
+  const key: AreaKey = COMPETENCY_TO_AREA[code] ?? 'Técnica';
+  return AREAS[key];
+};
+
+/** Legacy helper for places that only have the ID string */
 const getArea = (evId: string): typeof AREAS[AreaKey] | null => {
   const match = evId.match(/GA\d+-(\d+)-/);
-  if (!match) return null;  // IDs sin código de competencia (ej. Inducción)
+  if (!match) return null;
   const code = match[1];
   const key: AreaKey = COMPETENCY_TO_AREA[code] ?? 'Técnica';
   return AREAS[key];
@@ -863,7 +876,7 @@ const computePhaseStats = (fase: FaseCronograma, entries: CronogramaGeneralEntry
   // By area
   const areaMap = new Map<string, { area: typeof AREAS[AreaKey] | null; label: string; color: string; count: number }>();
   allEvs.forEach(ev => {
-    const area = getArea(ev.id);
+    const area = getAreaForEv(ev);
     const key = area ? area.label : 'Sin clasificar';
     if (!areaMap.has(key)) {
       areaMap.set(key, { area, label: key, color: area ? area.color : '#9ca3af', count: 0 });
@@ -1280,7 +1293,7 @@ export const CronogramaGeneralView: React.FC = () => {
                 const globalAreaMap = new Map<string, { color: string; total: number; configured: number }>();
                 FASES.forEach(f => {
                   f.actividadesProyecto.forEach(ap => ap.actividades.forEach(aa => aa.evidencias.forEach(ev => {
-                    const area = getArea(ev.id);
+                    const area = getAreaForEv(ev);
                     const key = area ? area.label : 'Sin clasificar';
                     const color = area ? area.color : '#9ca3af';
                     if (!globalAreaMap.has(key)) globalAreaMap.set(key, { color, total: 0, configured: 0 });
@@ -1389,7 +1402,7 @@ export const CronogramaGeneralView: React.FC = () => {
                         {aa.evidencias.map((ev) => {
                           const entry = getEntry(ev.id);
                           const badge = ev.tipo ? TIPO_BADGE[ev.tipo] : null;
-                          const area = getArea(ev.id);
+                          const area = getAreaForEv(ev);
                           return (
                             <div
                               key={ev.id}
