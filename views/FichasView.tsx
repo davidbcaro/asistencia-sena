@@ -351,6 +351,12 @@ export const FichasView: React.FC = () => {
                     >
                         Planeación Semanal
                     </button>
+                    <button
+                        onClick={() => navigate(`/instructor/fichas/${ficha.id}/cronograma-general`)}
+                        className="w-full mt-2 rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 transition-colors hover:bg-purple-100"
+                    >
+                        Cronograma General
+                    </button>
                 </div>
             </div>
         ))}

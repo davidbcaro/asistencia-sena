@@ -13,6 +13,7 @@ import { StudentAttendanceView } from './views/StudentAttendanceView';
 import { CalificacionesView } from './views/CalificacionesView';
 import { SofiaPlusView } from './views/SofiaPlusView';
 import { CronogramaView } from './views/CronogramaView';
+import { CronogramaGeneralView } from './views/CronogramaGeneralView';
 import { PlaneacionSemanalView } from './views/PlaneacionSemanalView';
 import { AsistenciaLmsView } from './views/AsistenciaLmsView';
 import { DebidoProcesoView } from './views/DebidoProcesoView';
@@ -143,6 +144,7 @@ const App: React.FC = () => {
         <Route index element={<Navigate to="students" replace />} />
         <Route path="fichas" element={<FichasView />} />
         <Route path="fichas/:fichaId/cronograma" element={<CronogramaView />} />
+        <Route path="fichas/:fichaId/cronograma-general" element={<CronogramaGeneralView />} />
         <Route path="fichas/:fichaId/planeacion-semanal" element={<PlaneacionSemanalView />} />
         <Route path="students" element={<StudentsView />} />
         <Route path="asistencia-lms" element={<AsistenciaLmsView />} />

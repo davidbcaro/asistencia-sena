@@ -1,5 +1,5 @@
 import { createClient, RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { Student, Ficha, AttendanceRecord, EmailDraft, EmailSettings, ClassSession, GradeActivity, GradeEntry, RapDefinition, JuicioRapEntry, JuicioRapHistoryEntry, PlaneacionSemanalData } from '../types';
+import { Student, Ficha, AttendanceRecord, EmailDraft, EmailSettings, ClassSession, GradeActivity, GradeEntry, RapDefinition, JuicioRapEntry, JuicioRapHistoryEntry, PlaneacionSemanalData, CronogramaGeneralData } from '../types';
 
 const STORAGE_KEYS = {
   STUDENTS: 'asistenciapro_students',
@@ -29,6 +29,7 @@ const STORAGE_KEYS = {
   RETIRO_DETAILS: 'asistenciapro_retiro_details',
   HIDDEN_GRADE_ACTIVITIES: 'asistenciapro_hidden_grade_activities',
   PLANEACION_SEMANAL: 'asistenciapro_planeacion_semanal',
+  CRONOGRAMA_GENERAL: 'asistenciapro_cronograma_general',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -63,6 +64,7 @@ const APP_DATA_SYNC_KEYS: Record<string, string> = {
   sofia_student_estados:       STORAGE_KEYS.SOFIA_STUDENT_ESTADOS,
   hidden_grade_activities:     STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES,
   planeacion_semanal:          STORAGE_KEYS.PLANEACION_SEMANAL,
+  cronograma_general:          STORAGE_KEYS.CRONOGRAMA_GENERAL,
 };
 
 const _isEmptyValue = (raw: string | null | undefined): boolean =>
@@ -83,6 +85,7 @@ const ADDITIVE_MERGE_KEYS = new Set([
   'grade_activities',
   'hidden_grade_activities',
   'planeacion_semanal',
+  'cronograma_general',
 ]);
 
 /**
@@ -165,6 +168,27 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
       const cloudArr = Array.isArray(cloud) ? (cloud as string[]) : [];
       const localArr = Array.isArray(local) ? (local as string[]) : [];
       return Array.from(new Set([...cloudArr, ...localArr]));
+    }
+
+    if (key === 'cronograma_general') {
+      // Record<fichaId, CronogramaGeneralEntry[]>
+      // Per fichaId: merge by entry.id, local wins on conflict
+      type EntryRec = { id: string; [k: string]: unknown };
+      const cloudRec = (cloud && typeof cloud === 'object' && !Array.isArray(cloud))
+        ? (cloud as Record<string, EntryRec[]>) : {};
+      const localRec = (local && typeof local === 'object' && !Array.isArray(local))
+        ? (local as Record<string, EntryRec[]>) : {};
+      const merged: Record<string, EntryRec[]> = {};
+      const allFichaIds = new Set([...Object.keys(cloudRec), ...Object.keys(localRec)]);
+      allFichaIds.forEach(fichaId => {
+        const cloudArr = cloudRec[fichaId] ?? [];
+        const localArr = localRec[fichaId] ?? [];
+        const map = new Map<string, EntryRec>();
+        cloudArr.forEach(e => map.set(e.id, e));
+        localArr.forEach(e => map.set(e.id, e)); // local wins
+        merged[fichaId] = Array.from(map.values());
+      });
+      return merged;
     }
 
     if (key === 'planeacion_semanal') {
@@ -1354,6 +1378,16 @@ export const saveHiddenGradeActivityIds = (ids: string[]): void => {
     localStorage.setItem(STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES, JSON.stringify(ids));
     _markLocalWrite(STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES);
     callSaveAppData('hidden_grade_activities', ids);
+    notifyChange();
+};
+
+export const getCronogramaGeneral = (): CronogramaGeneralData =>
+    safeParseJSON<CronogramaGeneralData>(localStorage.getItem(STORAGE_KEYS.CRONOGRAMA_GENERAL), {});
+
+export const saveCronogramaGeneral = (data: CronogramaGeneralData): void => {
+    localStorage.setItem(STORAGE_KEYS.CRONOGRAMA_GENERAL, JSON.stringify(data));
+    _markLocalWrite(STORAGE_KEYS.CRONOGRAMA_GENERAL);
+    callSaveAppData('cronograma_general', data);
     notifyChange();
 };
 

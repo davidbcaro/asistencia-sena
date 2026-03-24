@@ -135,3 +135,15 @@ export interface JuicioRapEntry {
 export interface JuicioRapHistoryEntry extends JuicioRapEntry {
   historyId: string;
 }
+
+/** Una entrada editable del cronograma general (por evidencia) */
+export interface CronogramaGeneralEntry {
+  /** Clave única que identifica la evidencia: "phase::apIndex::aaIndex::evIndex" */
+  id: string;
+  fechaInicio: string; // YYYY-MM-DD o ''
+  fechaFin: string;    // YYYY-MM-DD o ''
+  instructor: string;
+}
+
+/** fichaId → array de entradas con datos editados por el instructor */
+export type CronogramaGeneralData = Record<string, CronogramaGeneralEntry[]>;
