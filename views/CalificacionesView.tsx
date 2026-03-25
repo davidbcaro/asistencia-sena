@@ -196,10 +196,6 @@ const FASE_EVIDENCES: Record<string, CronogramaEvidence[]> = {
     { code: 'GI1-240201530-AA2-EV02', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (2).' },
   ],
   'Fase 1: Análisis': [
-    { code: 'GA1-240201530-AA2-EV01', compCode: '240201530', aaKey: 'AA2', description: 'Foro: Foro temático AA2-EV01.' },
-    { code: 'GA1-240201530-AA3-EV01', compCode: '240201530', aaKey: 'AA3', description: 'Evidencia: Crucigrama. AA3-EV01.' },
-    { code: 'GA1-240201530-AA4-EV01', compCode: '240201530', aaKey: 'AA4', description: 'Evidencia: Cuadro sinóptico. AA4-EV01.' },
-    { code: 'GA1-240201530-AA4-EV02', compCode: '240201530', aaKey: 'AA4', description: 'Evidencia: Taller. AA4-EV02.' },
     { code: 'GA1-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario sobre técnicas de levantamiento de información, plan de seguridad y continuidad del servicio.' },
     { code: 'GA1-220501014-AA1-EV02', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de producto: Informe de inventario y dispositivos de la red.' },
     { code: 'GA1-220501046-AA1-EV01', compCode: '220501046', aaKey: 'AA1', description: 'Evidencia de conocimiento: Mapa mental - Software y servicios de Internet.' },
@@ -784,6 +780,10 @@ export const CalificacionesView: React.FC = () => {
     const OBSOLETE_SEED_IDS = new Set([
       'seed-GI1-240201530-AA3-EV01',
       'seed-GI1-PM-EV01',
+      'seed-GA1-240201530-AA2-EV01',
+      'seed-GA1-240201530-AA3-EV01',
+      'seed-GA1-240201530-AA4-EV01',
+      'seed-GA1-240201530-AA4-EV02',
     ]);
 
     // Migrate already-seeded activities that still have code as detail
@@ -2611,37 +2611,6 @@ export const CalificacionesView: React.FC = () => {
                   )
                 }
 
-                {/* RAP section in Row 1:
-                    - if rapCompGroups: show competencia group headers (colSpan per group); RAP cols go in Row 2
-                    - else: RAP cols inline with rowSpan=2 */}
-                {rapCompGroups
-                  ? rapCompGroups.map((g, gi) => (
-                    <th
-                      key={`rap-comp-${gi}`}
-                      colSpan={g.raps.length}
-                      className="px-1 py-1 text-center border-l border-gray-300 bg-teal-50/70 align-middle"
-                      title={`${COMPETENCIA_IDS[g.compCode] || g.compCode} · ${g.compName}`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setCompDetailModal({ compCode: g.compCode })}
-                        className="w-full flex flex-col items-center hover:bg-teal-100/70 rounded px-1 py-0.5 transition-colors"
-                      >
-                        <span className="text-xs font-bold text-teal-700">{COMPETENCIA_IDS[g.compCode] || g.compCode}</span>
-                      </button>
-                    </th>
-                  ))
-                  : activeRapColumns.map(key => {
-                    const rapInfo = getRapStaticInfo(key);
-                    return (
-                      <th key={key} rowSpan={2} className="px-3 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[64px]" title={rapInfo ? rapInfo.rapName : key}>
-                        <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-teal-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
-                          <span className="text-xs font-bold text-teal-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
-                        </button>
-                      </th>
-                    );
-                  })
-                }
                 {hasActivities && (
                   <>
                     <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center">Pendientes</th>
@@ -2772,20 +2741,6 @@ export const CalificacionesView: React.FC = () => {
                 );
               })}
 
-              {/* RAP cols:
-                  - single-row (!compGroups && !rapCompGroups && !phaseGroups): render here
-                  - rapCompGroups present: render here (Row 1 has comp group headers)
-                  - compGroups or phaseGroups only: NOT here (rowSpan=2 from Row 1) */}
-              {(rapCompGroups || (!compGroups && !phaseGroups)) && activeRapColumns.map(key => {
-                const rapInfo = getRapStaticInfo(key);
-                return (
-                  <th key={key} className="px-3 py-2 font-semibold text-gray-600 text-sm border-r border-l border-gray-200 align-middle text-center min-w-[64px]" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={rapInfo ? rapInfo.rapName : key}>
-                    <button type="button" onClick={() => { const fichaNotes = rapNotes[rapKey] || rapNotes[selectedFicha] || {}; setRapModal({ key, text: fichaNotes[key] || '' }); }} className="hover:text-teal-900 underline decoration-dotted flex flex-col items-center gap-0.5 w-full">
-                      <span className="text-xs font-bold text-teal-700 block">{key.replace(/^(\d+)-(\d+)$/, 'RA-$2')}</span>
-                    </button>
-                  </th>
-                );
-              })}
 
               {/* Computed cols: only in single-row mode (otherwise rowSpan=2 from Row 1) */}
               {!(compGroups || rapCompGroups || phaseGroups) && hasActivities && (
@@ -2934,11 +2889,6 @@ export const CalificacionesView: React.FC = () => {
                     const rapLetter = allApproved ? 'A' : '-';
                     return (
                       <>
-                        {activeRapColumns.map(key => (
-                          <td key={`${student.id}-${key}`} className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                            {rapLetter === '-' ? <span className="text-gray-400">-</span> : <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${rapLetter === 'A' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{rapLetter}</span>}
-                          </td>
-                        ))}
                         {hasActivities && (
                           <>
                             <td className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}><span className="font-semibold">{final.pending}</span></td>
