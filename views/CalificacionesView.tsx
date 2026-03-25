@@ -32,6 +32,9 @@ import {
   getEvidenceCompMap,
   saveEvidenceCompMap,
   getEstadoStepperTooltip,
+  getManualFinals,
+  saveManualFinals,
+  type ManualFinals,
 } from '../services/db';
 import type { EvidenceCompMapData, EvCompEntry } from '../services/db';
 
@@ -512,6 +515,7 @@ export const CalificacionesView: React.FC = () => {
   const [compVisibilityOpen, setCompVisibilityOpen] = useState(false);
   const [rapColumns, setRapColumns] = useState<Record<string, string[]>>({});
   const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<Record<string, Record<string, 'orange' | 'green'>>>({});
+  const [manualFinals, setManualFinals] = useState<ManualFinals>({});
   const [rapManagerOpen, setRapManagerOpen] = useState(false);
   const [rapNewName, setRapNewName] = useState('');
   const [rapNewDetail, setRapNewDetail] = useState('');
@@ -597,6 +601,7 @@ export const CalificacionesView: React.FC = () => {
     setRapNotes(loadedRapNotes);
     setRapColumns(loadedRapColumns);
     setJuiciosEvaluativos(loadedJuicios);
+    setManualFinals(getManualFinals());
     setEvidenceCompMap(getEvidenceCompMap());
     setHiddenActivityIds(new Set(getHiddenGradeActivityIds()));
     if (loadedFichas.length > 0 && selectedFichaRef.current === '') {
@@ -1214,10 +1219,11 @@ export const CalificacionesView: React.FC = () => {
   const studentsFilteredByFinal = useMemo(() => {
     if (finalFilter === 'all') return studentsForFicha;
     return studentsForFicha.filter(s => {
-      const letter = getFinalForStudent(s.id, s.group).letter;
+      const key = showAllFichasColumns ? `${s.group || ''}::${selectedPhase}` : rapKey || `${s.group || ''}::${selectedPhase}`;
+      const letter = (manualFinals[key] || {})[s.id] ?? '-';
       return finalFilter === 'A' ? letter === 'A' : letter !== 'A';
     });
-  }, [studentsForFicha, finalFilter, gradeMap, visibleActivities, showAllFichasColumns]);
+  }, [studentsForFicha, finalFilter, manualFinals, rapKey, selectedPhase, showAllFichasColumns]);
 
   /** Counts how many students from studentsForFicha have letter='A' for each activity (by activity.id). */
   const activityApprovalCounts = useMemo(() => {
@@ -1315,6 +1321,30 @@ export const CalificacionesView: React.FC = () => {
     return (v === 'orange' || v === 'green') ? v : '-';
   };
 
+  const getManualFinal = (studentId: string, studentGroup?: string): 'A' | 'D' | '-' => {
+    const key = getRapKeyForStudent(studentGroup);
+    if (!key) return '-';
+    const v = (manualFinals[key] || {})[studentId];
+    return v === 'A' || v === 'D' ? v : '-';
+  };
+
+  const handleFinalClick = (studentId: string, studentGroup?: string) => {
+    const key = getRapKeyForStudent(studentGroup);
+    if (!key) return;
+    const current = (manualFinals[key] || {})[studentId];
+    const next: 'A' | 'D' | undefined =
+      current === undefined || current === '-' ? 'A' : current === 'A' ? 'D' : undefined;
+    const updated = { ...manualFinals };
+    if (next === undefined) {
+      const { [studentId]: _, ...rest } = (updated[key] || {});
+      updated[key] = rest;
+    } else {
+      updated[key] = { ...(updated[key] || {}), [studentId]: next };
+    }
+    setManualFinals(updated);
+    saveManualFinals(updated);
+  };
+
   const buildReportData = () => {
     if (!selectedFicha) return null;
     const headers = [
@@ -1346,10 +1376,10 @@ export const CalificacionesView: React.FC = () => {
         getPhaseLetterTotal(student.id, activities, student.group),
       ]);
       const final = getFinalForStudent(student.id, student.group);
-      const rapLetter = final.letter === 'A' ? 'A' : '';
-      const rapValues = rapColumnsForFicha.map(() => rapLetter);
+      const rapValues = rapColumnsForFicha.map(() => '');
+      const manualFinalVal = getManualFinal(student.id, student.group);
       const finalValues = hasActivities
-        ? [final.pending, final.score != null ? Number(final.score).toFixed(2) : '', final.letter === 'A' ? 'A' : '-']
+        ? [final.pending, final.score != null ? Number(final.score).toFixed(2) : '', manualFinalVal]
         : [];
       const juicioKey = getRapKeyForStudent(student.group);
       const juicioVal = (juiciosEvaluativos[juicioKey] || {})[student.id];
@@ -2886,18 +2916,31 @@ export const CalificacionesView: React.FC = () => {
                   })}
                   {(() => {
                     const final = getFinalForStudent(student.id, student.group);
-                    const allApproved = final.letter === 'A';
-                    const rapLetter = allApproved ? 'A' : '-';
+                    const manualFinal = getManualFinal(student.id, student.group);
                     return (
                       <>
                         {hasActivities && (
                           <>
-                            <td className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}><span className="font-semibold">{final.pending}</span></td>
+                            {/* Pendientes: número de evidencias no entregadas o reprobadas */}
+                            <td className="px-4 py-4 text-sm border-r border-gray-200 align-middle overflow-hidden text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                              {final.pending > 0
+                                ? <span className="font-bold text-red-500">{final.pending}</span>
+                                : <span className="font-bold text-green-600">0</span>}
+                            </td>
+                            {/* Promedio estadístico */}
                             <td className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
                               {final.score === null ? <span className="text-gray-400">-</span> : <span className="font-semibold">{Number(final.score).toFixed(2)}</span>}
                             </td>
-                            <td className="px-4 py-4 text-sm text-gray-700 border-r border-gray-200 align-middle overflow-hidden text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                              {final.letter === 'A' ? <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">A</span> : <span className="text-gray-400">-</span>}
+                            {/* Final: manual, cicla - → A → D → - */}
+                            <td
+                              className="px-4 py-4 text-sm border-r border-gray-200 align-middle overflow-hidden text-center cursor-pointer select-none"
+                              style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}
+                              onClick={() => handleFinalClick(student.id, student.group)}
+                              title="Clic para cambiar: - → A → D → -"
+                            >
+                              {manualFinal === 'A' && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">A</span>}
+                              {manualFinal === 'D' && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">D</span>}
+                              {manualFinal === '-' && <span className="text-gray-400">-</span>}
                             </td>
                           </>
                         )}

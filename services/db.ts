@@ -30,6 +30,7 @@ const STORAGE_KEYS = {
   HIDDEN_GRADE_ACTIVITIES: 'asistenciapro_hidden_grade_activities',
   PLANEACION_SEMANAL: 'asistenciapro_planeacion_semanal',
   CRONOGRAMA_GENERAL: 'asistenciapro_cronograma_general',
+  MANUAL_FINALS: 'asistenciapro_manual_finals',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -1700,6 +1701,17 @@ export const saveJuiciosEvaluativos = (juicios: JuiciosEvaluativos) => {
     localStorage.setItem(STORAGE_KEYS.JUICIOS_EVALUATIVOS, JSON.stringify(juicios));
     notifyChange();
     callSaveAppData('juicios_evaluativos', juicios);
+};
+
+// Manual Finals (A / D / -)
+export type ManualFinals = Record<string, Record<string, 'A' | 'D' | '-'>>;
+export const getManualFinals = (): ManualFinals => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.MANUAL_FINALS) || '{}'); }
+    catch { return {}; }
+};
+export const saveManualFinals = (data: ManualFinals) => {
+    localStorage.setItem(STORAGE_KEYS.MANUAL_FINALS, JSON.stringify(data));
+    notifyChange();
 };
 
 // Attendance
