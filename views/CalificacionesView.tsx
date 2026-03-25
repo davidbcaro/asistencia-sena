@@ -194,8 +194,6 @@ const FASE_EVIDENCES: Record<string, CronogramaEvidence[]> = {
     { code: 'GI1-240201530-AA1-EV01', compCode: '240201530', aaKey: 'AA1', description: 'Evidencia de producto: Infografía. Contextualización Senología.' },
     { code: 'GI1-240201530-AA2-EV01', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (1).' },
     { code: 'GI1-240201530-AA2-EV02', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (2).' },
-    { code: 'GI1-240201530-AA3-EV01', compCode: '240201530', aaKey: 'AA3', description: 'Prueba de Conocimiento: Cuestionario AA3-EV01.' },
-    { code: 'GI1-PM-EV01', compCode: '240201530', aaKey: 'PM', description: 'Prueba de Conocimiento: Cuestionario Plan de Mejoramiento Fase Inducción.' },
   ],
   'Fase 1: Análisis': [
     { code: 'GA1-240201530-AA2-EV01', compCode: '240201530', aaKey: 'AA2', description: 'Foro: Foro temático AA2-EV01.' },
@@ -782,9 +780,16 @@ export const CalificacionesView: React.FC = () => {
     const compOrder: string[] = [];
     const now = new Date().toISOString();
 
+    // Codes that were incorrectly seeded and must be removed
+    const OBSOLETE_SEED_IDS = new Set([
+      'seed-GI1-240201530-AA3-EV01',
+      'seed-GI1-PM-EV01',
+    ]);
+
     // Migrate already-seeded activities that still have code as detail
-    let needsMigration = false;
-    const migrated = existing.map(a => {
+    const hadObsolete = existing.some(a => OBSOLETE_SEED_IDS.has(a.id));
+    let needsMigration = hadObsolete;
+    const migrated = existing.filter(a => !OBSOLETE_SEED_IDS.has(a.id)).map(a => {
       if (a.id.startsWith('seed-') && descByCode[a.name] && a.detail === a.name) {
         needsMigration = true;
         return { ...a, detail: descByCode[a.name] };
