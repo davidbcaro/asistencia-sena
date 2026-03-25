@@ -2740,9 +2740,6 @@ export const CalificacionesView: React.FC = () => {
                             {areaInfo && (
                               <span className="text-[9px] px-1 rounded font-bold leading-tight" style={{ backgroundColor: areaInfo.color + '22', color: areaInfo.color }} title={areaInfo.label}>{areaInfo.label}</span>
                             )}
-                            {tipoBadge && (
-                              <span className="text-[9px] px-1 rounded font-bold leading-tight" style={{ backgroundColor: tipoBadge.bg, color: tipoBadge.text }} title={tipoBadge.label}>{tipoBadge.label.slice(0, 5)}</span>
-                            )}
                           </div>
                           <div className="flex items-center gap-1 justify-center">
                             <button type="button" onClick={() => openActivityDetail(activity)} className="hover:text-gray-900 underline decoration-dotted">{getActivityShortLabel(activity.name)}</button>
@@ -3156,13 +3153,10 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                 const compEntry = getEvCompEntry(activityDetailModal);
                 const tipoBadge = getTipoBadge(activityDetailModal.detail);
                 const areaInfo = getAreaFromComp(compEntry?.competenciaCode);
-                return (tipoBadge || areaInfo) ? (
+                return areaInfo ? (
                   <div className="flex items-center gap-2 flex-wrap">
                     {areaInfo && (
                       <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: areaInfo.color + '22', color: areaInfo.color }}>{areaInfo.label}</span>
-                    )}
-                    {tipoBadge && (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: tipoBadge.bg, color: tipoBadge.text }}>{tipoBadge.label}</span>
                     )}
                   </div>
                 ) : null;
