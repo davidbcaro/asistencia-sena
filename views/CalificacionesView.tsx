@@ -2642,6 +2642,23 @@ export const CalificacionesView: React.FC = () => {
                   )
                 }
 
+                {/* Cuando compGroups está activo, el TOTAL no tiene header en Row 1 → lo ponemos aquí con rowSpan=2 */}
+                {compGroups && !phaseGroups && visiblePhaseGroups.length > 0 && (() => {
+                  const ph = visiblePhaseGroups[0].phase;
+                  const phColor = PHASE_HEADER_COLORS[ph];
+                  const totalLabel = PHASE_TOTAL_LABELS[ph] ?? `TOTAL ${ph}`;
+                  return (
+                    <th
+                      rowSpan={2}
+                      className="px-2 font-bold text-xs text-center border-r border-l border-gray-300 align-middle whitespace-nowrap min-w-[56px]"
+                      style={{ backgroundColor: phColor?.bg ?? '#374151', color: phColor?.text ?? '#fff' }}
+                      title={totalLabel}
+                    >
+                      TOTAL
+                    </th>
+                  );
+                })()}
+
                 {hasActivities && (
                   <>
                     <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm border-r border-gray-200 align-middle text-center">Pendientes</th>
@@ -2760,14 +2777,16 @@ export const CalificacionesView: React.FC = () => {
                         </th>
                       );
                     })}
-                    {/* TOTAL column for this phase */}
-                    <th
-                      className="px-2 py-2 font-bold text-xs text-center border-r border-l border-gray-300 align-middle whitespace-nowrap min-w-[56px]"
-                      style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX, backgroundColor: phColor?.bg ?? '#374151', color: phColor?.text ?? '#fff' }}
-                      title={totalLabel}
-                    >
-                      TOTAL
-                    </th>
+                    {/* TOTAL column — sólo en Row 2 cuando NO hay compGroups (si hay compGroups, ya está en Row 1 con rowSpan=2) */}
+                    {!compGroups && (
+                      <th
+                        className="px-2 py-2 font-bold text-xs text-center border-r border-l border-gray-300 align-middle whitespace-nowrap min-w-[56px]"
+                        style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX, backgroundColor: phColor?.bg ?? '#374151', color: phColor?.text ?? '#fff' }}
+                        title={totalLabel}
+                      >
+                        TOTAL
+                      </th>
+                    )}
                   </React.Fragment>
                 );
               })}
