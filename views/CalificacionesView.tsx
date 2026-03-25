@@ -445,6 +445,40 @@ const getActivityShortLabel = (name: string) => {
   return match ? match[0].toUpperCase() : name;
 };
 
+/** Extrae tipo de evidencia del texto de descripción */
+const getTipoBadge = (detail?: string | null): { bg: string; text: string; label: string } | null => {
+  if (!detail) return null;
+  const d = detail.toLowerCase();
+  if (d.includes('conocimiento')) return { bg: '#dbeafe', text: '#1e40af', label: 'Conocimiento' };
+  if (d.includes('producto'))     return { bg: '#dcfce7', text: '#166534', label: 'Producto' };
+  if (d.includes('desempeño'))    return { bg: '#ffedd5', text: '#9a3412', label: 'Desempeño' };
+  return null;
+};
+
+/** Mapeo código de competencia → color y etiqueta de área */
+const COMP_TO_AREA_COLOR: Record<string, { color: string; label: string }> = {
+  '220501014': { color: '#f59e0b', label: 'Técnica' },
+  '220501046': { color: '#4CAF50', label: "TIC's" },
+  '220501091': { color: '#f59e0b', label: 'Técnica' },
+  '220501104': { color: '#f59e0b', label: 'Técnica' },
+  '220501105': { color: '#f59e0b', label: 'Técnica' },
+  '220501106': { color: '#f59e0b', label: 'Técnica' },
+  '220501107': { color: '#f59e0b', label: 'Técnica' },
+  '240202501': { color: '#F44336', label: 'Bilingüismo' },
+  '240201528': { color: '#F48FB1', label: 'Matemáticas' },
+  '240201064': { color: '#FF9800', label: 'Investigación' },
+  '240201524': { color: '#9C27B0', label: 'Comunicación' },
+  '240201526': { color: '#9C27B0', label: 'Comunicación' },
+  '210201501': { color: '#9C27B0', label: 'Comunicación' },
+  '220601501': { color: '#2196F3', label: 'Ambiente' },
+  '230101507': { color: '#9E9E9E', label: 'Edu. Física' },
+  '240201529': { color: '#009688', label: 'Emprendimiento' },
+  '220201501': { color: '#78909C', label: 'Ciencias Naturales' },
+  '240201530': { color: '#8b5cf6', label: 'EEF' },
+};
+const getAreaFromComp = (compCode?: string | null) =>
+  compCode ? (COMP_TO_AREA_COLOR[compCode] ?? null) : null;
+
 const parseScoreValue = (value: unknown): number | null => {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value === 'number') {
@@ -2694,12 +2728,23 @@ export const CalificacionesView: React.FC = () => {
                       const approved = activityApprovalCounts.get(activity.id) ?? 0;
                       const total = studentsForFicha.length;
                       const pct = total > 0 ? Math.round((approved / total) * 100) : 0;
+                      const tipoBadge = getTipoBadge(activity.detail);
+                      const areaInfo = getAreaFromComp(compEntry?.competenciaCode);
                       return (
-                        <th key={activity.id} className={`px-4 py-2 font-semibold text-sm border-r border-l border-gray-200 align-middle ${hiddenActivityIds.has(activity.id) ? 'bg-amber-50 text-amber-400' : 'bg-gray-50 text-gray-600'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
-                          {compEntry?.aaKey && (
-                            <div className="text-[10px] text-teal-400 font-medium leading-tight mb-0.5 text-center">{compEntry.aaKey}</div>
-                          )}
-                          <div className="flex items-center gap-2 justify-center">
+                        <th key={activity.id} className={`px-2 py-2 font-semibold text-sm border-r border-l border-gray-200 align-middle ${hiddenActivityIds.has(activity.id) ? 'bg-amber-50 text-amber-400' : 'bg-gray-50 text-gray-600'}`} style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX, borderLeft: areaInfo ? `3px solid ${areaInfo.color}` : undefined }}>
+                          {/* aaKey + badges row */}
+                          <div className="flex items-center justify-center gap-1 flex-wrap leading-none mb-0.5">
+                            {compEntry?.aaKey && (
+                              <span className="text-[10px] text-teal-400 font-medium">{compEntry.aaKey}</span>
+                            )}
+                            {areaInfo && (
+                              <span className="text-[9px] px-1 rounded font-bold leading-tight" style={{ backgroundColor: areaInfo.color + '22', color: areaInfo.color }} title={areaInfo.label}>{areaInfo.label}</span>
+                            )}
+                            {tipoBadge && (
+                              <span className="text-[9px] px-1 rounded font-bold leading-tight" style={{ backgroundColor: tipoBadge.bg, color: tipoBadge.text }} title={tipoBadge.label}>{tipoBadge.label.slice(0, 5)}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 justify-center">
                             <button type="button" onClick={() => openActivityDetail(activity)} className="hover:text-gray-900 underline decoration-dotted">{getActivityShortLabel(activity.name)}</button>
                             <button onClick={() => openEditActivity(activity)} className="text-gray-400 hover:text-teal-600" title="Editar actividad"><Pencil className="w-3.5 h-3.5" /></button>
                             <button onClick={() => toggleHideActivity(activity)} className={hiddenActivityIds.has(activity.id) ? 'text-amber-400 hover:text-teal-500' : 'text-gray-400 hover:text-amber-500'} title={hiddenActivityIds.has(activity.id) ? 'Mostrar evidencia' : 'Ocultar evidencia'}>
@@ -3106,6 +3151,22 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
             </div>
             <div className="space-y-4">
               <div className="text-sm text-gray-700 font-medium">{activityDetailModal.name}</div>
+              {/* Tipo + Área badges */}
+              {(() => {
+                const compEntry = getEvCompEntry(activityDetailModal);
+                const tipoBadge = getTipoBadge(activityDetailModal.detail);
+                const areaInfo = getAreaFromComp(compEntry?.competenciaCode);
+                return (tipoBadge || areaInfo) ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {areaInfo && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: areaInfo.color + '22', color: areaInfo.color }}>{areaInfo.label}</span>
+                    )}
+                    {tipoBadge && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: tipoBadge.bg, color: tipoBadge.text }}>{tipoBadge.label}</span>
+                    )}
+                  </div>
+                ) : null;
+              })()}
               {activityDetailText && (
                 <p className="text-sm text-gray-600 whitespace-pre-wrap">{activityDetailText}</p>
               )}
