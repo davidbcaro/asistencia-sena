@@ -793,11 +793,6 @@ export const CalificacionesView: React.FC = () => {
     });
 
     Object.entries(FASE_EVIDENCES).forEach(([phase, faseEvs]) => {
-      // Solo saltamos si YA existen actividades globales (group='') para esta fase.
-      // Si solo existen actividades específicas de ficha (de Excel anteriores), igual sembramos las globales base.
-      const phaseGlobals = migrated.filter(a => (a.phase || phases[1]) === phase && a.group === '');
-      if (phaseGlobals.length > 0) return;
-
       faseEvs.forEach(ev => {
         if (migrated.some(a => a.id === `seed-${ev.code}`)) return;
         toAdd.push({
@@ -2581,6 +2576,7 @@ export const CalificacionesView: React.FC = () => {
                       >
                         <span className="text-xs font-bold whitespace-nowrap" style={{ color: color.text }}>
                           {g.phase}
+                          <span className="ml-1.5 opacity-75 font-normal">({g.activities.length})</span>
                         </span>
                       </th>
                     );
