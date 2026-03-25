@@ -1165,14 +1165,16 @@ export const CalificacionesView: React.FC = () => {
   };
 
   const getFinalForStudent = (studentId: string, studentGroup?: string) => {
-    const totalActivities = visibleActivities.length;
+    // Excluir siempre las evidencias ocultas del cálculo, independientemente de showHiddenActivities
+    const countableActivities = visibleActivities.filter(a => !hiddenActivityIds.has(a.id));
+    const totalActivities = countableActivities.length;
     if (totalActivities === 0) {
       return { pending: 0, score: null as number | null, letter: null as 'A' | 'D' | null };
     }
-    let missing = 0;
+    let undelivered = 0; // sin calificación
+    let pending = 0;     // sin calificación + reprobadas
     let sum = 0;
-    let pending = 0;
-    visibleActivities.forEach(activity => {
+    countableActivities.forEach(activity => {
       // En vista "Todas": resolver la actividad real de la ficha del estudiante
       const resolvedActivity = activitiesByCanonicalAndFicha
         ? (activitiesByCanonicalAndFicha
@@ -1184,18 +1186,17 @@ export const CalificacionesView: React.FC = () => {
         : activity;
       const grade = gradeMap.get(`${studentId}-${resolvedActivity.id}`);
       if (!grade) {
-        missing += 1;
+        undelivered += 1;
         pending += 1;
-        sum += 0;
         return;
       }
       sum += grade.score;
-      if (grade.letter !== 'A') pending += 1;
+      if (grade.letter !== 'A') pending += 1; // reprobadas también cuentan como pendientes
     });
 
-    const avg = missing === totalActivities ? null : sum / totalActivities;
-    const delivered = totalActivities - missing;
-    const allApproved = delivered === totalActivities && visibleActivities.every(activity => {
+    const delivered = totalActivities - undelivered;
+    const avg = delivered === 0 ? null : sum / delivered;
+    const allApproved = delivered === totalActivities && countableActivities.every(activity => {
       const resolvedActivity = activitiesByCanonicalAndFicha
         ? (activitiesByCanonicalAndFicha
             .get(getActivityCanonicalKey(activity))
