@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, GripVertical, X } from 'lucide-react';
 import { GradeActivity, PlaneacionSemanalFichaData } from '../types';
-import { getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
+import { getCronogramaGeneral, getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
 
 // ─── Phase structure (matches PLANEACION SEMANAL GRD.xlsx exactly) ──────────
 // Inducción=2  Análisis=10  Planeación=24  Ejecución=40  Evaluación=30  → 106 total
@@ -262,15 +262,17 @@ export const PlaneacionSemanalView: React.FC = () => {
     if (f) setFicha({ id: f.id, code: f.code, program: f.program });
 
     const all = getGradeActivities();
-    setActivities(f ? all.filter(a => a.group === f.code) : []);
+    const fichaActivities = f ? all.filter(a => a.group === f.code) : [];
+    setActivities(fichaActivities);
 
     const allPlan = getPlaneacionSemanal();
+    let planData: PlaneacionSemanalFichaData;
+
     if (!allPlan[fichaId ?? '']) {
       // First visit: seed with defaults
-      const def = buildDefaultData();
-      allPlan[fichaId ?? ''] = def;
+      planData = buildDefaultData();
+      allPlan[fichaId ?? ''] = planData;
       savePlaneacionSemanal(allPlan);
-      setPlaneacion(def);
     } else {
       // Migrate legacy DerechosTrabajo:: and Ética:: keys → Comunicación::
       const fichaData = allPlan[fichaId ?? ''];
@@ -291,8 +293,71 @@ export const PlaneacionSemanalView: React.FC = () => {
           savePlaneacionSemanal(allPlan);
         }
       }
-      setPlaneacion(allPlan[fichaId ?? ''] ?? EMPTY_DATA);
+      planData = allPlan[fichaId ?? ''] ?? EMPTY_DATA;
     }
+
+    // ── Sync fechaInicio from CronogramaGeneral → tecnicaAssignments ────────
+    // Solo asigna evidencias que aún no tienen semana asignada (no sobreescribe
+    // asignaciones manuales del instructor).
+    if (fichaId && f && fichaActivities.length > 0) {
+      const cronData = getCronogramaGeneral();
+      const fichaEntries = cronData[fichaId] ?? [];
+
+      if (fichaEntries.length > 0) {
+        // Calcular weekDates con los overrides del planData actual
+        const effSegs = PHASE_SEGMENTS.map(seg => ({
+          ...seg,
+          count: (planData.phaseWeekCounts ?? {})[seg.phase] ?? seg.count,
+        }));
+        const effTotal = effSegs.reduce((s, p) => s + p.count, 0);
+        const wDates = buildWeekDates(planData.weekDateOverrides ?? {}, effTotal);
+
+        let didChange = false;
+        const newAssignments = { ...planData.tecnicaAssignments };
+
+        fichaEntries.forEach(entry => {
+          if (!entry.fechaInicio) return;
+
+          // Buscar la GradeActivity correspondiente:
+          // 1) Primario: activity.id === 'seed-' + entry.id   (GA1-*, GA2-*, …)
+          // 2) Fallback inducción: entry.id es solo 'AAn-EVnn' → buscar por sufijo dentro de Fase Inducción
+          const isInduccionShortId = /^AA\d+-EV\d+$/.test(entry.id);
+          const activity =
+            fichaActivities.find(a => a.id === `seed-${entry.id}`) ??
+            (isInduccionShortId
+              ? fichaActivities.find(a => a.id.endsWith(entry.id) && a.phase === 'Fase Inducción')
+              : undefined);
+
+          if (!activity) return;
+          if (newAssignments[activity.id] !== undefined) return; // no sobreescribir
+
+          // Encontrar la semana que contiene fechaInicio
+          const targetIso = entry.fechaInicio;
+          const weekIdx = wDates.isos.findIndex(iso => {
+            const [y, m, d] = iso.split('-').map(Number);
+            const start = new Date(y, m - 1, d);
+            const end = new Date(y, m - 1, d);
+            end.setDate(end.getDate() + 6);
+            const [ty, tm, td] = targetIso.split('-').map(Number);
+            const target = new Date(ty, tm - 1, td);
+            return target >= start && target <= end;
+          });
+
+          if (weekIdx >= 0) {
+            newAssignments[activity.id] = weekIdx;
+            didChange = true;
+          }
+        });
+
+        if (didChange) {
+          planData = { ...planData, tecnicaAssignments: newAssignments };
+          allPlan[fichaId] = planData;
+          savePlaneacionSemanal(allPlan);
+        }
+      }
+    }
+
+    setPlaneacion(planData);
   }, [fichaId]);
 
   useEffect(() => {
