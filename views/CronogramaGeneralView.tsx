@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronRight, Calendar, User } from 'lucide-react';
-import { Ficha, CronogramaGeneralEntry, CronogramaGeneralData } from '../types';
-import { getFichas, getCronogramaGeneral, saveCronogramaGeneral, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
+import { Ficha, CronogramaGeneralEntry, CronogramaGeneralData, GradeActivity } from '../types';
+import { getFichas, getCronogramaGeneral, saveCronogramaGeneral, getGradeActivities, saveGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
 
 // ─── STATIC CURRICULUM DATA ──────────────────────────────────────────────────
 
@@ -931,6 +931,12 @@ const PLANEACION_PHASE_MAP: Record<string, string> = {
 /** ISO base date de PlaneacionSemanal (debe coincidir con BASE_DATE de esa vista) */
 const PLANEACION_BASE_DATE_ISO = '2025-09-29';
 
+/** Prefijo de competencia para evidencias de Inducción (coincide con CalificacionesView) */
+const INDUCCION_COMPETENCY_PREFIX = 'GI1-240201530-';
+
+/** Evidencias de Inducción usan IDs cortos 'AAn-EVnn'; las demás fases usan 'GA*' */
+const isInduccionShortId = (id: string) => /^AA\d+-EV\d+$/.test(id);
+
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 
 export const CronogramaGeneralView: React.FC = () => {
@@ -981,30 +987,63 @@ export const CronogramaGeneralView: React.FC = () => {
     const planeacionPhase = PLANEACION_PHASE_MAP[faseName];
     if (!planeacionPhase) return;
 
-    // Leer cronograma fresco (incluye cambios pendientes de debounce)
-    const cronEntries: CronogramaGeneralEntry[] = getCronogramaGeneral()[fichaId] ?? [];
+    // 1) Auto-sembrar GradeActivities desde FASES si aún no existen para esta ficha+fase
+    const faseData = FASES.find(f => f.nombre === faseName);
+    if (faseData) {
+      const existing = getGradeActivities();
+      const existingIds = new Set(existing.map(a => a.id));
+      const toCreate: GradeActivity[] = [];
+
+      faseData.actividadesProyecto.forEach(ap =>
+        ap.actividades.forEach(aa =>
+          aa.evidencias.forEach(ev => {
+            // Usar el mismo esquema de IDs que CalificacionesView:
+            // Inducción → 'seed-GI1-240201530-AAn-EVnn'
+            // Otras fases → 'seed-GA*'
+            const actId = isInduccionShortId(ev.id)
+              ? `seed-${INDUCCION_COMPETENCY_PREFIX}${ev.id}`
+              : `seed-${ev.id}`;
+            if (!existingIds.has(actId)) {
+              toCreate.push({
+                id: actId,
+                name: ev.id,
+                group: ficha.code,
+                phase: planeacionPhase,
+                detail: ev.descripcion,
+                maxScore: 10,
+                createdAt: new Date().toISOString(),
+              });
+            }
+          })
+        )
+      );
+
+      if (toCreate.length > 0) {
+        saveGradeActivities([...existing, ...toCreate]);
+      }
+    }
+
+    // 2) Leer actividades ya existentes (incluye las recién creadas)
     const gradeActivities = getGradeActivities().filter(
       a => a.group === ficha.code && a.phase === planeacionPhase
     );
+
+    // 3) Leer cronograma fresco y planeación
+    const cronEntries: CronogramaGeneralEntry[] = getCronogramaGeneral()[fichaId] ?? [];
     const allPlan = getPlaneacionSemanal();
     const planData = allPlan[fichaId] ?? {
       tecnicaAssignments: {}, transversalCells: {},
       cardDurations: {}, hiddenCards: [], weekDateOverrides: {}, phaseWeekCounts: {},
     };
 
-    if (gradeActivities.length === 0) {
-      alert(`No hay evidencias registradas en Calificaciones para ${faseName}.\nVisita primero la vista de Calificaciones para que se generen.`);
-      return;
-    }
-
-    // Construir lista de ISO de inicio de cada semana (respeta weekDateOverrides)
+    // 4) Construir lista de ISO de inicio de cada semana (respeta weekDateOverrides)
     const overrides = planData.weekDateOverrides ?? {};
     const [by, bm, bd] = PLANEACION_BASE_DATE_ISO.split('-').map(Number);
     let cur = new Date(by, bm - 1, bd);
     const weekIsos: string[] = [];
     for (let w = 0; w < 106; w++) {
       if (overrides[w]) {
-        const [oy, om, od] = (overrides[w] as string).split('-').map(Number);
+        const [oy, om, od] = overrides[w].split('-').map(Number);
         cur = new Date(oy, om - 1, od);
       }
       weekIsos.push(
@@ -1013,6 +1052,7 @@ export const CronogramaGeneralView: React.FC = () => {
       cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 7);
     }
 
+    // 5) Asignar semanas
     const newAssignments = { ...planData.tecnicaAssignments };
     let count = 0;
 
@@ -1020,17 +1060,17 @@ export const CronogramaGeneralView: React.FC = () => {
       if (!entry.fechaInicio) return;
 
       // Buscar GradeActivity:
-      // 1) exact: activity.id === 'seed-' + entry.id   (GA1-*, GA2-*, …)
-      // 2) fallback inducción: entry.id es 'AAn-EVnn' → suffix match dentro de la fase
-      const isInduccionShortId = /^AA\d+-EV\d+$/.test(entry.id);
+      // Primario: 'seed-' + ev.id  (GA* y GI* completos)
+      // Fallback inducción: endsWith(ev.id) dentro de la misma fase
       const activity =
         gradeActivities.find(a => a.id === `seed-${entry.id}`) ??
-        (isInduccionShortId ? gradeActivities.find(a => a.id.endsWith(entry.id)) : undefined);
+        gradeActivities.find(a =>
+          isInduccionShortId(entry.id) && a.id.endsWith(entry.id)
+        );
 
       if (!activity) return;
       if (newAssignments[activity.id] !== undefined) return; // no sobreescribir asignaciones manuales
 
-      // Encontrar semana que contiene fechaInicio
       const weekIdx = weekIsos.findIndex(iso => {
         const [y, m, d] = iso.split('-').map(Number);
         const start = new Date(y, m - 1, d);
