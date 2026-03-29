@@ -915,26 +915,18 @@ export const PlaneacionSemanalView: React.FC = () => {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 interface SidebarCardProps { activity: GradeActivity; color: string; onDragStart: () => void; isDragging: boolean; }
-const SidebarCard: React.FC<SidebarCardProps> = ({ activity, color, onDragStart, isDragging }) => {
-  const typeLabel = activity.detail || (activity.maxScore > 0 ? 'Calificable' : 'No calificable');
-  const typeColor = activity.detail ? getTypeColor(activity.detail, color) : color;
-  return (
-    <div draggable onDragStart={onDragStart}
-      className="flex flex-col gap-1 rounded px-1.5 py-1.5 cursor-grab active:cursor-grabbing border transition-opacity"
-      style={{ backgroundColor: color + '18', borderColor: color + '55', opacity: isDragging ? 0.4 : 1 }}
-      title={`${activity.name}\n${activity.id}`}>
-      <div className="flex items-start gap-1">
-        <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 text-gray-400" />
-        <span className="text-[10px] font-semibold leading-tight line-clamp-3" style={{ color }}>{activity.name}</span>
-      </div>
-      <span className="self-start text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none"
-        style={{ backgroundColor: typeColor + '25', color: typeColor, border: `1px solid ${typeColor}55` }}>
-        {typeLabel}
-      </span>
-      <span className="text-[9px] font-mono text-gray-400 leading-none truncate">{activity.id}</span>
+const SidebarCard: React.FC<SidebarCardProps> = ({ activity, color, onDragStart, isDragging }) => (
+  <div draggable onDragStart={onDragStart}
+    className="flex flex-col gap-1 rounded px-1.5 py-1.5 cursor-grab active:cursor-grabbing border transition-opacity"
+    style={{ backgroundColor: color + '18', borderColor: color + '55', opacity: isDragging ? 0.4 : 1 }}
+    title={`${activity.name}\n${activity.id}`}>
+    <div className="flex items-start gap-1">
+      <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 text-gray-400" />
+      <span className="text-[10px] font-medium leading-tight line-clamp-3" style={{ color }}>{activity.name}</span>
     </div>
-  );
-};
+    <span className="text-[9px] font-mono text-gray-400 leading-none truncate pl-4">{activity.id}</span>
+  </div>
+);
 
 interface GridCardProps {
   activity: GradeActivity;
@@ -960,22 +952,20 @@ const GridCard: React.FC<GridCardProps> = ({
   onDragStart, isDragging, onRemove, onToggleHidden, onSetDuration, onToggleDurationPicker,
 }) => {
   const tc = textColor ?? color;
-  const typeLabel = activity.detail || (activity.maxScore > 0 ? 'Calificable' : 'No calificable');
-  const typeColor = activity.detail ? getTypeColor(activity.detail, tc) : tc;
   const startDate = weekStarts[weekIdx] ?? '';
   const endDate   = weekEnds[Math.min(weekIdx + duration - 1, weekEnds.length - 1)] ?? '';
   return (
   <div
     draggable
     onDragStart={e => { e.stopPropagation(); onDragStart(); }}
-    className="relative flex flex-col gap-1 rounded px-2 py-1.5 cursor-grab active:cursor-grabbing border group w-full transition-opacity"
+    className="relative flex flex-col gap-0.5 rounded px-2 py-1.5 cursor-grab active:cursor-grabbing border group w-full transition-opacity"
     style={{ backgroundColor: color + '22', borderColor: tc + '99', opacity: hidden ? 0.3 : isDragging ? 0.35 : 1 }}
     title={`${activity.name}\n${activity.id}`}
   >
     {/* Name + action buttons */}
     <div className="flex items-start gap-1" onClick={e => { e.stopPropagation(); onToggleDurationPicker(); }}>
       <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-40" style={{ color: tc }} />
-      <span className="flex-1 text-[11px] font-semibold leading-snug break-words" style={{ color: tc, wordBreak: 'break-word', whiteSpace: 'normal' }}>
+      <span className="flex-1 text-[11px] font-medium leading-snug break-words" style={{ color: tc, wordBreak: 'break-word', whiteSpace: 'normal' }}>
         {activity.name}
       </span>
       <button className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-0.5"
@@ -991,22 +981,14 @@ const GridCard: React.FC<GridCardProps> = ({
         <X className="w-3 h-3" />
       </button>
     </div>
-    {/* Type badge */}
-    <span className="self-start text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none"
-      style={{ backgroundColor: typeColor + '25', color: typeColor, border: `1px solid ${typeColor}55` }}>
-      {typeLabel}
-    </span>
-    {/* Date range */}
-    {startDate && (
-      <span className="text-[9px] text-gray-400 leading-none">{startDate} — {endDate}</span>
-    )}
-    {/* Code footer + duration badge */}
-    <div className="flex items-center justify-between gap-1 mt-0.5">
-      <span className="text-[9px] font-mono text-gray-400 leading-none truncate flex-1">{activity.id}</span>
+    {/* Date + code footer */}
+    <div className="flex items-center justify-between gap-1 pl-4">
+      {startDate && <span className="text-[9px] text-gray-400 leading-none">{startDate} — {endDate}</span>}
       {duration === 2 && (
         <span className="text-[9px] font-bold px-1 rounded flex-shrink-0 leading-none py-0.5" style={{ backgroundColor: color + '44', color: tc }}>2S</span>
       )}
     </div>
+    <span className="text-[9px] font-mono text-gray-400 leading-none truncate pl-4">{activity.id}</span>
     {/* Duration picker */}
     {durationOpen && (
       <div className="flex gap-1 mt-0.5" onClick={e => e.stopPropagation()}>
@@ -1054,7 +1036,7 @@ const TransLabel: React.FC<TransLabelProps> = ({
   <div
     draggable
     onDragStart={e => { e.stopPropagation(); onDragStart(); }}
-    className="relative flex flex-col gap-1 rounded px-2 py-1.5 group cursor-grab active:cursor-grabbing w-full transition-opacity"
+    className="relative flex flex-col gap-0.5 rounded px-2 py-1.5 group cursor-grab active:cursor-grabbing w-full transition-opacity"
     style={{ backgroundColor: color + '28', border: `1px solid ${tc}99`, opacity: hidden ? 0.3 : isDragging ? 0.3 : 1 }}
     title={label}
   >
@@ -1078,7 +1060,7 @@ const TransLabel: React.FC<TransLabelProps> = ({
       </button>
     </div>
     {/* Date range + duration badge */}
-    <div className="flex items-center justify-between gap-1">
+    <div className="flex items-center justify-between gap-1 pl-4">
       {startDate && (
         <span className="text-[9px] text-gray-400 leading-none">{startDate} — {endDate}</span>
       )}
