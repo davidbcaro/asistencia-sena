@@ -56,15 +56,15 @@ const buildWeekDates = (overrides: Record<number, string> = {}, totalWeeks = TOT
 const TECNICA_COLOR = '#FFE600'; // Amarillo brillante — Técnica row
 
 const TRANSVERSAL_ROWS = [
-  { key: 'TICs',              label: "TIC's",              color: '#8CC63F' }, // Verde claro
-  { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#FF1E1E' }, // Rojo intenso
-  { key: 'Matemáticas',       label: 'Matemáticas',        color: '#D9C4B8' }, // Beige / marrón claro
-  { key: 'Comunicación',      label: 'Comunicación / Ética / Derechos', color: '#3F6A94' }, // Azul medio
-  { key: 'Investigación',     label: 'Investigación',      color: '#C04A00' }, // Naranja oscuro / ladrillo
-  { key: 'Ambiente',          label: 'Ambiente',           color: '#3FA9D6' }, // Azul claro
-  { key: 'Emprendimiento',    label: 'Emprendimiento',     color: '#C9C9C9' }, // Gris claro
-  { key: 'EducaciónFísica',   label: 'Edu. Física',        color: '#1A1A1A' }, // Negro (suavizado para legibilidad)
-  { key: 'CienciasNaturales', label: 'Ciencias Naturales', color: '#9E9E9E' }, // Gris medio
+  { key: 'TICs',              label: "TIC's",              color: '#8CC63F', textColor: '#2E4A0E' },
+  { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#FF1E1E', textColor: '#8B0000' },
+  { key: 'Matemáticas',       label: 'Matemáticas',        color: '#D9C4B8', textColor: '#4A3728' },
+  { key: 'Comunicación',      label: 'Comunicación / Ética / Derechos', color: '#3F6A94', textColor: '#1E3A5F' },
+  { key: 'Investigación',     label: 'Investigación',      color: '#C04A00', textColor: '#7A2E00' },
+  { key: 'Ambiente',          label: 'Ambiente',           color: '#3FA9D6', textColor: '#1A5A78' },
+  { key: 'Emprendimiento',    label: 'Emprendimiento',     color: '#C9C9C9', textColor: '#3A3A3A' },
+  { key: 'EducaciónFísica',   label: 'Edu. Física',        color: '#1A1A1A', textColor: '#1A1A1A' },
+  { key: 'CienciasNaturales', label: 'Ciencias Naturales', color: '#9E9E9E', textColor: '#333333' },
 ] as const;
 
 // ─── Default data seeded from the Excel ─────────────────────────────────────
@@ -223,18 +223,19 @@ const COMPETENCY_TO_AREA: Record<string, string> = {
   '220201501': 'CienciasNaturales',
 };
 
-/** Color + text color per area, using the official palette */
+/** Color + text color per area, using the official palette.
+ *  Cards use `color+'33'` (~20% opacity) so text must be dark enough to contrast. */
 const AREA_STYLES: Record<string, { color: string; text: string }> = {
   Técnica:           { color: '#FFE600', text: '#7A6C00' },
   TICs:              { color: '#8CC63F', text: '#2E4A0E' },
-  Bilingüismo:       { color: '#FF1E1E', text: '#ffffff' },
+  Bilingüismo:       { color: '#FF1E1E', text: '#8B0000' },
   Matemáticas:       { color: '#D9C4B8', text: '#4A3728' },
-  Comunicación:      { color: '#3F6A94', text: '#ffffff' },
-  Investigación:     { color: '#C04A00', text: '#ffffff' },
-  Ambiente:          { color: '#3FA9D6', text: '#ffffff' },
+  Comunicación:      { color: '#3F6A94', text: '#1E3A5F' },
+  Investigación:     { color: '#C04A00', text: '#7A2E00' },
+  Ambiente:          { color: '#3FA9D6', text: '#1A5A78' },
   Emprendimiento:    { color: '#C9C9C9', text: '#3A3A3A' },
-  EducaciónFísica:   { color: '#1A1A1A', text: '#ffffff' },
-  CienciasNaturales: { color: '#9E9E9E', text: '#1A1A1A' },
+  EducaciónFísica:   { color: '#1A1A1A', text: '#1A1A1A' },
+  CienciasNaturales: { color: '#9E9E9E', text: '#333333' },
 };
 
 /** Derive area color from activity.name (which holds the SENA code, e.g. GA1-220501046-AA1-EV01) */
