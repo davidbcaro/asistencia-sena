@@ -262,7 +262,8 @@ export const PlaneacionSemanalView: React.FC = () => {
     if (f) setFicha({ id: f.id, code: f.code, program: f.program });
 
     const all = getGradeActivities();
-    setActivities(f ? all.filter(a => a.group === f.code) : []);
+    // Incluir seeds globales (group === '') + actividades propias del ficha
+    setActivities(f ? all.filter(a => a.group === f.code || a.group === '') : []);
 
     const allPlan = getPlaneacionSemanal();
     if (!allPlan[fichaId ?? '']) {
