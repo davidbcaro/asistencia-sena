@@ -53,18 +53,18 @@ const buildWeekDates = (overrides: Record<number, string> = {}, totalWeeks = TOT
 };
 
 // ─── Transversal rows (colors match PLANEACION SEMANAL GRD legend) ──────────
-const TECNICA_COLOR = '#ffff00'; // Yellow — Técnica row
+const TECNICA_COLOR = '#FFE600'; // Amarillo brillante — Técnica row
 
 const TRANSVERSAL_ROWS = [
-  { key: 'TICs',              label: "TIC's",              color: '#4CAF50' }, // Green
-  { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#F44336' }, // Red
-  { key: 'Matemáticas',       label: 'Matemáticas',        color: '#F48FB1' }, // Pink
-  { key: 'Comunicación',      label: 'Comunicación / Ética / Derechos', color: '#9C27B0' }, // Purple
-  { key: 'Investigación',     label: 'Investigación',      color: '#FF9800' }, // Orange
-  { key: 'Ambiente',          label: 'Ambiente',           color: '#2196F3' }, // Blue
-  { key: 'Emprendimiento',    label: 'Emprendimiento',     color: '#009688' }, // Teal
-  { key: 'EducaciónFísica',   label: 'Edu. Física',        color: '#9E9E9E' }, // Gray
-  { key: 'CienciasNaturales', label: 'Ciencias Naturales', color: '#BDBDBD' }, // Light gray
+  { key: 'TICs',              label: "TIC's",              color: '#8CC63F' }, // Verde claro
+  { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#FF1E1E' }, // Rojo intenso
+  { key: 'Matemáticas',       label: 'Matemáticas',        color: '#D9C4B8' }, // Beige / marrón claro
+  { key: 'Comunicación',      label: 'Comunicación / Ética / Derechos', color: '#3F6A94' }, // Azul medio
+  { key: 'Investigación',     label: 'Investigación',      color: '#C04A00' }, // Naranja oscuro / ladrillo
+  { key: 'Ambiente',          label: 'Ambiente',           color: '#3FA9D6' }, // Azul claro
+  { key: 'Emprendimiento',    label: 'Emprendimiento',     color: '#C9C9C9' }, // Gris claro
+  { key: 'EducaciónFísica',   label: 'Edu. Física',        color: '#1A1A1A' }, // Negro (suavizado para legibilidad)
+  { key: 'CienciasNaturales', label: 'Ciencias Naturales', color: '#9E9E9E' }, // Gris medio
 ] as const;
 
 // ─── Default data seeded from the Excel ─────────────────────────────────────
@@ -611,7 +611,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                   </p>
                   <div className="space-y-1">
                     {acts.map(a => (
-                      <SidebarCard key={a.id} activity={a} color={seg.color}
+                      <SidebarCard key={a.id} activity={a} color={TECNICA_COLOR}
                         onDragStart={() => onDragStartActivity(a.id)} isDragging={dragActivityId === a.id} />
                     ))}
                   </div>
@@ -774,7 +774,7 @@ export const PlaneacionSemanalView: React.FC = () => {
               {/* ── Técnica row ── */}
               <tr onMouseEnter={() => setHoveredRow('Técnica')} onMouseLeave={() => setHoveredRow(null)}>
                 <td className="sticky left-0 z-20 border-b border-r border-gray-200 font-bold px-2 text-[11px] align-middle transition-colors"
-                  style={{ color: '#999900', minHeight: 60, backgroundColor: hoveredRow === 'Técnica' ? TECNICA_COLOR + '28' : 'white' }}>
+                  style={{ color: '#7A6C00', minHeight: 60, backgroundColor: hoveredRow === 'Técnica' ? TECNICA_COLOR + '28' : 'white' }}>
                   Técnica
                 </td>
                 {planRow('Técnica', true).map(({ weekIdx: w, span }) => {
@@ -800,8 +800,8 @@ export const PlaneacionSemanalView: React.FC = () => {
                         {assigned.map(a => {
                           const aSeg = phaseForActivity(a);
                           const key = actKey(a.id);
-                          return <GridCard key={a.id} activity={a} color={aSeg.color}
-                            textColor={aSeg.color === TECNICA_COLOR ? '#808000' : undefined}
+                          return <GridCard key={a.id} activity={a} color={TECNICA_COLOR}
+                            textColor={'#7A6C00'}
                             cardKey={key}
                             duration={getDuration(key)}
                             hidden={isHidden(key)}
@@ -819,7 +819,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                         })}
                         {textLabels.map((lbl, idx) => {
                           const key = lblKey('Técnica', lbl);
-                          return <TransLabel key={idx} label={lbl} color={TECNICA_COLOR} textColor="#808000"
+                          return <TransLabel key={idx} label={lbl} color={TECNICA_COLOR} textColor="#7A6C00"
                             cardKey={key}
                             duration={getDuration(key)}
                             hidden={isHidden(key)}
@@ -934,7 +934,7 @@ const SidebarCard: React.FC<SidebarCardProps> = ({ activity, color, onDragStart,
       title={`${displayName}\n${displayCode ?? ''}`}>
       <div className="flex items-start gap-1">
         <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 text-gray-400" />
-        <span className="text-[10px] font-medium leading-tight line-clamp-3" style={{ color }}>{displayName}</span>
+        <span className="text-[10px] font-medium leading-tight line-clamp-3" style={{ color: color === TECNICA_COLOR ? '#7A6C00' : color }}>{displayName}</span>
       </div>
       {displayCode && (
         <span className="text-[9px] font-mono text-gray-400 leading-none truncate pl-4">{displayCode}</span>
