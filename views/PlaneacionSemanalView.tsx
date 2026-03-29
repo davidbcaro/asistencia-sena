@@ -183,19 +183,14 @@ const DEFAULT_TRANSVERSAL: Record<string, string> = {
   'Comunicación::105': 'Solución del caso. Cultura de paz',
 };
 
-/** Build the default seeded data for a ficha that has no planeación yet */
-const buildDefaultData = (): PlaneacionSemanalFichaData => {
-  const transversalCells: Record<string, string[]> = {};
-  // Técnica labels stored under key 'Técnica::weekIndex'
-  Object.entries(DEFAULT_TECNICA).forEach(([wk, label]) => {
-    transversalCells[`Técnica::${wk}`] = [label];
-  });
-  // Transversal labels
-  Object.entries(DEFAULT_TRANSVERSAL).forEach(([key, label]) => {
-    transversalCells[key] = [label];
-  });
-  return { tecnicaAssignments: {}, transversalCells, cardDurations: {}, hiddenCards: [], weekDateOverrides: {}, phaseWeekCounts: {} };
-};
+/** Build the default seeded data for a ficha that has no planeación yet — starts empty */
+const buildDefaultData = (): PlaneacionSemanalFichaData => EMPTY_DATA;
+
+/** Keys that were auto-seeded by the old buildDefaultData — used to detect and clear legacy data */
+const DEFAULT_SEEDED_KEYS: ReadonlySet<string> = new Set([
+  ...Object.keys(DEFAULT_TECNICA).map(wk => `Técnica::${wk}`),
+  ...Object.keys(DEFAULT_TRANSVERSAL),
+]);
 
 const EMPTY_DATA: PlaneacionSemanalFichaData = { tecnicaAssignments: {}, transversalCells: {}, cardDurations: {}, hiddenCards: [], weekDateOverrides: {}, phaseWeekCounts: {} };
 
@@ -234,6 +229,10 @@ const getTypeColor = (text: string, fallback: string): string => {
   const first = text.split(/[\s.]/)[0];
   return TYPE_COLORS[first] ?? fallback;
 };
+
+/** Strip "Evidencia de producto:", "Evidencia de conocimiento:", etc. prefixes */
+const stripEvidenciaPrefix = (text: string): string =>
+  text.replace(/^evidencia\s+(?:de\s+)?(?:producto|conocimiento|desempe[nñ]o)\s*:\s*/i, '').trim();
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export const PlaneacionSemanalView: React.FC = () => {
@@ -315,6 +314,14 @@ export const PlaneacionSemanalView: React.FC = () => {
             migrated = true;
           }
         });
+        // Remove any auto-seeded default labels that are still in the cells
+        const cellKeysArr = Object.keys(cells);
+        const hasSeededCells = cellKeysArr.some(k => DEFAULT_SEEDED_KEYS.has(k));
+        if (hasSeededCells) {
+          cellKeysArr.forEach(k => { if (DEFAULT_SEEDED_KEYS.has(k)) delete cells[k]; });
+          migrated = true;
+        }
+
         if (migrated) {
           allPlan[fichaId ?? ''] = { ...fichaData, transversalCells: cells };
           savePlaneacionSemanal(allPlan);
@@ -918,7 +925,7 @@ interface SidebarCardProps { activity: GradeActivity; color: string; onDragStart
 const SidebarCard: React.FC<SidebarCardProps> = ({ activity, color, onDragStart, isDragging }) => {
   // For seeded SENA activities: name = SENA code, detail = descriptive text.
   // For user-created activities: name = descriptive text, detail = undefined.
-  const displayName = activity.detail?.trim() || activity.name;
+  const displayName = stripEvidenciaPrefix(activity.detail?.trim() || activity.name);
   const displayCode = activity.detail?.trim() ? activity.name : null;
   return (
     <div draggable onDragStart={onDragStart}
@@ -960,7 +967,7 @@ const GridCard: React.FC<GridCardProps> = ({
   onDragStart, isDragging, onRemove, onToggleHidden, onSetDuration, onToggleDurationPicker,
 }) => {
   const tc = textColor ?? color;
-  const displayName = activity.detail?.trim() || activity.name;
+  const displayName = stripEvidenciaPrefix(activity.detail?.trim() || activity.name);
   const displayCode = activity.detail?.trim() ? activity.name : null;
   const startDate = weekStarts[weekIdx] ?? '';
   const endDate   = weekEnds[Math.min(weekIdx + duration - 1, weekEnds.length - 1)] ?? '';
