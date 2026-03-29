@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronRight, Calendar, User } from 'lucide-react';
 import { Ficha, CronogramaGeneralEntry, CronogramaGeneralData } from '../types';
-import { getFichas, getCronogramaGeneral, saveCronogramaGeneral } from '../services/db';
+import { getFichas, getCronogramaGeneral, saveCronogramaGeneral, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
 
 // ─── STATIC CURRICULUM DATA ──────────────────────────────────────────────────
 
@@ -918,6 +918,19 @@ function useDebounce<T extends (...args: Parameters<T>) => void>(fn: T, delay: n
   }, [fn, delay]);
 }
 
+// ─── SYNC: CronogramaGeneral → PlaneacionSemanal ──────────────────────────────
+
+const PLANEACION_PHASE_MAP: Record<string, string> = {
+  'Inducción':  'Fase Inducción',
+  'Análisis':   'Fase 1: Análisis',
+  'Planeación': 'Fase 2: Planeación',
+  'Ejecución':  'Fase 3: Ejecución',
+  'Evaluación': 'Fase 4: Evaluación',
+};
+
+/** ISO base date de PlaneacionSemanal (debe coincidir con BASE_DATE de esa vista) */
+const PLANEACION_BASE_DATE_ISO = '2025-09-29';
+
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 
 export const CronogramaGeneralView: React.FC = () => {
@@ -928,6 +941,7 @@ export const CronogramaGeneralView: React.FC = () => {
   const [activePhase, setActivePhase] = useState(0);
   const [expandedAPs, setExpandedAPs] = useState<Set<string>>(new Set());
   const [entries, setEntries] = useState<CronogramaGeneralEntry[]>([]);
+  const [syncResult, setSyncResult] = useState<{ phase: string; count: number } | null>(null);
 
   // Load data
   const loadData = useCallback(() => {
@@ -959,6 +973,88 @@ export const CronogramaGeneralView: React.FC = () => {
     all[fichaId ?? ''] = newEntries;
     saveCronogramaGeneral(all);
   }, 500);
+
+  // ── Sync fechas → PlaneacionSemanal ──────────────────────────────────────
+  const handleSyncPhase = useCallback((faseName: string) => {
+    if (!fichaId || !ficha) return;
+
+    const planeacionPhase = PLANEACION_PHASE_MAP[faseName];
+    if (!planeacionPhase) return;
+
+    // Leer cronograma fresco (incluye cambios pendientes de debounce)
+    const cronEntries: CronogramaGeneralEntry[] = getCronogramaGeneral()[fichaId] ?? [];
+    const gradeActivities = getGradeActivities().filter(
+      a => a.group === ficha.code && a.phase === planeacionPhase
+    );
+    const allPlan = getPlaneacionSemanal();
+    const planData = allPlan[fichaId] ?? {
+      tecnicaAssignments: {}, transversalCells: {},
+      cardDurations: {}, hiddenCards: [], weekDateOverrides: {}, phaseWeekCounts: {},
+    };
+
+    if (gradeActivities.length === 0) {
+      alert(`No hay evidencias registradas en Calificaciones para ${faseName}.\nVisita primero la vista de Calificaciones para que se generen.`);
+      return;
+    }
+
+    // Construir lista de ISO de inicio de cada semana (respeta weekDateOverrides)
+    const overrides = planData.weekDateOverrides ?? {};
+    const [by, bm, bd] = PLANEACION_BASE_DATE_ISO.split('-').map(Number);
+    let cur = new Date(by, bm - 1, bd);
+    const weekIsos: string[] = [];
+    for (let w = 0; w < 106; w++) {
+      if (overrides[w]) {
+        const [oy, om, od] = (overrides[w] as string).split('-').map(Number);
+        cur = new Date(oy, om - 1, od);
+      }
+      weekIsos.push(
+        `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`
+      );
+      cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 7);
+    }
+
+    const newAssignments = { ...planData.tecnicaAssignments };
+    let count = 0;
+
+    cronEntries.forEach(entry => {
+      if (!entry.fechaInicio) return;
+
+      // Buscar GradeActivity:
+      // 1) exact: activity.id === 'seed-' + entry.id   (GA1-*, GA2-*, …)
+      // 2) fallback inducción: entry.id es 'AAn-EVnn' → suffix match dentro de la fase
+      const isInduccionShortId = /^AA\d+-EV\d+$/.test(entry.id);
+      const activity =
+        gradeActivities.find(a => a.id === `seed-${entry.id}`) ??
+        (isInduccionShortId ? gradeActivities.find(a => a.id.endsWith(entry.id)) : undefined);
+
+      if (!activity) return;
+      if (newAssignments[activity.id] !== undefined) return; // no sobreescribir asignaciones manuales
+
+      // Encontrar semana que contiene fechaInicio
+      const weekIdx = weekIsos.findIndex(iso => {
+        const [y, m, d] = iso.split('-').map(Number);
+        const start = new Date(y, m - 1, d);
+        const end = new Date(y, m - 1, d);
+        end.setDate(end.getDate() + 6);
+        const [ty, tm, td] = entry.fechaInicio.split('-').map(Number);
+        const target = new Date(ty, tm - 1, td);
+        return target >= start && target <= end;
+      });
+
+      if (weekIdx >= 0) {
+        newAssignments[activity.id] = weekIdx;
+        count++;
+      }
+    });
+
+    if (count > 0) {
+      allPlan[fichaId] = { ...planData, tecnicaAssignments: newAssignments };
+      savePlaneacionSemanal(allPlan);
+    }
+
+    setSyncResult({ phase: faseName, count });
+    setTimeout(() => setSyncResult(null), 4000);
+  }, [fichaId, ficha]);
 
   const getEntry = (evId: string): CronogramaGeneralEntry =>
     entries.find(e => e.id === evId) ?? { id: evId, fechaInicio: '', fechaFin: '', instructor: '' };
@@ -1140,6 +1236,41 @@ export const CronogramaGeneralView: React.FC = () => {
                 {a.label}: {a.count}
               </span>
             ))}
+          </div>
+
+          {/* Botón sincronizar con Planeación Semanal */}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {syncResult?.phase === fase.nombre && (
+              <span style={{
+                fontSize: 12,
+                color: syncResult.count > 0 ? '#16a34a' : '#6b7280',
+                fontWeight: 600,
+              }}>
+                {syncResult.count > 0
+                  ? `✓ ${syncResult.count} evidencia${syncResult.count !== 1 ? 's' : ''} sincronizada${syncResult.count !== 1 ? 's' : ''}`
+                  : 'Sin cambios (ya asignadas o sin fecha)'}
+              </span>
+            )}
+            <button
+              onClick={() => handleSyncPhase(fase.nombre)}
+              title="Aplica las fechaInicio del Cronograma a la Planeación Semanal (solo evidencias sin semana asignada)"
+              style={{
+                padding: '6px 14px',
+                borderRadius: 7,
+                border: `1.5px solid ${fase.color}`,
+                background: 'white',
+                color: fase.color,
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ↔ Sincronizar con Planeación
+            </button>
           </div>
         </div>
       )}
