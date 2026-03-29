@@ -202,6 +202,48 @@ const DATE_H  = 22;  // px for the date header sub-row
 const PHASE_H = 28;  // px for phase header row
 const LABEL_W = 150; // px for row label column
 
+// ─── Competency code → area type (mirrors CronogramaGeneralView) ─────────────
+const COMPETENCY_TO_AREA: Record<string, string> = {
+  '220501014': 'Técnica',
+  '220501104': 'Técnica',
+  '220501107': 'Técnica',
+  '220501091': 'Técnica',
+  '220501105': 'Técnica',
+  '220501106': 'Técnica',
+  '220501046': 'TICs',
+  '240202501': 'Bilingüismo',
+  '240201528': 'Matemáticas',
+  '240201524': 'Comunicación',
+  '210201501': 'Comunicación',
+  '240201526': 'Comunicación',
+  '240201064': 'Investigación',
+  '220601501': 'Ambiente',
+  '240201529': 'Emprendimiento',
+  '230101507': 'EducaciónFísica',
+  '220201501': 'CienciasNaturales',
+};
+
+/** Color + text color per area, using the official palette */
+const AREA_STYLES: Record<string, { color: string; text: string }> = {
+  Técnica:           { color: '#FFE600', text: '#7A6C00' },
+  TICs:              { color: '#8CC63F', text: '#2E4A0E' },
+  Bilingüismo:       { color: '#FF1E1E', text: '#ffffff' },
+  Matemáticas:       { color: '#D9C4B8', text: '#4A3728' },
+  Comunicación:      { color: '#3F6A94', text: '#ffffff' },
+  Investigación:     { color: '#C04A00', text: '#ffffff' },
+  Ambiente:          { color: '#3FA9D6', text: '#ffffff' },
+  Emprendimiento:    { color: '#C9C9C9', text: '#3A3A3A' },
+  EducaciónFísica:   { color: '#1A1A1A', text: '#ffffff' },
+  CienciasNaturales: { color: '#9E9E9E', text: '#1A1A1A' },
+};
+
+/** Derive area color from activity.name (which holds the SENA code, e.g. GA1-220501046-AA1-EV01) */
+const getActivityAreaStyle = (activityName: string): { color: string; text: string } => {
+  const match = activityName.match(/[A-Z]+\d*-(\d+)-/);
+  const area = match ? (COMPETENCY_TO_AREA[match[1]] ?? 'Técnica') : 'Técnica';
+  return AREA_STYLES[area] ?? AREA_STYLES['Técnica'];
+};
+
 // ─── Evidence type → badge color ─────────────────────────────────────────────
 const TYPE_COLORS: Record<string, string> = {
   'Infografía':  '#0ea5e9',
@@ -611,7 +653,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                   </p>
                   <div className="space-y-1">
                     {acts.map(a => (
-                      <SidebarCard key={a.id} activity={a} color={TECNICA_COLOR}
+                      <SidebarCard key={a.id} activity={a}
                         onDragStart={() => onDragStartActivity(a.id)} isDragging={dragActivityId === a.id} />
                     ))}
                   </div>
@@ -800,8 +842,8 @@ export const PlaneacionSemanalView: React.FC = () => {
                         {assigned.map(a => {
                           const aSeg = phaseForActivity(a);
                           const key = actKey(a.id);
-                          return <GridCard key={a.id} activity={a} color={TECNICA_COLOR}
-                            textColor={'#7A6C00'}
+                          return <GridCard key={a.id} activity={a} color={getActivityAreaStyle(a.name).color}
+                            textColor={getActivityAreaStyle(a.name).text}
                             cardKey={key}
                             duration={getDuration(key)}
                             hidden={isHidden(key)}
@@ -921,23 +963,22 @@ export const PlaneacionSemanalView: React.FC = () => {
 };
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
-interface SidebarCardProps { activity: GradeActivity; color: string; onDragStart: () => void; isDragging: boolean; }
-const SidebarCard: React.FC<SidebarCardProps> = ({ activity, color, onDragStart, isDragging }) => {
-  // For seeded SENA activities: name = SENA code, detail = descriptive text.
-  // For user-created activities: name = descriptive text, detail = undefined.
+interface SidebarCardProps { activity: GradeActivity; onDragStart: () => void; isDragging: boolean; }
+const SidebarCard: React.FC<SidebarCardProps> = ({ activity, onDragStart, isDragging }) => {
+  const { color, text: tc } = getActivityAreaStyle(activity.name);
   const displayName = stripEvidenciaPrefix(activity.detail?.trim() || activity.name);
   const displayCode = activity.detail?.trim() ? activity.name : null;
   return (
     <div draggable onDragStart={onDragStart}
       className="flex flex-col gap-0.5 rounded px-1.5 py-1.5 cursor-grab active:cursor-grabbing border transition-opacity"
-      style={{ backgroundColor: color + '18', borderColor: color + '55', opacity: isDragging ? 0.4 : 1 }}
+      style={{ backgroundColor: color + '33', borderColor: color + '99', opacity: isDragging ? 0.4 : 1 }}
       title={`${displayName}\n${displayCode ?? ''}`}>
       <div className="flex items-start gap-1">
-        <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 text-gray-400" />
-        <span className="text-[10px] font-medium leading-tight line-clamp-3" style={{ color: color === TECNICA_COLOR ? '#7A6C00' : color }}>{displayName}</span>
+        <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-50" style={{ color: tc }} />
+        <span className="text-[10px] font-medium leading-tight line-clamp-3" style={{ color: tc }}>{displayName}</span>
       </div>
       {displayCode && (
-        <span className="text-[9px] font-mono text-gray-400 leading-none truncate pl-4">{displayCode}</span>
+        <span className="text-[9px] font-mono leading-none truncate pl-4" style={{ color: tc, opacity: 0.6 }}>{displayCode}</span>
       )}
     </div>
   );
