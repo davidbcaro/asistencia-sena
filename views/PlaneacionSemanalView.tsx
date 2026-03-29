@@ -20,34 +20,43 @@ const TOTAL_WEEKS = PHASE_SEGMENTS.reduce((s, p) => s + p.count, 0); // 106
 const WEEK_PHASE_MAP: typeof PHASE_SEGMENTS[number][] = [];
 for (const seg of PHASE_SEGMENTS) for (let i = 0; i < seg.count; i++) WEEK_PHASE_MAP.push(seg);
 
-// Week dates: base 29/09/2025. Overrides shift subsequent weeks automatically.
-const BASE_DATE = new Date('2025-09-29T00:00:00');
+// Week dates: base 29/09/2025.
+// All arithmetic uses UTC milliseconds (86 400 000 ms/day exactly) so DST
+// clock changes never shift a week boundary.
+const MS_PER_DAY = 86_400_000;
+const BASE_DATE_UTC = Date.UTC(2025, 8, 29); // Sep 29 2025 — month is 0-indexed
 
-const fmt = (d: Date) =>
-  `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+/** Format a UTC timestamp as DD/MM/YYYY */
+const fmtUtc = (ms: number): string => {
+  const d = new Date(ms);
+  return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+};
 
-/** Parse YYYY-MM-DD (from <input type="date">) into a local Date */
-const parseIso = (iso: string): Date => {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d);
+/** Format a UTC timestamp as YYYY-MM-DD (for <input type="date">) */
+const isoFromUtc = (ms: number): string => {
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+};
+
+/** Parse YYYY-MM-DD (from <input type="date">) → UTC midnight ms */
+const parseIso = (iso: string): number => {
+  const [y, m, day] = iso.split('-').map(Number);
+  return Date.UTC(y, m - 1, day);
 };
 
 /** Build effective start & end dates, honouring overrides.
- *  overrides: weekIndex → ISO date (YYYY-MM-DD) for that week's start.
- *  totalWeeks: how many weeks to generate (defaults to TOTAL_WEEKS). */
+ *  Uses pure UTC arithmetic — immune to DST transitions. */
 const buildWeekDates = (overrides: Record<number, string> = {}, totalWeeks = TOTAL_WEEKS): { starts: string[]; ends: string[]; isos: string[] } => {
   const starts: string[] = [];
   const ends:   string[] = [];
   const isos:   string[] = [];
-  let cur = new Date(BASE_DATE);
+  let curMs = BASE_DATE_UTC;
   for (let w = 0; w < totalWeeks; w++) {
-    if (overrides[w]) cur = parseIso(overrides[w]);
-    const iso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
-    isos.push(iso);
-    starts.push(fmt(cur));
-    const end = new Date(cur); end.setDate(end.getDate() + 6);
-    ends.push(fmt(end));
-    cur = new Date(cur); cur.setDate(cur.getDate() + 7);
+    if (overrides[w]) curMs = parseIso(overrides[w]);
+    isos.push(isoFromUtc(curMs));
+    starts.push(fmtUtc(curMs));
+    ends.push(fmtUtc(curMs + 6 * MS_PER_DAY));
+    curMs += 7 * MS_PER_DAY;
   }
   return { starts, ends, isos };
 };
