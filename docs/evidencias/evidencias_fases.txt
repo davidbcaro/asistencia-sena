@@ -1,0 +1,492 @@
+================================================================================
+Fase Inducción
+================================================================================
+Infografía. AA1-EV01. 
+Cuestionario AA2-EV01. 
+Cuestionario. AA2-EV02.
+================================================================================
+Fase Análisis
+================================================================================
+FECHA DE INICIO: | (Fecha de Inicio establecida en el sistema de gestión académica): dd/mm/aaaa
+FECHA DE INICIO DE FORMACIÓN: | (Fecha de Inicio de actividades para el aprendiz): dd/mm/aaaa
+FECHA FIN: | (Fecha Fin establecida en el sistema de gestión académica): dd/mm/aaaa
+ACTIVIDAD DEL PROYECTO | ACTIVIDAD DE APRENDIZAJE | RESULTADO DE APRENDIZAJE | EVIDENCIAS DE APRENDIZAJE | FECHAS DE ENTREGA | FECHAS DE ENTREGA | INSTRUCTOR O ÁREA RESPONSABLE
+ACTIVIDAD DEL PROYECTO | ACTIVIDAD DE APRENDIZAJE | RESULTADO DE APRENDIZAJE | EVIDENCIAS DE APRENDIZAJE | INICIA | FINALIZA | INSTRUCTOR O ÁREA RESPONSABLE
+AP1. Análisis del entorno en la gestión de redes de datos, de acuerdo con la tecnología empleada. | GA1-220501014-AA1 - Identificar las políticas de seguridad que se apliquen al entorno y a los requerimientos, a partir de la normatividad. | 220501014-01 - Interpretar el plan de seguridad para la red de datos definidos en la solución, según estándares y normas internacionales. | Evidencia de conocimiento:
+Cuestionario sobre técnicas de levantamiento de información, plan de seguridad y continuidad del servicio. 
+GA1-220501014-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP1. Análisis del entorno en la gestión de redes de datos, de acuerdo con la tecnología empleada. | GA1-220501014-AA1 - Identificar las políticas de seguridad que se apliquen al entorno y a los requerimientos, a partir de la normatividad. | 220501014-01 - Interpretar el plan de seguridad para la red de datos definidos en la solución, según estándares y normas internacionales. | Evidencia de producto: 
+Informe de inventario y dispositivos de la red.
+GA1-220501014-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP1. Análisis del entorno en la gestión de redes de datos, de acuerdo con la tecnología empleada. | GA1-220501046-AA1 - Reconocer software de sistemas, de programación y de aplicaciones, de acuerdo con la tecnología empleada. | 220501046-01 - Alistar herramientas de tecnologías de la información y la comunicación (TIC), de acuerdo con las necesidades de procesamiento de información y comunicación. | Evidencia de conocimiento:
+Mapa mental - Software y servicios de Internet. 
+GA1-220501046-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP1. Análisis del entorno en la gestión de redes de datos, de acuerdo con la tecnología empleada. | GA1-220501046-AA2 - Aplicar los términos y funcionalidades de la ofimática, de acuerdo con estándares. | 220501046-02 - Aplicar funcionalidades de herramientas y servicios TIC, de acuerdo con manuales de uso, procedimientos establecidos y buenas prácticas. | Evidencia de conocimiento:
+Taller. Utilización de las herramientas de ofimática.
+GA1-220501046-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP1. Análisis del entorno en la gestión de redes de datos, de acuerdo con la tecnología empleada. | GA1-220501046-AA3 - Analizar la utilidad y la pertinencia en términos de productividad de los recursos TIC utilizados, de acuerdo con los requerimientos. | 220501046-03 - Evaluar los resultados, de acuerdo con los requerimientos. | Evidencia de producto:
+Informe. Pertinencia y efectividad de los recursos utilizados según requerimientos.
+GA1-220501046-AA3-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP1. Análisis del entorno en la gestión de redes de datos, de acuerdo con la tecnología empleada. | GA1-220501046-AA4 - Aplicar las mejoras de producto orientado desde las TIC, de acuerdo con requerimientos actuales. | 220501046-04 - Optimizar los resultados, de acuerdo con la verificación. | Evidencia de desempeño:
+Plan de mejora de productos y procesos con la incorporación de TIC. 
+GA1-220501046-AA4-EV01. 
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP1. Análisis del entorno en la gestión de redes de datos, de acuerdo con la tecnología empleada. | GA1-240202501-AA1 - Identificar situaciones cotidianas y futuras, a través de una interacción social oral y escrita. | 240202501-01 - Comprender información sobre situaciones cotidianas y laborales actuales y futuras a través de interacciones sociales de forma oral y escrita. | Evidencia de conocimiento:
+Cuestionario. 
+GA1-240202501-AA1-EV01
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP1. Análisis del entorno en la gestión de redes de datos, de acuerdo con la tecnología empleada. | GA1-240202501-AA1 - Identificar situaciones cotidianas y futuras, a través de una interacción social oral y escrita. | 240202501-01 - Comprender información sobre situaciones cotidianas y laborales actuales y futuras a través de interacciones sociales de forma oral y escrita. | Evidencia de desempeño:
+Video presentación.
+GA1-240202501-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP1. Análisis del entorno en la gestión de redes de datos, de acuerdo con la tecnología empleada. | GA1-240202501-AA1 - Identificar situaciones cotidianas y futuras, a través de una interacción social oral y escrita. | 240202501-01 - Comprender información sobre situaciones cotidianas y laborales actuales y futuras a través de interacciones sociales de forma oral y escrita. | Evidencia de producto:
+Folleto.
+GA1-240202501-AA1-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+
+================================================================================
+Fase Ejecución
+================================================================================
+FECHA DE INICIO: | (Fecha de Inicio establecida en el sistema de gestión académica): dd/mm/aaaa
+FECHA DE INICIO DE FORMACIÓN: | (Fecha de Inicio de actividades para el aprendiz): dd/mm/aaaa
+FECHA FIN: | (Fecha Fin establecida en el sistema de gestión académica): dd/mm/aaaa
+ACTIVIDAD DEL PROYECTO | ACTIVIDAD DE APRENDIZAJE | RESULTADO DE APRENDIZAJE | EVIDENCIAS DE APRENDIZAJE | FECHAS DE ENTREGA | FECHAS DE ENTREGA | INSTRUCTOR O ÁREA RESPONSABLE
+ACTIVIDAD DEL PROYECTO | ACTIVIDAD DE APRENDIZAJE | RESULTADO DE APRENDIZAJE | EVIDENCIAS DE APRENDIZAJE | INICIA | FINALIZA | INSTRUCTOR O ÁREA RESPONSABLE
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-220501104-AA1 - Conectorizar los dispositivos de la red LAN, de acuerdo con protocolos técnicos. | 220501104-02 - Configurar los equipos activos de interconexión, de acuerdo con la arquitectura establecida. | Evidencia de desempeño: 
+Archivo de simulación de la implementación de esquema de subredes y direccionamiento IPv4 e IPv6.
+GA4-220501104-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-220501104-AA1 - Conectorizar los dispositivos de la red LAN, de acuerdo con protocolos técnicos. | 220501104-02 - Configurar los equipos activos de interconexión, de acuerdo con la arquitectura establecida. | Evidencia de producto: 
+Informe práctica de laboratorio sobre dispositivos activos de subredes y direccionamiento IPv4 o IPv6.
+GA4-220501104-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-220501104-AA2 - Configurar los equipos activos de interconexión, de acuerdo con los protocolos, estándares y requisitos, que garanticen el cumplimiento al diseño preestablecido. | 220501104-02 - Configurar los equipos activos de interconexión, de acuerdo con la arquitectura establecida. | Evidencia de producto: 
+Archivo de simulación de configuración de dispositivos activos con tecnologías WAN, VLAN y enrutamientos.
+GA4-220501104-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-220501104-AA2 - Configurar los equipos activos de interconexión, de acuerdo con los protocolos, estándares y requisitos, que garanticen el cumplimiento al diseño preestablecido. | 220501104-02 - Configurar los equipos activos de interconexión, de acuerdo con la arquitectura establecida. | Evidencia de producto: 
+Informe práctica de laboratorio sobre configuración de dispositivos activos para tecnologías WAN, VLAN y enrutamientos.
+GA4-220501104-AA2-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-220501107-AA1 - Configurar los dispositivos necesarios para el buen funcionamiento de la red inalámbrica, de acuerdo con la documentación técnica reglamentaria. | 220501107-02 - Configurar los componentes inalámbricos, acorde con la arquitectura establecida, técnicas y buenas prácticas. | Evidencia de producto: 
+Video expositivo sobre configuración de componentes inalámbricos.
+GA4-220501107-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-220501107-AA1 - Configurar los dispositivos necesarios para el buen funcionamiento de la red inalámbrica, de acuerdo con la documentación técnica reglamentaria. | 220501107-02 - Configurar los componentes inalámbricos, acorde con la arquitectura establecida, técnicas y buenas prácticas. | Evidencia de producto: 
+Video expositivo sobre configuración de parámetros de integración en red cableada.
+GA4-220501107-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-220501107-AA1 - Configurar los dispositivos necesarios para el buen funcionamiento de la red inalámbrica, de acuerdo con la documentación técnica reglamentaria. | 220501107-03 - Verificar la transmisión de datos en la infraestructura inalámbrica bajo criterios y procedimientos técnicos establecidos. | Evidencia de producto: 
+Lista de verificación para canales de comunicación inalámbrica.
+GA4-220501107-AA1-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-220501107-AA1 - Configurar los dispositivos necesarios para el buen funcionamiento de la red inalámbrica, de acuerdo con la documentación técnica reglamentaria. | 220501107-03 - Verificar la transmisión de datos en la infraestructura inalámbrica bajo criterios y procedimientos técnicos establecidos. | Evidencia de producto: 
+Video expositivo del funcionamiento de la red inalámbrica implementada (práctica de laboratorio).
+GA4-220501107-AA1-EV04.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-240201524-AA1 - Identificar la importancia de los componentes de la comunicación para transmitir un mensaje, según sus características, intencionalidad y contexto. | 240201524-01 - Analizar los componentes de la comunicación según sus características, intencionalidad y contexto. | Evidencia de conocimiento: 
+Video. ¿Cómo nos comunicamos a través del discurso?
+GA4-240201524-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-240201524-AA2 - Aplicar los componentes de la comunicación y argumentar sus procesos, de acuerdo con las diferentes situaciones comunicativas. | 240201524-02 - Argumentar en forma oral y escrita atendiendo las exigencias y particularidades de las diversas situaciones comunicativas mediante los distintos sistemas de representación. | Evidencia de desempeño: 
+Video. La comunicación como expresión humana.
+GA4-240201524-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-240201524-AA3. Interpretar asertivamente situaciones del contexto, de forma lógica y estructurada, graficando la información a transmitir, a través de elementos e instrumentos gráficos. | 240201524-03 - Relacionar los procesos comunicativos teniendo en cuenta criterios de lógica y racionalidad. | Evidencia de desempeño: 
+Infografía. Comunicación de la interpretación del entorno.
+GA4-240201524-AA3-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-240201524-AA4 - Comunicar asertivamente, con cohesión y coherencia léxica, basado en los procesos comunicativos que se dan en el contexto del desempeño laboral. | 240201524-04 - Establecer procesos de enriquecimiento lexical y acciones de mejoramiento en el desarrollo de procesos comunicativos según requerimientos del contexto. | Evidencia de producto: 
+Informe. Creación de contenidos comunicativo
+GA4-240201524-AA4-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-240202501-AA1 - Dialogar sobre posibles soluciones a problemas dentro de contextos sociales. | 240202501-03 - Discutir sobre posibles soluciones a problemas dentro de un rango variado de contextos sociales y laborales. | Evidencia de conocimiento:
+Cuestionario.
+GA4-240202501-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-240202501-AA1 - Dialogar sobre posibles soluciones a problemas dentro de contextos sociales. | 240202501-03 - Discutir sobre posibles soluciones a problemas dentro de un rango variado de contextos sociales y laborales. | Evidencia de producto:
+Audio.
+GA4-240202501-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-240202501-AA1 - Dialogar sobre posibles soluciones a problemas dentro de contextos sociales. | 240202501-03 - Discutir sobre posibles soluciones a problemas dentro de un rango variado de contextos sociales y laborales. | Evidencia de desempeño:
+Foro.
+GA4-240202501-AA1-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-240202501-AA2 - Reportar sobre posibles soluciones a problemas dentro de contextos laborales. | 240202501-03 - Discutir sobre posibles soluciones a problemas dentro de un rango variado de contextos sociales y laborales. | Evidencia de conocimiento:
+Cuestionario.
+GA4-240202501-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-240202501-AA2 - Reportar sobre posibles soluciones a problemas dentro de contextos laborales. | 240202501-03 - Discutir sobre posibles soluciones a problemas dentro de un rango variado de contextos sociales y laborales. | Evidencia de producto:
+Audio.
+GA4-240202501-AA2-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA4-240202501-AA2 - Reportar sobre posibles soluciones a problemas dentro de contextos laborales. | 240202501-03 - Discutir sobre posibles soluciones a problemas dentro de un rango variado de contextos sociales y laborales. | Evidencia de desempeño:
+Foro.
+GA4-240202501-AA2-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA5-220501106-AA1 - Configurar los elementos requeridos para los servicios de red, de acuerdo con los protocolos técnicos. | 220501106-01 - Configurar el hardware, dispositivos de cómputo y sistemas operativos necesarios para la implementación de los servicios de red. | Evidencia de producto: 
+Video expositivo sobre la configuración e instalación de sistemas operativos en equipos de cómputo. 
+GA5-220501106-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA5-220501106-AA1 - Configurar los elementos requeridos para los servicios de red, de acuerdo con los protocolos técnicos. | 220501106-01 - Configurar el hardware, dispositivos de cómputo y sistemas operativos necesarios para la implementación de los servicios de red. | Evidencia de producto: 
+Informe técnico sobre equipos de cómputo y sistemas operativos.
+GA5-220501106-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA5-240201064-AA1 - Identificar las características socioeconómicas, tecnológicas, políticas y culturales del contexto productivo, de acuerdo con las necesidades y problemáticas que lo afectan. | 240201064-01 - Analizar el contexto productivo según sus características y necesidades. | Evidencia de producto: 
+Mapa mental. 
+GA5-240201064-AA1-EV01. 
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA5-240201064-AA2 - Elaborar la propuesta de investigación formativa, teniendo en cuenta las situaciones de orden social y productivo. | 240201064-02 - Estructurar el proyecto de acuerdo a criterios de la investigación.
+
+240201064-03 - Argumentar aspectos teóricos del proyecto según referentes nacionales e internacionales.
+
+240201064-04 - Proponer soluciones a las necesidades del contexto según resultados de la investigación. | Evidencia de desempeño, conocimiento y producto: 
+Propuesta de investigación.
+GA5-240201064-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA5-240202501-AA1 - Establecer acciones de mejora relacionadas con expresiones, estructuras y desempeño, de acuerdo al programa de formación. | 240202501-04 - Implementar acciones de mejora relacionadas con el uso de expresiones, estructuras y desempeño según los resultados de aprendizaje formulados para el programa. | Evidencia de conocimiento:
+Cuestionario.
+GA5-240202501-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA5-240202501-AA1 - Establecer acciones de mejora relacionadas con expresiones, estructuras y desempeño, de acuerdo al programa de formación. | 240202501-04 - Implementar acciones de mejora relacionadas con el uso de expresiones, estructuras y desempeño según los resultados de aprendizaje formulados para el programa. | Evidencia de producto:
+Mapa mental.
+GA5-240202501-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA5-240202501-AA1 - Establecer acciones de mejora relacionadas con expresiones, estructuras y desempeño, de acuerdo al programa de formación. | 240202501-04 - Implementar acciones de mejora relacionadas con el uso de expresiones, estructuras y desempeño según los resultados de aprendizaje formulados para el programa. | Evidencia de desempeño:
+Blog.
+GA5-240202501-AA1-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA6-220501106-AA1 - Implementar servicios de infraestructura de red, de acuerdo a requerimientos solicitados, teniendo en cuenta sistemas de seguridad, registro de auditoría, centralización de información, redundancia y desarrollo de tareas programadas. | 220501106-02 - Implementar los servicios red necesarios para cumplir los requerimientos del portafolio de servicios de tecnologías de la información. | Evidencia de producto: 
+Video expositivo de la implementación de mecanismos de comunicación e interconexión.
+GA6-220501106-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA6-220501091-AA1 - Implementar una solución de comunicaciones unificada para la infraestructura de red, teniendo en cuenta los requerimientos y las normas establecidas. | 220501091-02 - Configurar equipos y software de comunicación de voz sobre IP (VoIP), acorde con la arquitectura establecida, técnicas y buenas prácticas. | Evidencia de producto: 
+Video expositivo de la configuración de equipos y software de VoIP.
+GA6-220501091-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA6-240202501-AA1 - Simular un proceso para la realización de una actividad en su quehacer laboral. | 240202501-05 - Presentar un proceso para la realización de una actividad en su quehacer laboral de acuerdo con los procedimientos establecidos desde su programa de formación. | Evidencia de conocimiento:
+Diagrama de flujo.
+GA6-240202501-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA6-240202501-AA1 - Simular un proceso para la realización de una actividad en su quehacer laboral. | 240202501-05 - Presentar un proceso para la realización de una actividad en su quehacer laboral de acuerdo con los procedimientos establecidos desde su programa de formación. | Evidencia de producto:
+Ensayo.
+GA6-240202501-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA6-240202501-AA1 - Simular un proceso para la realización de una actividad en su quehacer laboral. | 240202501-05 - Presentar un proceso para la realización de una actividad en su quehacer laboral de acuerdo con los procedimientos establecidos desde su programa de formación. | Evidencia de producto:
+Vídeo.
+GA6-240202501-AA1-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-220501105-AA1 - Implementar plataformas de monitoreo, de acuerdo con la infraestructura tecnológica y los servicios de red implementados. | 220501105-02 - Implementar sistemas de gestión y monitoreo en la red, según estándares, políticas y recursos de la organización. | Evidencia de producto: 
+Video expositivo sobre configuración de equipos y software, involucrados en la plataforma de gestión y monitoreo.
+GA7-220501105-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-220501105-AA1 - Implementar plataformas de monitoreo, de acuerdo con la infraestructura tecnológica y los servicios de red implementados. | 220501105-02 - Implementar sistemas de gestión y monitoreo en la red, según estándares, políticas y recursos de la organización. | Evidencia de producto: 
+Informe práctica de laboratorio sobre la configuración de la plataforma implementada, configurada y funcional.
+GA7-220501105-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-220501014-AA1 - Establecer el estado de la seguridad de la red, según políticas de seguridad de la organización. | 220501014-02 - Implementar el plan de seguridad en la organización aplicando estándares y normas internacionales de seguridad vigentes. | Evidencia de producto: 
+Informe práctica sobre componentes de hardware y software de seguridad de la red. 
+GA7-220501014-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-220501014-AA1 - Establecer el estado de la seguridad de la red, según políticas de seguridad de la organización. | 220501014-02 - Implementar el plan de seguridad en la organización aplicando estándares y normas internacionales de seguridad vigentes. | Evidencia de producto: 
+Informe de implementación de políticas, controles y procedimientos.
+GA7-220501014-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-230101507-AA1 Aplicar los correctivos necesarios que permitan mejorar las capacidades de acuerdo con la valoración del estado general de las condiciones psicomotrices individuales. | 230101507-01- Desarrollar habilidades psicomotrices en el contexto productivo y social. | Evidencia de desempeño:
+Foro temático - Identificar y establecer las técnicas de coordinación motriz.
+GA7-230101507-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-230101507-AA2 Establecer hábitos de vida saludable, mediante la aplicación de fundamentos de nutrición e higiene. | 230101507-02- Practicar hábitos saludables mediante la aplicación de fundamentos de nutrición e higiene. | Evidencia de producto:
+Infografía – Estilos de vida saludable. 
+GA7-230101507-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-230101507-AA3 Implementar acciones de la cultura física en el mejoramiento de la calidad de vida en el contexto individual, laboral y social, a partir de prácticas básicas de nutrición. | 230101507-03- Ejecutar actividades de acondicionamiento físico orientadas hacia el mejoramiento de la condición física en los contextos productivo y social. | Evidencia de producto:
+Ficha antropométrica de valoración de la condición física.
+GA7-230101507-AA3-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-230101507-AA4 Identificar la higiene postural y pausas activas correctas en el desempeño del área ocupacional de acuerdo con la naturaleza de la función productiva. | 230101507-04- Implementar un plan de ergonomía y pausas activas, según las características de la función productiva. | Evidencia de producto:
+Folleto de lesiones más comunes en el trabajo o vida cotidiana, y la importancia de las pausas activas.
+GA7-230101507-AA4-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-240202501-AA1 - Presentar funciones de su ocupación laboral. | 240202501-06 - Explicar las funciones de su ocupación laboral usando expresiones de acuerdo al nivel requerido por el programa de formación. | Evidencia de conocimiento:
+Documento escrito. 
+GA7-240202501-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-240202501-AA1 - Presentar funciones de su ocupación laboral. | 240202501-06 - Explicar las funciones de su ocupación laboral usando expresiones de acuerdo al nivel requerido por el programa de formación. | Evidencia de producto:
+Video.
+GA7-240202501-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP3. Implementar la infraestructura tecnológica y la seguridad informática, para dar soluciones de gestión. | GA7-240202501-AA1 - Presentar funciones de su ocupación laboral. | 240202501-06 - Explicar las funciones de su ocupación laboral usando expresiones de acuerdo al nivel requerido por el programa de formación. | Evidencia de desempeño:
+Foro.
+GA7-240202501-AA1-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+
+================================================================================
+Fase Evaluación
+================================================================================
+FECHA DE INICIO: | (Fecha de Inicio establecida en el sistema de gestión académica): dd/mm/aaaa
+FECHA DE INICIO DE FORMACIÓN: | (Fecha de Inicio de actividades para el aprendiz): dd/mm/aaaa
+FECHA FIN: | (Fecha Fin establecida en el sistema de gestión académica): dd/mm/aaaa
+ACTIVIDAD DEL PROYECTO | ACTIVIDAD DE APRENDIZAJE | RESULTADO DE APRENDIZAJE | EVIDENCIAS DE APRENDIZAJE | FECHAS DE ENTREGA | FECHAS DE ENTREGA | INSTRUCTOR O ÁREA RESPONSABLE
+ACTIVIDAD DEL PROYECTO | ACTIVIDAD DE APRENDIZAJE | RESULTADO DE APRENDIZAJE | EVIDENCIAS DE APRENDIZAJE | INICIA | FINALIZA | INSTRUCTOR O ÁREA RESPONSABLE
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA8-220501104-AA1 - Comprobar el funcionamiento de los equipos activos y las configuraciones realizadas, para garantizar la disponibilidad de la infraestructura informática. | 220501104-03 - Verificar el funcionamiento de los equipos activos de interconexión, de acuerdo con los requerimientos establecidos. | Evidencia de conocimiento: 
+Taller sobre indicadores y medidas de desempeño de la red.
+GA8-220501104-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA8-220501104-AA1 - Comprobar el funcionamiento de los equipos activos y las configuraciones realizadas, para garantizar la disponibilidad de la infraestructura informática. | 220501104-03 - Verificar el funcionamiento de los equipos activos de interconexión, de acuerdo con los requerimientos establecidos. | Evidencia de producto: 
+Informe sobre las pruebas de conectividad, disponibilidad, rendimiento y calidad de la red.
+GA8-220501104-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA8-220501104-AA2 - Gestionar los equipos activos de interconexión, de acuerdo con los protocolos, estándares y requisitos, que garanticen el cumplimiento al diseño preestablecido. | 220501104-04 - Gestionar los equipos activos de interconexión, para garantizar el funcionamiento de la red. | Evidencia de producto: 
+Informe sobre detección de fallas en el funcionamiento de la red.
+GA8-220501104-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA8-220501107-AA1 - Verificar el funcionamiento de la red inalámbrica configurada y realizar los informes técnicos y ejecutivos pertinentes para este proceso, de acuerdo con los estándares técnicos. | 220501107-04 - Validar que los parámetros de certificación cumplan con estándares y normatividad vigente. | Evidencia de producto: 
+Lista de verificación para validar parámetros de calidad, velocidad de transmisión, ancho de banda, uso de canales y frecuencias de transmisión.
+GA8-220501107-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA8-220601501-AA1 - Identificar estrategias de prevención y control del impacto ambiental de los accidentes y enfermedades laborales, de acuerdo con las políticas organizacionales y el entorno social. | 220601501-01 - Analizar las estrategias para la prevención y control de los impactos ambientales y de los accidentes y enfermedades laborales (ATEL) de acuerdo con las políticas organizacionales y el entorno social. | Evidencia de conocimiento: 
+Análisis de caso de situaciones que se presentan en el contexto ambiental y del SST. 
+GA8-220601501-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA8-220601501-AA2 - Reconocer el desarrollo de las acciones de control de los impactos ambientales, disminución de accidentes y enfermedades laborales, de acuerdo con los planes y programas establecidos por la organización. | 220601501-02 - Implementar estrategias para el control de los impactos ambientales y de los accidentes y enfermedades, de acuerdo con los planes y programas establecidos por la organización. | Evidencia de producto: 
+Diagrama de Ishikawa o Espina de pescado, sobre las estrategias para la prevención y control de los impactos ambientales, accidentes y enfermedades laborales (ATEL).
+GA8-220601501-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA8-220601501-AA3 - Plantear acciones que orienten al equipo de trabajo en los planes o programas ambientales y de SST, de acuerdo con el área de desempeño. | 220601501-03 - Realizar seguimiento y acompañamiento al desarrollo de los planes y programas ambientales y SST, según el área de desempeño. | Evidencia de conocimiento: 
+Mapa mental respecto a los planes y acciones establecidos en medio ambiente y SST. 
+GA8-220601501-AA3-EV01. 
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA8-220601501-AA4 - Plantear propuestas que favorezcan la cultura ambiental responsable, el desarrollo sustentable y el autocuidado, de acuerdo con el contexto productivo y social. | 220601501-04 - Proponer acciones de mejora para el manejo ambiental y el control de la SST, de acuerdo con estrategias de trabajo, colaborativo, cooperativo y coordinado en el contexto productivo y social. | Evidencia de producto: 
+Video expositivo sobre oportunidades de mejora en medio ambiente y SST.
+GA8-220601501-AA4-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA9-220501106-AA1 - Validar servicios implementados, teniendo definidas las necesidades, utilizando diferentes herramientas de testeo y criterios de evaluación. | 220501106-03 - Verificar el funcionamiento de dispositivos de cómputo y servicios de red de acuerdo a políticas de la organización. | Evidencia de producto: 
+Informe sobre detección de fallos en el rendimiento y operación de la solución.
+GA9-220501106-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA9-220501106-AA2 - Declarar e implementar políticas que ofrezcan alta disponibilidad y de acceso a los diferentes servicios existentes en la red, de acuerdo con protocolos técnicos. | 220501106-04 - Gestionar los dispositivos de cómputo y servicios de red para garantizar el funcionamiento de la plataforma tecnológica. | Evidencia de producto: 
+Bitácora de eventos de infraestructura y plataformas.
+GA9-220501106-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA9-220501106-AA2 - Declarar e implementar políticas que ofrezcan alta disponibilidad y de acceso a los diferentes servicios existentes en la red, de acuerdo con protocolos técnicos. | 220501106-04 - Gestionar los dispositivos de cómputo y servicios de red para garantizar el funcionamiento de la plataforma tecnológica. | Evidencia de producto: 
+Informe de actualización de componentes de hardware y software de los equipos de cómputo.
+GA9-220501106-AA2-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA10-220501091-AA1 - Comprobar el funcionamiento del sistema de telefonía y datos implementados en la estructura de red, mediante el uso de herramientas adecuadas. | 220501091-03 - Verificar el funcionamiento de los equipos y software de comunicación de voz sobre IP (VoIP), para validar el cumplimiento de los requerimientos establecidos en el diseño. | Evidencia de producto: 
+Lista de chequeo para verificación de pruebas de funcionamiento de infraestructura de voz y datos.
+GA10-220501091-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA10-220501091-AA2 - Gestionar la solución de comunicaciones unificadas, estableciendo políticas que mantengan disponibles cada uno de los servicios implementados, documentando el desarrollo de procesos, evidencias de errores y su respectiva solución. | 220501091-04 - Gestionar los equipos y software de comunicación de voz sobre IP (VoIP), para garantizar su funcionamiento acorde con los parámetros establecidos en el diseño. | Evidencia de producto: 
+Bitácora de actividades y eventos del sistema de tecnología de VoIP.
+GA10-220501091-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA10-240201529-AA1 - Identificar los componentes del comportamiento emprendedor, conforme a las características emprendedoras, objetivos personales y análisis del entorno. | 240201529-01. Integrar elementos de la cultura emprendedora teniendo en cuenta el perfil personal y el contexto de desarrollo social. | Evidencia de conocimiento:
+Conociendo mi visión. 
+GA10-240201529-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA10-240201529-AA2 - Aplicar herramientas para la toma de decisiones, teniendo en cuenta los problemas planteados. | 240201529-02. Caracterizar la idea de negocio teniendo en cuenta las oportunidades y necesidades del sector productivo y social. | Evidencia de desempeño:
+Taller identificación del problema. 
+GA10-240201529-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA10-240201529-AA3 -Experimentar la capacidad creativa e innovadora, teniendo en cuenta la solución de retos e identificación de oportunidades. | 240201529-03. Estructurar el plan de negocio de acuerdo con las características empresariales y tendencias de mercado. | Evidencia de producto: 
+Prototipo de la solución.
+GA10-240201529-AA3-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA10-240201529-AA3 -Experimentar la capacidad creativa e innovadora, teniendo en cuenta la solución de retos e identificación de oportunidades. | 240201529-03. Estructurar el plan de negocio de acuerdo con las características empresariales y tendencias de mercado. | Evidencia de desempeño:
+Plan de acción. 
+GA10-240201529-AA3-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA10-240201529-AA4 -Relacionar elementos del triángulo de la responsabilidad, acorde con la ejecución de técnicas de negociación. | 240201529-04. Valorar la propuesta de negocio conforme con su estructura y necesidades del sector productivo y social. | Evidencia de producto:
+Taller de negociación y modelo de negocio básico.
+GA10-240201529-AA4-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-220501014-AA1 - Validar el estado de la implementación del sistema de gestión de la seguridad de la información, ajustando y documentando los procesos realizados. | 220501014-03 - Verificar eventos en la infraestructura de red, mediante herramientas y técnicas de análisis de datos que permitan determinar incidentes de seguridad. | Evidencia de producto: 
+Informe de análisis de alertas y mensajes emitidos por los sistemas de detección de intrusos.
+GA11-220501014-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-220501014-AA1 - Validar el estado de la implementación del sistema de gestión de la seguridad de la información, ajustando y documentando los procesos realizados. | 220501014-03 - Verificar eventos en la infraestructura de red, mediante herramientas y técnicas de análisis de datos que permitan determinar incidentes de seguridad. | Evidencia de producto: 
+Lista de chequeo para supervisar la infraestructura y los servicios de red de una organización.
+GA11-220501014-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-220501014-AA2 - Gestionar los dispositivos y procesos de la red establecidos en el sistema de gestión de seguridad de la información, según el plan de seguridad. | 220501014-04 - Gestionar el estado de la seguridad en la red de datos de la organización y su pertinencia según el plan de seguridad. | Evidencia de producto: 
+Informe de hallazgos del análisis de vulnerabilidades y amenazas.
+GA11-220501014-AA2-EV01
+Calificable. | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-220501014-AA2 - Gestionar los dispositivos y procesos de la red establecidos en el sistema de gestión de seguridad de la información, según el plan de seguridad. | 220501014-04 - Gestionar el estado de la seguridad en la red de datos de la organización y su pertinencia según el plan de seguridad. | Evidencia de producto: 
+Informe de monitoreo del estado de la red.
+GA11-220501014-AA2-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA1 - Comparar las condiciones del trabajo en el devenir histórico, de acuerdo con los derechos fundamentales. | 210201501-01 - Reconocer el trabajo como factor de movilidad social y transformación vital con referencia a la fenomenología y a los derechos fundamentales en el trabajo. | Evidencia de conocimiento: 
+Taller.
+GA11-210201501-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA1 - Comparar las condiciones del trabajo en el devenir histórico, de acuerdo con los derechos fundamentales. | 210201501-01 - Reconocer el trabajo como factor de movilidad social y transformación vital con referencia a la fenomenología y a los derechos fundamentales en el trabajo. | Evidencia de desempeño:
+Foro sobre características del trabajo en contexto local. 
+GA11-210201501-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA2 - Reconocer los derechos humanos laborales, con base en el estudio de los derechos humanos y fundamentales en el trabajo. | 210201501-02 - Valorar la importancia de la ciudadanía laboral con base en el estudio de los derechos humanos y fundamentales en el trabajo. | Evidencia de producto: 
+Informe sobre trabajo decente, ciudadanía laboral, derechos individuales y colectivos en el trabajo.
+GA11-210201501-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA2 - Reconocer los derechos humanos laborales, con base en el estudio de los derechos humanos y fundamentales en el trabajo. | 210201501-02 - Valorar la importancia de la ciudadanía laboral con base en el estudio de los derechos humanos y fundamentales en el trabajo. | Evidencia de desempeño: 
+Foro sobre el convenio colectivo del trabajo y la libertad sindical.
+GA11-210201501-AA2-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA2 - Reconocer los derechos humanos laborales, con base en el estudio de los derechos humanos y fundamentales en el trabajo. | 210201501-02 - Valorar la importancia de la ciudadanía laboral con base en el estudio de los derechos humanos y fundamentales en el trabajo. | Evidencia de conocimiento: 
+Gráfico sobre la negociación colectiva.
+GA11-210201501-AA2-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA2 - Reconocer los derechos humanos laborales, con base en el estudio de los derechos humanos y fundamentales en el trabajo. | 210201501-02 - Valorar la importancia de la ciudadanía laboral con base en el estudio de los derechos humanos y fundamentales en el trabajo. | Evidencia de conocimiento: 
+Infografía sobre la huelga.
+GA11-210201501-AA2-EV04.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA3 - Establecer la importancia de los derechos de los pueblos, de la solidaridad y la paz, de acuerdo con los indicadores de desarrollo humano. | 210201501-03 - Practicar los derechos fundamentales en el trabajo de acuerdo con la Constitución Política y los Convenios Internacionales. | Evidencia de conocimiento: 
+Mapa mental violación de derechos del trabajo. 
+GA11-210201501-AA3-EV01. 
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA3 - Establecer la importancia de los derechos de los pueblos, de la solidaridad y la paz, de acuerdo con los indicadores de desarrollo humano. | 210201501-03 - Practicar los derechos fundamentales en el trabajo de acuerdo con la Constitución Política y los Convenios Internacionales. | Evidencia de desempeño: 
+Foro estudio de caso.
+GA11-210201501-AA3-EV02. 
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA3 - Establecer la importancia de los derechos de los pueblos, de la solidaridad y la paz, de acuerdo con los indicadores de desarrollo humano. | 210201501-03 - Practicar los derechos fundamentales en el trabajo de acuerdo con la Constitución Política y los Convenios Internacionales. | Evidencia de conocimiento: 
+Cuadro comparativo sobre el derecho de petición y la acción de tutela.
+GA11-210201501-AA3-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA3 - Establecer la importancia de los derechos de los pueblos, de la solidaridad y la paz, de acuerdo con los indicadores de desarrollo humano. | 210201501-03 - Practicar los derechos fundamentales en el trabajo de acuerdo con la Constitución Política y los Convenios Internacionales. | Evidencia de producto: 
+Texto argumentativo.
+GA11-210201501-AA3-EV04.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA4 - Comprender la importancia de las acciones e instituciones encargadas de la protección de los derechos del trabajo, los pueblos y la naturaleza, según el contexto territorial específico. | 210201501-04 - Participar en acciones solidarias teniendo en cuenta el ejercicio de los derechos humanos, de los pueblos y de la naturaleza. | Evidencia de desempeño: 
+Foro Estado social de derecho.
+GA11-210201501-AA4-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA11-210201501-AA4 - Comprender la importancia de las acciones e instituciones encargadas de la protección de los derechos del trabajo, los pueblos y la naturaleza, según el contexto territorial específico. | 210201501-04 - Participar en acciones solidarias teniendo en cuenta el ejercicio de los derechos humanos, de los pueblos y de la naturaleza. | Evidencia de producto: 
+Presentación. 
+GA11-210201501-AA4-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA12-220501105-AA1 - Administrar la plataforma de monitoreo, establecer políticas que den respuesta a la solución de incidentes y documentar el resultado de los procesos, de acuerdo con las políticas de la organización. | 220501105-03 - Monitorear el funcionamiento de la infraestructura tecnológica de red de acuerdo con políticas y criterios técnicos de la organización. | Evidencia de producto: 
+Lista de verificación del alistamiento y configuración de la plataforma de gestión y monitoreo.
+GA12-220501105-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA12-220501105-AA1 - Administrar la plataforma de monitoreo, establecer políticas que den respuesta a la solución de incidentes y documentar el resultado de los procesos, de acuerdo con las políticas de la organización. | 220501105-04 - Gestionar los recursos tecnológicos, utilizando herramientas de administración y monitoreo. | Evidencia de producto: 
+Lista de verificación del alistamiento y configuración de la plataforma de gestión y monitoreo.
+GA12-220501105-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA12-240201526-AA1 - Diseñar su proyecto de vida, de acuerdo con el reconocimiento de principios y valores éticos. | 240201526-01 - Promover mi dignidad y la del otro a partir de los principios y valores éticos como aporte en la instauración de una cultura de paz. | Evidencia de producto:
+Presentación del proyecto de vida. 
+GA12-240201526-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA12-240201526-AA2 - Reconocer los conceptos sobre la vida en comunidad, teniendo como base las relaciones con el contexto social y el sector productivo de su programa. | 240201526-02 - Establecer relaciones de crecimiento personal y comunitario a partir del bien común como aporte para el desarrollo social. | Evidencia de desempeño:
+Diagrama de sistemas.
+GA12-240201526-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA12-240201526-AA3 - Proponer estrategias para promover el uso racional de los recursos, de acuerdo con criterios de sustentabilidad ética que contribuyan a una cultura de paz. | 240201526-03 - Promover el uso racional de los recursos naturales a partir de criterios de sostenibilidad y sustentabilidad ética y normativa vigente. | Evidencia de producto:
+Estrategia para el uso racional de los recursos naturales. 
+GA12-240201526-AA3-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP4. Gestionar la infraestructura tecnológica y la seguridad para las redes de datos. | GA12-240201526-AA4 - Reflexionar alrededor de acuerdos de paz, teniendo en cuenta el contexto social y la dignidad humana. | 240201526-04 - Contribuir con el fortalecimiento de la cultura de paz a partir de la dignidad humana y las estrategias para la transformación de conflictos. | Evidencia de producto:
+Solución del caso. 
+GA12-240201526-AA4-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+
+================================================================================
+Fase Planeación
+================================================================================
+FECHA DE INICIO: | (Fecha de Inicio establecida en el sistema de gestión académica): dd/mm/aaaa
+FECHA DE INICIO DE FORMACIÓN: | (Fecha de Inicio de actividades para el aprendiz): dd/mm/aaaa
+FECHA FIN: | (Fecha Fin establecida en el sistema de gestión académica): dd/mm/aaaa
+ACTIVIDAD DEL PROYECTO | ACTIVIDAD DE APRENDIZAJE | RESULTADO DE APRENDIZAJE | EVIDENCIAS DE APRENDIZAJE | FECHAS DE ENTREGA | FECHAS DE ENTREGA | INSTRUCTOR O ÁREA RESPONSABLE
+ACTIVIDAD DEL PROYECTO | ACTIVIDAD DE APRENDIZAJE | RESULTADO DE APRENDIZAJE | EVIDENCIAS DE APRENDIZAJE | INICIA | FINALIZA | INSTRUCTOR O ÁREA RESPONSABLE
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-220501104-AA1 - Diseñar la topología de red que distribuya los equipos activos de interconexión, de acuerdo con las normas internacionales. | 220501104-01 - Planificar la implementación de la arquitectura de la red según el diseño establecido. | Evidencia de conocimiento: 
+Taller con interpretación de planos. 
+GA2-220501104-AA1-EV01. 
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-220501104-AA1 - Diseñar la topología de red que distribuya los equipos activos de interconexión, de acuerdo con las normas internacionales. | 220501104-01 - Planificar la implementación de la arquitectura de la red según el diseño establecido. | Evidencia de producto: 
+Video expositivo sobre las topologías estudiadas.
+GA2-220501104-AA1-EV02. 
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-220501107-AA1 - Diseñar la topología física de la red para distribuir los equipos inalámbricos, que cumplan con los requerimientos de funcionamiento, según la normativa. | 220501107-01 - Planificar la implementación de los componentes inalámbricos en la red de datos, de acuerdo con especificaciones del diseño y normatividad vigente. | Evidencia de producto: 
+Lista de chequeo para inspección de infraestructura física.
+GA2-220501107-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-220501107-AA1 - Diseñar la topología física de la red para distribuir los equipos inalámbricos, que cumplan con los requerimientos de funcionamiento, según la normativa. | 220501107-01 - Planificar la implementación de los componentes inalámbricos en la red de datos, de acuerdo con especificaciones del diseño y normatividad vigente. | Evidencia de producto: 
+Informe de planeación de implementación de red inalámbrica.
+GA2-220501107-AA1-EV02. Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-240201528-AA1 - Desarrollar procedimientos aritméticos aplicados a la resolución de problemáticas de la vida cotidiana. | 240201528-01 - Identificar modelos matemáticos de acuerdo con los requerimientos del problema planteado en contextos sociales y productivo. | Evidencia de conocimiento:
+Cuestionario: procedimientos aritméticos. 
+GA2-240201528-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-240201528-AA2 - Resolver problemas de aplicación de situaciones de los contextos productivo y social, a partir del uso de herramientas matemáticas. | 240201528-02 - Plantear problemas matemáticos a partir de situaciones generadas en el contexto social y productivo. | Evidencia de desempeño:
+Informe: planteamiento de ecuación.
+GA2-240201528-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-240201528-AA3 - Realizar un muestreo estadístico acerca de una situación contextualizada en la vida diaria. | 240201528-03 - Resolver problemas matemáticos a partir de situaciones generadas en el contexto social y productivo. | Evidencia de producto:
+Video: sustentación.
+GA2-240201528-AA3-EV01. 
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-240201528-AA4 - Sistematizar el cálculo de perímetros, áreas y volúmenes de figuras planas y sólidos regulares, a partir de un algoritmo. | 240201528-04 - Proponer acciones de mejora frente a los resultados de los procedimientos matemáticos de acuerdo con el problema planteado. | Evidencia de desempeño: 
+Algoritmo para el cálculo de áreas y volúmenes.
+GA2-240201528-AA4-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-240202501-AA1 - Reportar opiniones sobre situaciones cotidianas y laborales, pasadas y futuras, en contextos sociales. | 240202501-02 - Intercambiar opiniones sobre situaciones cotidianas y laborales actuales, pasadas y futuras en contextos sociales orales y escritos. | Evidencia de conocimiento:
+Cuestionario.
+GA2-240202501-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-240202501-AA1 - Reportar opiniones sobre situaciones cotidianas y laborales, pasadas y futuras, en contextos sociales. | 240202501-02 - Intercambiar opiniones sobre situaciones cotidianas y laborales actuales, pasadas y futuras en contextos sociales orales y escritos. | Evidencia de desempeño:
+Vídeo entrevista virtual.
+ GA2-240202501-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-240202501-AA1 - Reportar opiniones sobre situaciones cotidianas y laborales, pasadas y futuras, en contextos sociales. | 240202501-02 - Intercambiar opiniones sobre situaciones cotidianas y laborales actuales, pasadas y futuras en contextos sociales orales y escritos. | Evidencia de producto:
+Crónica.
+GA2-240202501-AA1-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-240202501-AA2 - Expresar opiniones sobre situaciones cotidianas y laborales actuales, pasadas y futuras, en contextos sociales. | 240202501-02 - Intercambiar opiniones sobre situaciones cotidianas y laborales actuales, pasadas y futuras en contextos sociales orales y escritos. | Evidencia de conocimiento:
+Cuestionario.
+GA2-240202501-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-240202501-AA2 - Expresar opiniones sobre situaciones cotidianas y laborales actuales, pasadas y futuras, en contextos sociales. | 240202501-02 - Intercambiar opiniones sobre situaciones cotidianas y laborales actuales, pasadas y futuras en contextos sociales orales y escritos. | Evidencia de desempeño:
+Video presentación de un lugar turístico. 
+GA2-240202501-AA2-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA2-240202501-AA2 - Expresar opiniones sobre situaciones cotidianas y laborales actuales, pasadas y futuras, en contextos sociales. | 240202501-02 - Intercambiar opiniones sobre situaciones cotidianas y laborales actuales, pasadas y futuras en contextos sociales orales y escritos. | Evidencia de producto:
+Documento escrito.
+GA2-240202501-AA2-EV03.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA3-220501091-AA1 - Preparar los dispositivos de red, sistemas operativos y servicios de red para la implementación de comunicaciones unificadas, de acuerdo con el diseño y la normatividad. | 220501091-01 - Planificar la implementación de los equipos y software de comunicación de voz sobre IP (VoIP), según el diseño establecido. | Evidencia de producto: 
+Listado de dispositivos y recursos de VoIP con sus características. 
+GA3-220501091-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA3-220501091-AA1 - Preparar los dispositivos de red, sistemas operativos y servicios de red para la implementación de comunicaciones unificadas, de acuerdo con el diseño y la normatividad. | 220501091-01 - Planificar la implementación de los equipos y software de comunicación de voz sobre IP (VoIP), según el diseño establecido. | Evidencia de producto: 
+Informe con las posibles soluciones (ventajas y desventajas) de VoIP. 
+GA3-220501091-AA1-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA3-220501105-AA1 - Implementar plataformas de monitoreo, de acuerdo con la infraestructura tecnológica y los servicios de red implementados. | 220501105-01 - Planificar la implementación de plataformas de gestión y monitoreo según parámetros definidos en la solución. | Evidencia de desempeño: 
+Lista de chequeo de los elementos mínimos necesarios para la implementación de la plataforma de monitoreo.
+GA3-220501105-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA3-220201501-AA1 - Reconocer los principios y leyes físicas aplicados al contexto productivo. | 220201501-01 - Identificar los principios y leyes de la física en la solución de problemas de acuerdo al contexto productivo. | Evidencia de conocimiento: 
+Cuestionario. 
+GA3-220201501-AA1-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA3-220201501-AA2 - Interpretar y explicar los cambios físicos de los cuerpos, según las teorías, leyes y principios. | 220201501-02 - Solucionar problemas asociados con el sector productivo con base en los principios y leyes de la física. | Evidencia de producto: 
+Video expositivo sobre experimento de aplicación.
+GA3-220201501-AA2-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA3-220201501-AA3 - Describir las manifestaciones de energía, explicando las variables que intervienen, según el contexto social y productivo. | 220201501-03 - Verificar las transformaciones físicas de la materia utilizando herramientas tecnológicas. | Evidencia de producto: 
+Informe de laboratorio.
+GA3-220201501-AA3-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA3-220201501-AA4 - Realizar experimentos que permitan interpretar y argumentar fenómenos, de acuerdo con los principios y leyes de la física, conforme con el contexto productivo. | 220201501-04 - Proponer acciones de mejora en los procesos productivos de acuerdo con los principios y leyes de la física. | Evidencia de producto: 
+Video expositivo sobre experimento de aplicación.
+GA3-220201501-AA4-EV01.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
+AP2. Plantear la infraestructura de interconexión cableada e inalámbrica de las redes de datos, según requerimientos de funcionamiento. | GA3-220201501-AA4 - Realizar experimentos que permitan interpretar y argumentar fenómenos, de acuerdo con los principios y leyes de la física, conforme con el contexto productivo. | 220201501-04 - Proponer acciones de mejora en los procesos productivos de acuerdo con los principios y leyes de la física. | Evidencia de producto: 
+Bitácora de procesos desarrollados en la competencia.
+GA3-220201501-AA4-EV02.
+Calificable | dd/mm/aaaa | dd/mm/aaaa | “Nombre del Instructor o área responsable de la evidencia”
