@@ -374,33 +374,8 @@ export const PlaneacionSemanalView: React.FC = () => {
           migrated = true;
         }
 
-        // Validate weekDateOverrides: remove any that deviate more than 8 days
-        // from the natural 7-day progression — these are accidental overrides.
-        const rawOverrides = { ...(fichaData.weekDateOverrides ?? {}) };
-        let cleanedOverrides = rawOverrides;
-        if (Object.keys(rawOverrides).length > 0) {
-          const validOverrides: Record<number, string> = {};
-          let expectedMs = BASE_DATE_UTC;
-          let removedBad = false;
-          for (let w = 0; w < TOTAL_WEEKS; w++) {
-            if (rawOverrides[w]) {
-              const oMs = parseIso(rawOverrides[w]);
-              if (Math.abs(oMs - expectedMs) <= 8 * MS_PER_DAY) {
-                validOverrides[w] = rawOverrides[w];
-                expectedMs = oMs + 7 * MS_PER_DAY;
-              } else {
-                removedBad = true;
-                expectedMs += 7 * MS_PER_DAY;
-              }
-            } else {
-              expectedMs += 7 * MS_PER_DAY;
-            }
-          }
-          if (removedBad) { cleanedOverrides = validOverrides; migrated = true; }
-        }
-
         if (migrated) {
-          allPlan[fichaId ?? ''] = { ...fichaData, transversalCells: cells, weekDateOverrides: cleanedOverrides };
+          allPlan[fichaId ?? ''] = { ...fichaData, transversalCells: cells };
           savePlaneacionSemanal(allPlan);
         }
       }
