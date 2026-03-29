@@ -390,15 +390,18 @@ export const PlaneacionSemanalView: React.FC = () => {
     }
   }, [datePickerWeek]);
 
-  // Close date picker on any click outside the popover
+  // Close date picker on any click outside the popover.
+  // Guard: skip if the native date-input calendar is still open (input focused).
   useEffect(() => {
     if (datePickerWeek === null) return;
     const handler = (e: MouseEvent) => {
+      // Native browser calendar clicks land outside the DOM — don't close while input is focused
+      if (dateInputRef.current && dateInputRef.current === document.activeElement) return;
       if (datePopoverRef.current && datePopoverRef.current.contains(e.target as Node)) return;
       setDatePickerWeek(null);
     };
-    const t = setTimeout(() => document.addEventListener('click', handler), 0);
-    return () => { clearTimeout(t); document.removeEventListener('click', handler); };
+    const t = setTimeout(() => document.addEventListener('mousedown', handler), 0);
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
   }, [datePickerWeek]);
 
   // Close phase editor on any click outside its popover
@@ -518,7 +521,8 @@ export const PlaneacionSemanalView: React.FC = () => {
   const setWeekDateOverride = useCallback((weekIdx: number, isoDate: string) => {
     const overrides = { ...(planeacion.weekDateOverrides ?? {}), [weekIdx]: isoDate };
     persist({ ...planeacion, weekDateOverrides: overrides });
-    setDatePickerWeek(null);
+    // Do NOT close the picker here — let the user close it manually so the
+    // native calendar doesn't get dismissed mid-interaction.
   }, [planeacion, persist]);
 
   const clearWeekDateOverride = useCallback((weekIdx: number) => {
@@ -673,7 +677,7 @@ export const PlaneacionSemanalView: React.FC = () => {
         </aside>
 
         {/* ── Grid ── */}
-        <div className="flex-1 overflow-auto" onClick={() => { setOpenDurationCard(null); setDatePickerWeek(null); }}>
+        <div className="flex-1 overflow-auto" onClick={() => { setOpenDurationCard(null); if (dateInputRef.current !== document.activeElement) setDatePickerWeek(null); }}>
           <table className="border-collapse text-xs select-none"
             style={{ minWidth: CELL_W * effectiveTotalWeeks + LABEL_W }}>
             <colgroup>
@@ -898,7 +902,7 @@ export const PlaneacionSemanalView: React.FC = () => {
               {TRANSVERSAL_ROWS.map(row => (
                 <tr key={row.key} onMouseEnter={() => setHoveredRow(row.key)} onMouseLeave={() => setHoveredRow(null)}>
                   <td className="sticky left-0 z-20 border-b border-r border-gray-200 font-semibold px-2 text-[11px] align-middle transition-colors"
-                    style={{ minHeight: 60, color: row.color, backgroundColor: hoveredRow === row.key ? row.color + '28' : 'white' }}>
+                    style={{ minHeight: 60, color: row.textColor, backgroundColor: hoveredRow === row.key ? row.color + '28' : 'white' }}>
                     {row.label}
                   </td>
                   {planRow(row.key, false).map(({ weekIdx: w, span }) => {
@@ -923,7 +927,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                         <div className="flex flex-col gap-1">
                           {labels.map((lbl, idx) => {
                             const key = lblKey(row.key, lbl);
-                            return <TransLabel key={idx} label={lbl} color={row.color}
+                            return <TransLabel key={idx} label={lbl} color={row.color} textColor={row.textColor}
                               cardKey={key}
                               duration={getDuration(key)}
                               hidden={isHidden(key)}
