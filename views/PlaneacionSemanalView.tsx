@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, GripVertical, X } from 'lucide-react';
 import { GradeActivity, PlaneacionSemanalFichaData } from '../types';
-import { getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
+import { deleteGradeActivity, getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
 
 // ─── Phase structure (matches PLANEACION SEMANAL GRD.xlsx exactly) ──────────
 // Inducción=2  Análisis=10  Planeación=24  Ejecución=40  Evaluación=30  → 106 total
@@ -678,7 +678,11 @@ export const PlaneacionSemanalView: React.FC = () => {
                   <div className="space-y-1">
                     {acts.map(a => (
                       <SidebarCard key={a.id} activity={a}
-                        onDragStart={() => onDragStartActivity(a.id)} isDragging={dragActivityId === a.id} />
+                        onDragStart={() => onDragStartActivity(a.id)} isDragging={dragActivityId === a.id}
+                        onDelete={() => {
+                          if (!window.confirm(`¿Eliminar "${a.detail?.trim() || a.name}" de la base de datos?`)) return;
+                          deleteGradeActivity(a.id);
+                        }} />
                     ))}
                   </div>
                 </div>
@@ -987,19 +991,27 @@ export const PlaneacionSemanalView: React.FC = () => {
 };
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
-interface SidebarCardProps { activity: GradeActivity; onDragStart: () => void; isDragging: boolean; }
-const SidebarCard: React.FC<SidebarCardProps> = ({ activity, onDragStart, isDragging }) => {
+interface SidebarCardProps { activity: GradeActivity; onDragStart: () => void; isDragging: boolean; onDelete: () => void; }
+const SidebarCard: React.FC<SidebarCardProps> = ({ activity, onDragStart, isDragging, onDelete }) => {
   const { color, text: tc } = getActivityAreaStyle(activity.name);
   const displayName = stripEvidenciaPrefix(activity.detail?.trim() || activity.name);
   const displayCode = activity.detail?.trim() ? activity.name : null;
   return (
     <div draggable onDragStart={onDragStart}
-      className="flex flex-col gap-0.5 rounded px-1.5 py-1.5 cursor-grab active:cursor-grabbing border transition-opacity"
+      className="group flex flex-col gap-0.5 rounded px-1.5 py-1.5 cursor-grab active:cursor-grabbing border transition-opacity relative"
       style={{ backgroundColor: color + '33', borderColor: color + '99', opacity: isDragging ? 0.4 : 1 }}
       title={`${displayName}\n${displayCode ?? ''}`}>
       <div className="flex items-start gap-1">
         <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-50" style={{ color: tc }} />
-        <span className="text-[10px] font-medium leading-tight line-clamp-3" style={{ color: tc }}>{displayName}</span>
+        <span className="text-[10px] font-medium leading-tight line-clamp-3 pr-4" style={{ color: tc }}>{displayName}</span>
+        <button
+          onClick={e => { e.stopPropagation(); onDelete(); }}
+          onMouseDown={e => e.stopPropagation()}
+          className="absolute top-1 right-1 hidden group-hover:flex items-center justify-center w-4 h-4 rounded bg-red-500 hover:bg-red-600 text-white flex-shrink-0"
+          title="Eliminar evidencia"
+        >
+          <X className="w-2.5 h-2.5" />
+        </button>
       </div>
       {displayCode && (
         <span className="text-[9px] font-mono leading-none truncate pl-4" style={{ color: tc, opacity: 0.6 }}>{displayCode}</span>
