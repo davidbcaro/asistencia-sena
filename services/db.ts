@@ -28,6 +28,7 @@ const STORAGE_KEYS = {
   CANCELACION_DETAILS: 'asistenciapro_cancelacion_details',
   RETIRO_DETAILS: 'asistenciapro_retiro_details',
   HIDDEN_GRADE_ACTIVITIES: 'asistenciapro_hidden_grade_activities',
+  DELETED_GRADE_ACTIVITY_IDS: 'asistenciapro_deleted_grade_activity_ids',
   PLANEACION_SEMANAL: 'asistenciapro_planeacion_semanal',
   CRONOGRAMA_GENERAL: 'asistenciapro_cronograma_general',
   MANUAL_FINALS: 'asistenciapro_manual_finals',
@@ -64,6 +65,7 @@ const APP_DATA_SYNC_KEYS: Record<string, string> = {
   sofia_juicio_history:        STORAGE_KEYS.SOFIA_JUICIO_HISTORY,
   sofia_student_estados:       STORAGE_KEYS.SOFIA_STUDENT_ESTADOS,
   hidden_grade_activities:     STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES,
+  deleted_grade_activity_ids:  STORAGE_KEYS.DELETED_GRADE_ACTIVITY_IDS,
   planeacion_semanal:          STORAGE_KEYS.PLANEACION_SEMANAL,
   cronograma_general:          STORAGE_KEYS.CRONOGRAMA_GENERAL,
 };
@@ -85,6 +87,7 @@ const ADDITIVE_MERGE_KEYS = new Set([
   'grades',
   'grade_activities',
   'hidden_grade_activities',
+  'deleted_grade_activity_ids',
   'planeacion_semanal',
   'cronograma_general',
 ]);
@@ -164,8 +167,8 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
       return Array.from(map.values());
     }
 
-    if (key === 'hidden_grade_activities') {
-      // Array<string> of activity IDs — union: if hidden on any device, stays hidden
+    if (key === 'hidden_grade_activities' || key === 'deleted_grade_activity_ids') {
+      // Array<string> of activity IDs — union: accumulate across all devices
       const cloudArr = Array.isArray(cloud) ? (cloud as string[]) : [];
       const localArr = Array.isArray(local) ? (local as string[]) : [];
       return Array.from(new Set([...cloudArr, ...localArr]));
@@ -1343,7 +1346,9 @@ export const getGradeActivities = (): GradeActivity[] => {
     if (migrated.length !== parsed.length || migrated.some((a: any, i: number) => a.phase !== parsed[i]?.phase)) {
         localStorage.setItem(STORAGE_KEYS.GRADE_ACTIVITIES, JSON.stringify(migrated));
     }
-    return migrated;
+    // Filter out tombstoned (deleted) activity IDs so deletions propagate across devices
+    const deleted = new Set(safeParseJSON<string[]>(localStorage.getItem(STORAGE_KEYS.DELETED_GRADE_ACTIVITY_IDS), []));
+    return deleted.size > 0 ? migrated.filter((a: GradeActivity) => !deleted.has(a.id)) : migrated;
 };
 
 export const saveGradeActivities = (activities: GradeActivity[]) => {
@@ -1367,6 +1372,14 @@ export const updateGradeActivity = (updated: GradeActivity) => {
 };
 
 export const deleteGradeActivity = (activityId: string) => {
+    // Add to tombstone list so other devices filter it out on sync
+    const existing = safeParseJSON<string[]>(localStorage.getItem(STORAGE_KEYS.DELETED_GRADE_ACTIVITY_IDS), []);
+    if (!existing.includes(activityId)) {
+        const updated = [...existing, activityId];
+        localStorage.setItem(STORAGE_KEYS.DELETED_GRADE_ACTIVITY_IDS, JSON.stringify(updated));
+        _markLocalWrite(STORAGE_KEYS.DELETED_GRADE_ACTIVITY_IDS);
+        callSaveAppData('deleted_grade_activity_ids', updated);
+    }
     const current = getGradeActivities().filter(a => a.id !== activityId);
     saveGradeActivities(current);
     const grades = getGrades().filter(g => g.activityId !== activityId);
