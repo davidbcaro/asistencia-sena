@@ -194,7 +194,8 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
 
     if (key === 'planeacion_semanal') {
       // Record<fichaId, PlaneacionSemanalFichaData>
-      // Deep merge per fichaId: local wins per individual assignment/cell key
+      // Per fichaId: the version with the newer updatedAt wins entirely (cloud is source of truth).
+      // Falls back to local wins when neither side has a timestamp (legacy data).
       type FichaData = {
         tecnicaAssignments?: Record<string, number>;
         transversalCells?: Record<string, string[]>;
@@ -202,22 +203,23 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
         hiddenCards?: string[];
         weekDateOverrides?: Record<number, string>;
         phaseWeekCounts?: Record<string, number>;
+        updatedAt?: string;
       };
       const cloudRec = (cloud && typeof cloud === 'object' && !Array.isArray(cloud))
         ? (cloud as Record<string, FichaData>) : {};
       const localRec = (local && typeof local === 'object' && !Array.isArray(local))
         ? (local as Record<string, FichaData>) : {};
-      const merged: Record<string, FichaData> = { ...cloudRec };
-      Object.entries(localRec).forEach(([fichaId, localFicha]) => {
-        const cloudFicha = merged[fichaId] ?? {};
-        merged[fichaId] = {
-          tecnicaAssignments: { ...(cloudFicha.tecnicaAssignments ?? {}), ...(localFicha.tecnicaAssignments ?? {}) },
-          transversalCells:   { ...(cloudFicha.transversalCells   ?? {}), ...(localFicha.transversalCells   ?? {}) },
-          cardDurations:      { ...(cloudFicha.cardDurations       ?? {}), ...(localFicha.cardDurations       ?? {}) },
-          hiddenCards:        Array.from(new Set([...(cloudFicha.hiddenCards ?? []), ...(localFicha.hiddenCards ?? [])])),
-          weekDateOverrides:  { ...(cloudFicha.weekDateOverrides  ?? {}), ...(localFicha.weekDateOverrides  ?? {}) },
-          phaseWeekCounts:    { ...(cloudFicha.phaseWeekCounts    ?? {}), ...(localFicha.phaseWeekCounts    ?? {}) },
-        };
+      const merged: Record<string, FichaData> = {};
+      const allFichaIds = new Set([...Object.keys(cloudRec), ...Object.keys(localRec)]);
+      allFichaIds.forEach(fId => {
+        const cloudFicha = cloudRec[fId];
+        const localFicha = localRec[fId];
+        if (!localFicha) { merged[fId] = cloudFicha!; return; }
+        if (!cloudFicha) { merged[fId] = localFicha; return; }
+        // Both exist: newer updatedAt wins entirely
+        const cloudTs = cloudFicha.updatedAt ?? '';
+        const localTs = localFicha.updatedAt ?? '';
+        merged[fId] = cloudTs > localTs ? cloudFicha : localFicha;
       });
       return merged;
     }

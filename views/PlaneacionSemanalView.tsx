@@ -347,7 +347,7 @@ export const PlaneacionSemanalView: React.FC = () => {
     const allPlan = getPlaneacionSemanal();
     if (!allPlan[fichaId ?? '']) {
       // First visit: seed with defaults
-      const def = buildDefaultData();
+      const def = { ...buildDefaultData(), updatedAt: new Date().toISOString() };
       allPlan[fichaId ?? ''] = def;
       savePlaneacionSemanal(allPlan);
       setPlaneacion(def);
@@ -426,9 +426,10 @@ export const PlaneacionSemanalView: React.FC = () => {
 
   // ── Persist ─────────────────────────────────────────────────────────────
   const persist = useCallback((updated: PlaneacionSemanalFichaData) => {
-    setPlaneacion(updated);
+    const stamped = { ...updated, updatedAt: new Date().toISOString() };
+    setPlaneacion(stamped);
     const all = getPlaneacionSemanal();
-    all[fichaId ?? ''] = updated;
+    all[fichaId ?? ''] = stamped;
     savePlaneacionSemanal(all);
   }, [fichaId]);
 

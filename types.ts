@@ -101,6 +101,8 @@ export interface PlaneacionSemanalFichaData {
   weekDateOverrides: Record<number, string>;
   /** phaseName → custom week count (overrides PHASE_SEGMENTS default) */
   phaseWeekCounts: Record<string, number>;
+  /** ISO timestamp of the last save — used to resolve conflicts across devices (newer wins) */
+  updatedAt?: string;
 }
 
 /** fichaId → planeación data for that ficha */
