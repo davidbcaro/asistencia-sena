@@ -70,10 +70,10 @@ serve(async (req) => {
         });
       }
 
-      const rows = entries.map(({ key, value }) => ({
+      const rows = entries.map(({ key, value, updated_at }: { key: string; value: unknown; updated_at?: string }) => ({
         key,
         value_json: value,
-        updated_at: new Date().toISOString(),
+        updated_at: updated_at || new Date().toISOString(),
       }));
 
       const { error } = await supabase

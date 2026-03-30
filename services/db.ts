@@ -255,15 +255,22 @@ const _cleanupCorruptLocalStorage = (): void => {
 const _cloudTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
 /**
+ * Maps cloud key → ISO timestamp of the last upload we sent.
+ * Used by the Realtime listener to detect our own echo: if the incoming
+ * updated_at matches what we uploaded, it's our own echo — ignore it.
+ * Updates from OTHER devices will have a different updated_at → applied immediately.
+ */
+const _lastUploadAt: Record<string, string> = {};
+
+/**
  * Timestamp (ms) of the last LOCAL write for each storageKey.
- * Used by the Realtime listener to avoid overwriting freshly-written local data
- * with a stale echo from the cloud (race-condition guard).
- * Grace window: 15 seconds after a local write, Realtime events for that key are ignored.
+ * Kept as a short-lived fallback guard (2 s) for the upload debounce window
+ * before _lastUploadAt is set inside the setTimeout.
  */
 const _localLastWrite: Record<string, number> = {};
-const REALTIME_GRACE_MS = 15_000;
+const REALTIME_GRACE_MS = 2_000;
 
-/** Mark a storageKey as recently written locally so the Realtime echo is ignored. */
+/** Mark a storageKey as recently written locally. */
 const _markLocalWrite = (storageKey: string): void => {
   _localLastWrite[storageKey] = Date.now();
 };
@@ -286,6 +293,10 @@ const callSaveAppData = (cloudKey: string, value: unknown): void => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     if (!edgeUrl || !anonKey) return;
+    // Generate the timestamp here (inside the timer) so it matches exactly
+    // what the Edge Function will store — used later to detect our own echo.
+    const uploadedAt = new Date().toISOString();
+    _lastUploadAt[cloudKey] = uploadedAt;
     try {
       const res = await fetch(`${edgeUrl}/save-app-data`, {
         method: 'POST',
@@ -294,7 +305,7 @@ const callSaveAppData = (cloudKey: string, value: unknown): void => {
           'Authorization': `Bearer ${anonKey}`,
           'apikey': anonKey,
         },
-        body: JSON.stringify({ key: cloudKey, value }),
+        body: JSON.stringify({ key: cloudKey, value, updated_at: uploadedAt }),
       });
       if (!res.ok) {
         const txt = await res.text();
@@ -1896,16 +1907,21 @@ export const subscribeToRealtime = () => {
             { event: '*', schema: 'public', table: 'app_data' },
             (payload: any) => {
                 const newRow = payload.new ?? {};
-                const { key, value_json } = newRow as { key: string; value_json: unknown };
+                const { key, value_json, updated_at: incomingUpdatedAt } = newRow as { key: string; value_json: unknown; updated_at?: string };
                 if (!key) return;
                 const storageKey = APP_DATA_SYNC_KEYS[key];
                 if (!storageKey) return;
-                // Grace-period guard: ignore Realtime echoes for keys written locally
-                // in the last REALTIME_GRACE_MS ms to prevent overwriting fresh user data
-                // with a stale cloud echo (race condition with uploadLocalAppDataToCloud).
+                // Echo detection: if this update's updated_at matches the timestamp we
+                // just uploaded, it's our own Realtime echo — ignore it.
+                // Updates from OTHER devices have a different updated_at → always apply.
+                if (incomingUpdatedAt && _lastUploadAt[key] === incomingUpdatedAt) {
+                    console.log(`[Realtime] Ignoring own echo for key: ${key}`);
+                    return;
+                }
+                // Short fallback grace for the debounce window (before _lastUploadAt is set)
                 const lastWrite = _localLastWrite[storageKey] ?? 0;
                 if (Date.now() - lastWrite < REALTIME_GRACE_MS) {
-                    console.log(`[Realtime] Ignoring app_data echo for recently-written key: ${key}`);
+                    console.log(`[Realtime] Ignoring app_data update during debounce window: ${key}`);
                     return;
                 }
                 const currentLocal = localStorage.getItem(storageKey);
