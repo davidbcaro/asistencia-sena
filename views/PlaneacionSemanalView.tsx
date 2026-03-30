@@ -341,8 +341,16 @@ export const PlaneacionSemanalView: React.FC = () => {
     if (f) setFicha({ id: f.id, code: f.code, program: f.program });
 
     const all = getGradeActivities();
-    // Incluir seeds globales (group === '') + actividades propias del ficha
-    setActivities(f ? all.filter(a => a.group === f.code || a.group === '') : []);
+    // Incluir seeds globales (group === '') + actividades propias del ficha; deduplicar por nombre+grupo
+    const filtered = f ? all.filter(a => a.group === f.code || a.group === '') : [];
+    const seen = new Set<string>();
+    const deduped = filtered.filter(a => {
+      const key = `${a.name.trim().toLowerCase()}::${a.group}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    setActivities(deduped);
 
     const allPlan = getPlaneacionSemanal();
     if (!allPlan[fichaId ?? '']) {
@@ -663,8 +671,9 @@ export const PlaneacionSemanalView: React.FC = () => {
               if (!seg) return null;
               return (
                 <div key={phase}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1 px-1" style={{ color: seg.color }}>
-                    {phase.replace('Fase ', '')}
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1 px-1 flex items-center justify-between" style={{ color: seg.color }}>
+                    <span>{phase.replace('Fase ', '')}</span>
+                    <span className="font-normal opacity-70">({acts.length})</span>
                   </p>
                   <div className="space-y-1">
                     {acts.map(a => (
