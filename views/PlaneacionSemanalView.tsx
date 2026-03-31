@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, GripVertical, X } from 'lucide-react';
+import { ArrowLeft, Download, Eye, EyeOff, GripVertical, X } from 'lucide-react';
 import { GradeActivity, PlaneacionSemanalFichaData } from '../types';
 import { deleteGradeActivity, getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
 
@@ -630,6 +630,167 @@ export const PlaneacionSemanalView: React.FC = () => {
   const phaseForActivity = (a: GradeActivity) =>
     PHASE_SEGMENTS.find(s => s.phase === a.phase) ?? PHASE_SEGMENTS[1];
 
+  // ── Excel Export ─────────────────────────────────────────────────────────────
+  const exportToExcel = useCallback(async () => {
+    const { default: ExcelJS } = await import('exceljs');
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'AsistenciaPro';
+    const ws = wb.addWorksheet('Planeación Semanal', {
+      pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, paperSize: 9 },
+    });
+
+    // hex → ExcelJS ARGB (opaque)
+    const toARGB = (hex: string) => 'FF' + hex.replace('#', '').toUpperCase();
+    // lighten a hex by mixing with white (amount 0–1, higher = lighter)
+    const lighten = (hex: string, amount = 0.75) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return 'FF' +
+        Math.round(r + (255 - r) * amount).toString(16).padStart(2, '0').toUpperCase() +
+        Math.round(g + (255 - g) * amount).toString(16).padStart(2, '0').toUpperCase() +
+        Math.round(b + (255 - b) * amount).toString(16).padStart(2, '0').toUpperCase();
+    };
+
+    const WEEK_OFFSET = 2; // col 1 = label, cols 2..N = weeks
+    const durations = planeacion.cardDurations ?? {};
+    const hidden = new Set(planeacion.hiddenCards ?? []);
+
+    // Replicate planRow span logic to know which weeks are merged
+    const buildSpans = (rowKey: string, isTecnica: boolean) => {
+      const consumedW = new Set<number>();
+      const cells: Array<{ weekIdx: number; span: 1 | 2 }> = [];
+      for (const w of weeks) {
+        if (consumedW.has(w)) continue;
+        const labels = planeacion.transversalCells[`${rowKey}::${w}`] ?? [];
+        const assigned = isTecnica ? activities.filter(a => planeacion.tecnicaAssignments[a.id] === w) : [];
+        const hasSpan2 =
+          labels.some(lbl => (durations[`lbl::${rowKey}::${lbl}`] ?? 1) === 2) ||
+          assigned.some(a => (durations[`act::${a.id}`] ?? 1) === 2);
+        const span: 1 | 2 = hasSpan2 ? 2 : 1;
+        cells.push({ weekIdx: w, span });
+        if (span === 2) consumedW.add(w + 1);
+      }
+      return cells;
+    };
+
+    // ── ROW 1: Phase headers ──────────────────────────────────────────────────
+    const r1 = ws.addRow([null]);
+    r1.height = 22;
+    r1.getCell(1).value = 'Fase / Semana';
+    r1.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+    r1.getCell(1).font = { bold: true, size: 9 };
+    r1.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    let colCursor = WEEK_OFFSET;
+    for (const span of phaseSpans) {
+      const startCol = colCursor;
+      const endCol = colCursor + span.count - 1;
+      if (span.count > 1) ws.mergeCells(1, startCol, 1, endCol);
+      const cell = r1.getCell(startCol);
+      cell.value = span.phase.replace('Fase Inducción', 'Inducción').replace('Fase ', '') + ` (${span.count}s)`;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(span.color) } };
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      colCursor += span.count;
+    }
+
+    // ── ROW 2: Week numbers ───────────────────────────────────────────────────
+    const r2 = ws.addRow(['Semana', ...weeks.map(w => weekLabel(w))]);
+    r2.height = 16;
+    r2.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+    r2.getCell(1).font = { bold: true, size: 8 };
+    r2.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    weeks.forEach(w => {
+      const cell = r2.getCell(w + WEEK_OFFSET);
+      const seg = effectiveWeekPhaseMap[w];
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.7) } };
+      cell.font = { bold: true, size: 7, color: { argb: 'FF374151' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // ── ROW 3: Técnica ────────────────────────────────────────────────────────
+    const r3 = ws.addRow([null]);
+    r3.height = 40;
+    r3.getCell(1).value = 'Técnica';
+    r3.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(TECNICA_COLOR) } };
+    r3.getCell(1).font = { bold: true, size: 9, color: { argb: 'FF1F2937' } };
+    r3.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+    for (const { weekIdx: w, span } of buildSpans('Técnica', true)) {
+      const startCol = w + WEEK_OFFSET;
+      if (span === 2 && w + 1 < effectiveTotalWeeks) ws.mergeCells(3, startCol, 3, startCol + 1);
+      const assigned = activities.filter(a => planeacion.tecnicaAssignments[a.id] === w);
+      const textLabels = (planeacion.transversalCells[`Técnica::${w}`] ?? []).filter(lbl => !hidden.has(`lbl::Técnica::${lbl}`));
+      const allContent = [
+        ...assigned.map(a => stripEvidenciaPrefix(a.detail?.trim() || a.name)),
+        ...textLabels,
+      ];
+      const cell = r3.getCell(startCol);
+      if (allContent.length > 0) {
+        cell.value = allContent.join('\n');
+        const { color } = assigned.length > 0 ? getActivityAreaStyle(assigned[0].name) : { color: TECNICA_COLOR };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(color) } };
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 8 };
+      } else {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(TECNICA_COLOR, 0.5) } };
+      }
+      cell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
+    }
+
+    // ── ROWS 4+: Transversal rows ─────────────────────────────────────────────
+    for (const row of TRANSVERSAL_ROWS) {
+      const exRow = ws.addRow([null]);
+      exRow.height = 28;
+      const rowNum = exRow.number;
+      exRow.getCell(1).value = row.label;
+      exRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(row.color) } };
+      exRow.getCell(1).font = { bold: true, color: { argb: toARGB(row.textColor) }, size: 9 };
+      exRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+      for (const { weekIdx: w, span } of buildSpans(row.key, false)) {
+        const startCol = w + WEEK_OFFSET;
+        if (span === 2 && w + 1 < effectiveTotalWeeks) ws.mergeCells(rowNum, startCol, rowNum, startCol + 1);
+        const labels = (planeacion.transversalCells[`${row.key}::${w}`] ?? []).filter(lbl => !hidden.has(`lbl::${row.key}::${lbl}`));
+        const cell = exRow.getCell(startCol);
+        if (labels.length > 0) {
+          cell.value = labels.join('\n');
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(row.color, 0.7) } };
+          cell.font = { size: 8, color: { argb: toARGB(row.textColor) } };
+        }
+        cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+      }
+    }
+
+    // ── Column widths ─────────────────────────────────────────────────────────
+    ws.getColumn(1).width = 24;
+    weeks.forEach((_, idx) => { ws.getColumn(idx + WEEK_OFFSET).width = 11; });
+
+    // ── Borders ───────────────────────────────────────────────────────────────
+    ws.eachRow(row => {
+      row.eachCell({ includeEmpty: true }, cell => {
+        cell.border = {
+          top:    { style: 'thin', color: { argb: 'FFD1D5DB' } },
+          left:   { style: 'thin', color: { argb: 'FFD1D5DB' } },
+          bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+          right:  { style: 'thin', color: { argb: 'FFD1D5DB' } },
+        };
+      });
+    });
+
+    // ── Freeze first row (phases) + label column ──────────────────────────────
+    ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 2 }];
+
+    // ── Download ──────────────────────────────────────────────────────────────
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `planeacion_semanal_${ficha.code}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [ficha, weeks, phaseSpans, effectiveWeekPhaseMap, effectiveTotalWeeks, activities, planeacion, weekLabel]);
+
   if (!ficha) return <div className="flex items-center justify-center h-64 text-gray-400">Cargando…</div>;
 
   return (
@@ -640,7 +801,7 @@ export const PlaneacionSemanalView: React.FC = () => {
           className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div>
+        <div className="flex-1">
           <h2 className="text-lg font-bold text-gray-900 leading-tight">
             Planeación Semanal — Ficha {ficha.code}
           </h2>
@@ -648,6 +809,14 @@ export const PlaneacionSemanalView: React.FC = () => {
             {ficha.program} · {effectiveTotalWeeks} semanas · {activities.length} evidencia(s) técnica(s)
           </p>
         </div>
+        <button
+          onClick={exportToExcel}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium transition-colors shadow-sm"
+          title="Exportar planeación a Excel"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Exportar Excel
+        </button>
       </div>
 
       {/* ── Body ── */}
