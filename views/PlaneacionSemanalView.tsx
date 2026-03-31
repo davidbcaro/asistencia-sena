@@ -641,7 +641,8 @@ export const PlaneacionSemanalView: React.FC = () => {
 
     // hex → ExcelJS ARGB (opaque)
     const toARGB = (hex: string) => 'FF' + hex.replace('#', '').toUpperCase();
-    // lighten a hex by mixing with white (amount 0–1, higher = lighter)
+
+    // Lighten hex by mixing with white (amount 0–1, higher = lighter)
     const lighten = (hex: string, amount = 0.75) => {
       const r = parseInt(hex.slice(1, 3), 16);
       const g = parseInt(hex.slice(3, 5), 16);
@@ -650,6 +651,16 @@ export const PlaneacionSemanalView: React.FC = () => {
         Math.round(r + (255 - r) * amount).toString(16).padStart(2, '0').toUpperCase() +
         Math.round(g + (255 - g) * amount).toString(16).padStart(2, '0').toUpperCase() +
         Math.round(b + (255 - b) * amount).toString(16).padStart(2, '0').toUpperCase();
+    };
+
+    // WCAG relative luminance → pick white or dark text for guaranteed contrast
+    const contrastARGB = (hex: string): string => {
+      const toLinear = (c: number) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      const r = toLinear(parseInt(hex.slice(1, 3), 16) / 255);
+      const g = toLinear(parseInt(hex.slice(3, 5), 16) / 255);
+      const b = toLinear(parseInt(hex.slice(5, 7), 16) / 255);
+      const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      return lum > 0.179 ? 'FF1F2937' : 'FFFFFFFF'; // dark text on light bg, white on dark
     };
 
     const WEEK_OFFSET = 2; // col 1 = label, cols 2..N = weeks
@@ -674,12 +685,15 @@ export const PlaneacionSemanalView: React.FC = () => {
       return cells;
     };
 
+    // Compact date: "DD/MM/YYYY" → "DD/MM" for column headers
+    const shortDate = (full: string) => full.slice(0, 5);
+
     // ── ROW 1: Phase headers ──────────────────────────────────────────────────
     const r1 = ws.addRow([null]);
     r1.height = 22;
     r1.getCell(1).value = 'Fase / Semana';
     r1.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
-    r1.getCell(1).font = { bold: true, size: 9 };
+    r1.getCell(1).font = { bold: true, size: 9, color: { argb: 'FF374151' } };
     r1.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     let colCursor = WEEK_OFFSET;
     for (const span of phaseSpans) {
@@ -694,18 +708,20 @@ export const PlaneacionSemanalView: React.FC = () => {
       colCursor += span.count;
     }
 
-    // ── ROW 2: Week numbers ───────────────────────────────────────────────────
-    const r2 = ws.addRow(['Semana', ...weeks.map(w => weekLabel(w))]);
-    r2.height = 16;
+    // ── ROW 2: Week label + start date (two lines) ────────────────────────────
+    const r2 = ws.addRow(['Semana\nFecha inicio']);
+    r2.height = 28;
     r2.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
-    r2.getCell(1).font = { bold: true, size: 8 };
-    r2.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    r2.getCell(1).font = { bold: true, size: 8, color: { argb: 'FF374151' } };
+    r2.getCell(1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     weeks.forEach(w => {
       const cell = r2.getCell(w + WEEK_OFFSET);
       const seg = effectiveWeekPhaseMap[w];
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.7) } };
+      // Two lines: "S3" on top, "12/01" below
+      cell.value = `${weekLabel(w)}\n${shortDate(weekDates.starts[w])}`;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.78) } };
       cell.font = { bold: true, size: 7, color: { argb: 'FF374151' } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     });
 
     // ── ROW 3: Técnica ────────────────────────────────────────────────────────
@@ -713,7 +729,7 @@ export const PlaneacionSemanalView: React.FC = () => {
     r3.height = 40;
     r3.getCell(1).value = 'Técnica';
     r3.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(TECNICA_COLOR) } };
-    r3.getCell(1).font = { bold: true, size: 9, color: { argb: 'FF1F2937' } };
+    r3.getCell(1).font = { bold: true, size: 9, color: { argb: contrastARGB(TECNICA_COLOR) } };
     r3.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
     for (const { weekIdx: w, span } of buildSpans('Técnica', true)) {
       const startCol = w + WEEK_OFFSET;
@@ -729,10 +745,9 @@ export const PlaneacionSemanalView: React.FC = () => {
         cell.value = allContent.join('\n');
         const { color } = assigned.length > 0 ? getActivityAreaStyle(assigned[0].name) : { color: TECNICA_COLOR };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(color) } };
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 8 };
-      } else {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(TECNICA_COLOR, 0.5) } };
+        cell.font = { bold: true, color: { argb: contrastARGB(color) }, size: 8 };
       }
+      // Empty cells: no fill — leave white
       cell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
     }
 
@@ -741,9 +756,10 @@ export const PlaneacionSemanalView: React.FC = () => {
       const exRow = ws.addRow([null]);
       exRow.height = 28;
       const rowNum = exRow.number;
+      // Label cell: full color with proper contrast text
       exRow.getCell(1).value = row.label;
       exRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(row.color) } };
-      exRow.getCell(1).font = { bold: true, color: { argb: toARGB(row.textColor) }, size: 9 };
+      exRow.getCell(1).font = { bold: true, color: { argb: contrastARGB(row.color) }, size: 9 };
       exRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
       for (const { weekIdx: w, span } of buildSpans(row.key, false)) {
         const startCol = w + WEEK_OFFSET;
@@ -752,16 +768,19 @@ export const PlaneacionSemanalView: React.FC = () => {
         const cell = exRow.getCell(startCol);
         if (labels.length > 0) {
           cell.value = labels.join('\n');
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(row.color, 0.7) } };
-          cell.font = { size: 8, color: { argb: toARGB(row.textColor) } };
+          // Light background (70% white mix) with proper contrast text
+          const lightBg = lighten(row.color, 0.72);
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightBg } };
+          cell.font = { size: 8, color: { argb: contrastARGB('#' + lightBg.slice(2)) } };
         }
+        // Empty cells: no fill — leave white
         cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
       }
     }
 
     // ── Column widths ─────────────────────────────────────────────────────────
     ws.getColumn(1).width = 24;
-    weeks.forEach((_, idx) => { ws.getColumn(idx + WEEK_OFFSET).width = 11; });
+    weeks.forEach((_, idx) => { ws.getColumn(idx + WEEK_OFFSET).width = 10; });
 
     // ── Borders ───────────────────────────────────────────────────────────────
     ws.eachRow(row => {
@@ -775,7 +794,7 @@ export const PlaneacionSemanalView: React.FC = () => {
       });
     });
 
-    // ── Freeze first row (phases) + label column ──────────────────────────────
+    // ── Freeze phase row + week row + label column ────────────────────────────
     ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 2 }];
 
     // ── Download ──────────────────────────────────────────────────────────────
@@ -789,7 +808,7 @@ export const PlaneacionSemanalView: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [ficha, weeks, phaseSpans, effectiveWeekPhaseMap, effectiveTotalWeeks, activities, planeacion, weekLabel]);
+  }, [ficha, weeks, phaseSpans, effectiveWeekPhaseMap, effectiveTotalWeeks, activities, planeacion, weekLabel, weekDates]);
 
   if (!ficha) return <div className="flex items-center justify-center h-64 text-gray-400">Cargando…</div>;
 
