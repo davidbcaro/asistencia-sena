@@ -299,6 +299,10 @@ export const PlaneacionSemanalView: React.FC = () => {
   const [dragActivityId, setDragActivityId] = useState<string | null>(null);
   const [dragLabel,      setDragLabel]      = useState<{ rowKey: string; weekIdx: number; labelIdx: number; text: string } | null>(null);
   const [dragOverCell,   setDragOverCell]   = useState<string | null>(null);
+  // Refs mirror the drag state so event handlers always read the latest value
+  // even if React hasn't re-rendered between dragstart and the first dragover.
+  const dragActivityIdRef = useRef<string | null>(null);
+  const dragLabelRef      = useRef<{ rowKey: string; weekIdx: number; labelIdx: number; text: string } | null>(null);
 
   const [editingCell,       setEditingCell]       = useState<string | null>(null);
   const [editingValue,      setEditingValue]      = useState('');
@@ -458,37 +462,49 @@ export const PlaneacionSemanalView: React.FC = () => {
   }, [unassigned]);
 
   // ── DnD ─────────────────────────────────────────────────────────────────
-  const onDragStartActivity = (id: string) => { setDragActivityId(id); setDragLabel(null); };
-  const onDragStartLabel    = (rowKey: string, weekIdx: number, labelIdx: number, text: string) => {
-    setDragLabel({ rowKey, weekIdx, labelIdx, text });
+  const onDragStartActivity = (id: string) => {
+    dragActivityIdRef.current = id;
+    dragLabelRef.current = null;
+    setDragActivityId(id);
+    setDragLabel(null);
+  };
+  const onDragStartLabel = (rowKey: string, weekIdx: number, labelIdx: number, text: string) => {
+    const v = { rowKey, weekIdx, labelIdx, text };
+    dragLabelRef.current = v;
+    dragActivityIdRef.current = null;
+    setDragLabel(v);
     setDragActivityId(null);
   };
   const onDragLeave = () => setDragOverCell(null);
 
   const onDragOverCell = (e: React.DragEvent, rowKey: string, weekIdx: number) => {
     const ck = cellKey(rowKey, weekIdx);
-    // Allow drop if: activity dragging (only Técnica row) or label from same row
-    if (dragActivityId && rowKey === 'Técnica') { e.preventDefault(); setDragOverCell(ck); return; }
-    if (dragLabel && dragLabel.rowKey === rowKey) { e.preventDefault(); setDragOverCell(ck); return; }
+    // Use refs so the check is always fresh regardless of render timing
+    if (dragActivityIdRef.current && rowKey === 'Técnica') { e.preventDefault(); setDragOverCell(ck); return; }
+    if (dragLabelRef.current && dragLabelRef.current.rowKey === rowKey) { e.preventDefault(); setDragOverCell(ck); return; }
   };
 
   const onDropToCell = (e: React.DragEvent, rowKey: string, toWeekIdx: number) => {
     e.preventDefault();
     setDragOverCell(null);
+    const actId = dragActivityIdRef.current;
+    const lbl   = dragLabelRef.current;
+    dragActivityIdRef.current = null;
+    dragLabelRef.current = null;
     // Activity drop → only Técnica row
-    if (dragActivityId && rowKey === 'Técnica') {
-      persist({ ...planeacion, tecnicaAssignments: { ...planeacion.tecnicaAssignments, [dragActivityId]: toWeekIdx } });
+    if (actId && rowKey === 'Técnica') {
+      persist({ ...planeacion, tecnicaAssignments: { ...planeacion.tecnicaAssignments, [actId]: toWeekIdx } });
       setDragActivityId(null);
       return;
     }
     // Label drop → same row, different week
-    if (dragLabel && dragLabel.rowKey === rowKey) {
-      if (dragLabel.weekIdx === toWeekIdx) { setDragLabel(null); return; }
-      const fromCk = cellKey(dragLabel.rowKey, dragLabel.weekIdx);
+    if (lbl && lbl.rowKey === rowKey) {
+      if (lbl.weekIdx === toWeekIdx) { setDragLabel(null); return; }
+      const fromCk = cellKey(lbl.rowKey, lbl.weekIdx);
       const toCk   = cellKey(rowKey, toWeekIdx);
       const fromArr = [...(planeacion.transversalCells[fromCk] ?? [])];
-      fromArr.splice(dragLabel.labelIdx, 1);
-      const toArr = [...(planeacion.transversalCells[toCk] ?? []), dragLabel.text];
+      fromArr.splice(lbl.labelIdx, 1);
+      const toArr = [...(planeacion.transversalCells[toCk] ?? []), lbl.text];
       const cells = { ...planeacion.transversalCells };
       if (fromArr.length === 0) delete cells[fromCk]; else cells[fromCk] = fromArr;
       cells[toCk] = toArr;
@@ -500,9 +516,12 @@ export const PlaneacionSemanalView: React.FC = () => {
   const onDropToPanel = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverCell(null);
-    if (!dragActivityId) return;
+    const actId = dragActivityIdRef.current;
+    dragActivityIdRef.current = null;
+    dragLabelRef.current = null;
+    if (!actId) return;
     const ta = { ...planeacion.tecnicaAssignments };
-    delete ta[dragActivityId];
+    delete ta[actId];
     persist({ ...planeacion, tecnicaAssignments: ta });
     setDragActivityId(null);
   };
@@ -685,8 +704,8 @@ export const PlaneacionSemanalView: React.FC = () => {
       return cells;
     };
 
-    // Compact date: "DD/MM/YYYY" → "DD/MM" for column headers
-    const shortDate = (full: string) => full.slice(0, 5);
+    // Compact date: "DD/MM/YYYY" → "DD/MM/AA" for column headers
+    const shortDate = (full: string) => full.slice(0, 5) + '/' + full.slice(8, 10);
 
     // ── ROW 1: Phase headers ──────────────────────────────────────────────────
     const r1 = ws.addRow([null]);
@@ -708,20 +727,34 @@ export const PlaneacionSemanalView: React.FC = () => {
       colCursor += span.count;
     }
 
-    // ── ROW 2: Week label + start date (two lines) ────────────────────────────
-    const r2 = ws.addRow(['Semana\nFecha inicio']);
-    r2.height = 28;
+    // ── ROW 2: Week labels ────────────────────────────────────────────────────
+    const r2 = ws.addRow(['Semana']);
+    r2.height = 18;
     r2.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
     r2.getCell(1).font = { bold: true, size: 8, color: { argb: 'FF374151' } };
-    r2.getCell(1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    r2.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     weeks.forEach(w => {
       const cell = r2.getCell(w + WEEK_OFFSET);
       const seg = effectiveWeekPhaseMap[w];
-      // Two lines: "S3" on top, "12/01" below
-      cell.value = `${weekLabel(w)}\n${shortDate(weekDates.starts[w])}`;
+      cell.value = weekLabel(w);
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.78) } };
       cell.font = { bold: true, size: 7, color: { argb: 'FF374151' } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // ── ROW 3: Start dates ────────────────────────────────────────────────────
+    const r3dates = ws.addRow(['Fecha']);
+    r3dates.height = 18;
+    r3dates.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+    r3dates.getCell(1).font = { bold: true, size: 8, color: { argb: 'FF374151' } };
+    r3dates.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    weeks.forEach(w => {
+      const cell = r3dates.getCell(w + WEEK_OFFSET);
+      const seg = effectiveWeekPhaseMap[w];
+      cell.value = shortDate(weekDates.starts[w]);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.78) } };
+      cell.font = { size: 7, color: { argb: 'FF374151' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
     });
 
     // ── ROW 3: Técnica ────────────────────────────────────────────────────────
@@ -733,7 +766,7 @@ export const PlaneacionSemanalView: React.FC = () => {
     r3.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
     for (const { weekIdx: w, span } of buildSpans('Técnica', true)) {
       const startCol = w + WEEK_OFFSET;
-      if (span === 2 && w + 1 < effectiveTotalWeeks) ws.mergeCells(3, startCol, 3, startCol + 1);
+      if (span === 2 && w + 1 < effectiveTotalWeeks) ws.mergeCells(4, startCol, 4, startCol + 1);
       const assigned = activities.filter(a => planeacion.tecnicaAssignments[a.id] === w);
       const textLabels = (planeacion.transversalCells[`Técnica::${w}`] ?? []).filter(lbl => !hidden.has(`lbl::Técnica::${lbl}`));
       const allContent = [
@@ -795,7 +828,7 @@ export const PlaneacionSemanalView: React.FC = () => {
     });
 
     // ── Freeze phase row + week row + label column ────────────────────────────
-    ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 2 }];
+    ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
 
     // ── Download ──────────────────────────────────────────────────────────────
     const buffer = await wb.xlsx.writeBuffer();
@@ -1185,7 +1218,7 @@ const SidebarCard: React.FC<SidebarCardProps> = ({ activity, onDragStart, isDrag
   const displayName = stripEvidenciaPrefix(activity.detail?.trim() || activity.name);
   const displayCode = activity.detail?.trim() ? activity.name : null;
   return (
-    <div draggable onDragStart={onDragStart}
+    <div draggable onDragStart={e => { e.dataTransfer.setData('text/plain', ''); onDragStart(); }}
       className="group flex flex-col gap-0.5 rounded px-1.5 py-1.5 cursor-grab active:cursor-grabbing border transition-opacity relative"
       style={{ backgroundColor: color + '33', borderColor: color + '99', opacity: isDragging ? 0.4 : 1 }}
       title={`${displayName}\n${displayCode ?? ''}`}>
@@ -1239,7 +1272,7 @@ const GridCard: React.FC<GridCardProps> = ({
   return (
   <div
     draggable
-    onDragStart={e => { e.stopPropagation(); onDragStart(); }}
+    onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/plain', ''); onDragStart(); }}
     className="relative flex flex-col gap-0.5 rounded px-2 py-1.5 cursor-grab active:cursor-grabbing border group w-full transition-opacity"
     style={{ backgroundColor: color + '22', borderColor: tc + '99', opacity: hidden ? 0.3 : isDragging ? 0.35 : 1 }}
     title={`${displayName}${displayCode ? '\n' + displayCode : ''}`}
@@ -1320,7 +1353,7 @@ const TransLabel: React.FC<TransLabelProps> = ({
   return (
   <div
     draggable
-    onDragStart={e => { e.stopPropagation(); onDragStart(); }}
+    onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/plain', ''); onDragStart(); }}
     className="relative flex flex-col gap-0.5 rounded px-2 py-1.5 group cursor-grab active:cursor-grabbing w-full transition-opacity"
     style={{ backgroundColor: color + '28', border: `1px solid ${tc}99`, opacity: hidden ? 0.3 : isDragging ? 0.3 : 1 }}
     title={label}
