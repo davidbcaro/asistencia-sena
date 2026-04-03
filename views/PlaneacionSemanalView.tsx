@@ -66,7 +66,7 @@ const TECNICA_COLOR = '#FFE600'; // Amarillo brillante — Técnica row
 
 const TRANSVERSAL_ROWS = [
   { key: 'TICs',              label: "TIC's",              color: '#8CC63F', textColor: '#2E4A0E' },
-  { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#FF1E1E', textColor: '#8B0000' },
+  { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#FF1E1E', textColor: '#FFFFFF' },
   { key: 'Matemáticas',       label: 'Matemáticas',        color: '#D9C4B8', textColor: '#4A3728' },
   { key: 'Comunicación',      label: 'Comunicación / Ética / Derechos', color: '#3F6A94', textColor: '#1E3A5F' },
   { key: 'Investigación',     label: 'Investigación',      color: '#C04A00', textColor: '#7A2E00' },
@@ -237,7 +237,7 @@ const COMPETENCY_TO_AREA: Record<string, string> = {
 const AREA_STYLES: Record<string, { color: string; text: string }> = {
   Técnica:           { color: '#FFE600', text: '#7A6C00' },
   TICs:              { color: '#8CC63F', text: '#2E4A0E' },
-  Bilingüismo:       { color: '#FF1E1E', text: '#8B0000' },
+  Bilingüismo:       { color: '#FF1E1E', text: '#FFFFFF' },
   Matemáticas:       { color: '#D9C4B8', text: '#4A3728' },
   Comunicación:      { color: '#3F6A94', text: '#1E3A5F' },
   Investigación:     { color: '#C04A00', text: '#7A2E00' },
@@ -868,9 +868,8 @@ export const PlaneacionSemanalView: React.FC = () => {
         const cell = exRow.getCell(startCol);
         if (allContent.length > 0) {
           cell.value = allContent.join('\n');
-          const lightBg = lighten(row.color, 0.72);
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightBg } };
-          cell.font = { size: 8, color: { argb: contrastARGB('#' + lightBg.slice(2)) } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(row.color) } };
+          cell.font = { size: 8, color: { argb: contrastARGB(row.color) } };
         }
         // Empty cells: no fill — leave white
         cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
