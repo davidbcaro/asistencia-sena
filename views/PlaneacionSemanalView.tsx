@@ -66,7 +66,7 @@ const TECNICA_COLOR = '#FFE600'; // Amarillo brillante — Técnica row
 
 const TRANSVERSAL_ROWS = [
   { key: 'TICs',              label: "TIC's",              color: '#8CC63F', textColor: '#2E4A0E' },
-  { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#FF1E1E', textColor: '#FFFFFF' },
+  { key: 'Bilingüismo',       label: 'Bilingüismo',        color: '#FF1E1E', textColor: '#8B0000' },
   { key: 'Matemáticas',       label: 'Matemáticas',        color: '#D9C4B8', textColor: '#4A3728' },
   { key: 'Comunicación',      label: 'Comunicación / Ética / Derechos', color: '#3F6A94', textColor: '#1E3A5F' },
   { key: 'Investigación',     label: 'Investigación',      color: '#C04A00', textColor: '#7A2E00' },
@@ -237,7 +237,7 @@ const COMPETENCY_TO_AREA: Record<string, string> = {
 const AREA_STYLES: Record<string, { color: string; text: string }> = {
   Técnica:           { color: '#FFE600', text: '#7A6C00' },
   TICs:              { color: '#8CC63F', text: '#2E4A0E' },
-  Bilingüismo:       { color: '#FF1E1E', text: '#FFFFFF' },
+  Bilingüismo:       { color: '#FF1E1E', text: '#8B0000' },
   Matemáticas:       { color: '#D9C4B8', text: '#4A3728' },
   Comunicación:      { color: '#3F6A94', text: '#1E3A5F' },
   Investigación:     { color: '#C04A00', text: '#7A2E00' },
@@ -705,7 +705,7 @@ export const PlaneacionSemanalView: React.FC = () => {
       const g = toLinear(parseInt(hex.slice(3, 5), 16) / 255);
       const b = toLinear(parseInt(hex.slice(5, 7), 16) / 255);
       const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      return lum > 0.179 ? 'FF1F2937' : 'FFFFFFFF'; // dark text on light bg, white on dark
+      return lum > 0.23 ? 'FF1F2937' : 'FFFFFFFF'; // dark text on light bg, white on dark
     };
 
     const WEEK_OFFSET = 2; // col 1 = label, cols 2..N = weeks
