@@ -780,7 +780,7 @@ export const PlaneacionSemanalView: React.FC = () => {
     });
 
     // ── ROW 3: Start dates ────────────────────────────────────────────────────
-    const r3dates = ws.addRow(['Fecha']);
+    const r3dates = ws.addRow(['Fecha inicio']);
     r3dates.height = 18;
     r3dates.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
     r3dates.getCell(1).font = { bold: true, size: 8, color: { argb: 'FF374151' } };
@@ -790,7 +790,7 @@ export const PlaneacionSemanalView: React.FC = () => {
       const col = w + WEEK_OFFSET;
       const cell = r3dates.getCell(col);
       const seg = effectiveWeekPhaseMap[w];
-      // First week or explicit override → fixed date; otherwise formula =PREV+7
+      // First week or explicit override → fixed date; otherwise formula =PREV_START+7
       if (i === 0 || overrides[w]) {
         cell.value = parseDdMmYyyy(weekDates.starts[w]);
       } else {
@@ -802,7 +802,24 @@ export const PlaneacionSemanalView: React.FC = () => {
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
     });
 
-    // ── ROW 3: Técnica ────────────────────────────────────────────────────────
+    // ── ROW 4: End dates (start + 6) ─────────────────────────────────────────
+    const r4dates = ws.addRow(['Fecha fin']);
+    r4dates.height = 18;
+    r4dates.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+    r4dates.getCell(1).font = { bold: true, size: 8, color: { argb: 'FF374151' } };
+    r4dates.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    weeks.forEach(w => {
+      const col = w + WEEK_OFFSET;
+      const cell = r4dates.getCell(col);
+      const seg = effectiveWeekPhaseMap[w];
+      cell.value = { formula: `=${colLetter(col)}3+6` };
+      cell.numFmt = 'DD/MM/YYYY';
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.85) } };
+      cell.font = { size: 7, color: { argb: 'FF374151' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // ── ROW 5: Técnica ────────────────────────────────────────────────────────
     const r3 = ws.addRow([null]);
     r3.height = 40;
     r3.getCell(1).value = 'Técnica';
@@ -811,7 +828,7 @@ export const PlaneacionSemanalView: React.FC = () => {
     r3.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
     for (const { weekIdx: w, span } of buildSpans('Técnica', true)) {
       const startCol = w + WEEK_OFFSET;
-      if (span === 2 && w + 1 < effectiveTotalWeeks) ws.mergeCells(4, startCol, 4, startCol + 1);
+      if (span === 2 && w + 1 < effectiveTotalWeeks) ws.mergeCells(5, startCol, 5, startCol + 1);
       const assigned = activities.filter(a => planeacion.tecnicaAssignments[a.id] === w);
       const textLabels = (planeacion.transversalCells[`Técnica::${w}`] ?? []).filter(lbl => !hidden.has(`lbl::Técnica::${lbl}`));
       const allContent = [
@@ -877,7 +894,7 @@ export const PlaneacionSemanalView: React.FC = () => {
     });
 
     // ── Freeze phase row + week row + label column ────────────────────────────
-    ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
+    ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 4 }];
 
     // ── Download ──────────────────────────────────────────────────────────────
     const buffer = await wb.xlsx.writeBuffer();
