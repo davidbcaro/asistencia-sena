@@ -32,6 +32,7 @@ const STORAGE_KEYS = {
   PLANEACION_SEMANAL: 'asistenciapro_planeacion_semanal',
   CRONOGRAMA_GENERAL: 'asistenciapro_cronograma_general',
   MANUAL_FINALS: 'asistenciapro_manual_finals',
+  MANUAL_PHASE_TOTALS: 'asistenciapro_manual_phase_totals',
 };
 
 const DB_EVENT_NAME = 'asistenciapro-storage-update';
@@ -1737,6 +1738,16 @@ export const getManualFinals = (): ManualFinals => {
 };
 export const saveManualFinals = (data: ManualFinals) => {
     localStorage.setItem(STORAGE_KEYS.MANUAL_FINALS, JSON.stringify(data));
+    notifyChange();
+};
+
+// Manual Phase Totals (A / D / -)
+export const getManualPhaseTotals = (): ManualFinals => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.MANUAL_PHASE_TOTALS) || '{}'); }
+    catch { return {}; }
+};
+export const saveManualPhaseTotals = (data: ManualFinals) => {
+    localStorage.setItem(STORAGE_KEYS.MANUAL_PHASE_TOTALS, JSON.stringify(data));
     notifyChange();
 };
 

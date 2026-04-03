@@ -34,6 +34,8 @@ import {
   getEstadoStepperTooltip,
   getManualFinals,
   saveManualFinals,
+  getManualPhaseTotals,
+  saveManualPhaseTotals,
   type ManualFinals,
 } from '../services/db';
 import type { EvidenceCompMapData, EvCompEntry } from '../services/db';
@@ -516,6 +518,8 @@ export const CalificacionesView: React.FC = () => {
   const [rapColumns, setRapColumns] = useState<Record<string, string[]>>({});
   const [juiciosEvaluativos, setJuiciosEvaluativos] = useState<Record<string, Record<string, 'orange' | 'green'>>>({});
   const [manualFinals, setManualFinals] = useState<ManualFinals>({});
+  const [manualPhaseTotals, setManualPhaseTotals] = useState<ManualFinals>({});
+  const [pendingDetailsStudent, setPendingDetailsStudent] = useState<{ studentId: string; name: string; group?: string } | null>(null);
   const [rapManagerOpen, setRapManagerOpen] = useState(false);
   const [rapNewName, setRapNewName] = useState('');
   const [rapNewDetail, setRapNewDetail] = useState('');
@@ -602,6 +606,7 @@ export const CalificacionesView: React.FC = () => {
     setRapColumns(loadedRapColumns);
     setJuiciosEvaluativos(loadedJuicios);
     setManualFinals(getManualFinals());
+    setManualPhaseTotals(getManualPhaseTotals());
     setEvidenceCompMap(getEvidenceCompMap());
     setHiddenActivityIds(new Set(getHiddenGradeActivityIds()));
     if (loadedFichas.length > 0 && selectedFichaRef.current === '') {
@@ -1343,6 +1348,52 @@ export const CalificacionesView: React.FC = () => {
     }
     setManualFinals(updated);
     saveManualFinals(updated);
+  };
+
+  /** Key for storing manual phase total overrides per student. */
+  const getPhaseTotalKey = (studentGroup: string | undefined, phase: string): string => {
+    const groupKey = (showAllFichasColumns && studentGroup) ? studentGroup : (selectedFicha || studentGroup || '');
+    return `${groupKey}::PT::${phase}`;
+  };
+
+  const getManualPhaseTotal = (studentId: string, phase: string, studentGroup?: string): 'A' | 'D' | '' => {
+    const key = getPhaseTotalKey(studentGroup, phase);
+    const v = (manualPhaseTotals[key] || {})[studentId];
+    return v === 'A' || v === 'D' ? v : '';
+  };
+
+  const handlePhaseTotalClick = (studentId: string, phase: string, studentGroup?: string) => {
+    const key = getPhaseTotalKey(studentGroup, phase);
+    const current = (manualPhaseTotals[key] || {})[studentId];
+    const next: 'A' | 'D' | undefined =
+      current === undefined ? 'A' : current === 'A' ? 'D' : undefined;
+    const updated = { ...manualPhaseTotals };
+    if (next === undefined) {
+      const { [studentId]: _, ...rest } = (updated[key] || {});
+      updated[key] = rest;
+    } else {
+      updated[key] = { ...(updated[key] || {}), [studentId]: next };
+    }
+    setManualPhaseTotals(updated);
+    saveManualPhaseTotals(updated);
+  };
+
+  /** Returns the list of activities pending for a student (not graded or letter D). */
+  const getPendingEvidencesForStudent = (studentId: string, studentGroup?: string) => {
+    const countableActivities = visibleActivities.filter(a => !hiddenActivityIds.has(a.id));
+    return countableActivities
+      .map(activity => {
+        const resolvedActivity = activitiesByCanonicalAndFicha
+          ? (activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get(studentGroup || '')
+             ?? activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get('')
+             ?? activity)
+          : activity;
+        const grade = gradeMap.get(`${studentId}-${resolvedActivity.id}`);
+        if (!grade) return { activity, grade: null as null, reason: 'missing' as const };
+        if (grade.letter !== 'A') return { activity, grade, reason: 'failed' as const };
+        return null;
+      })
+      .filter((x): x is { activity: GradeActivity; grade: GradeEntry | null; reason: 'missing' | 'failed' } => x !== null);
   };
 
   const buildReportData = () => {
@@ -2887,6 +2938,8 @@ export const CalificacionesView: React.FC = () => {
                   {visiblePhaseGroups.map(({ phase, activities }) => {
                     const phColor = PHASE_HEADER_COLORS[phase];
                     const phaseTotal = getPhaseLetterTotal(student.id, activities, student.group);
+                    const manualPT = getManualPhaseTotal(student.id, phase, student.group);
+                    const displayPT = manualPT || phaseTotal;
                     return (
                       <React.Fragment key={`phase-data-${phase}`}>
                         {activities.map(activity => {
@@ -2915,20 +2968,23 @@ export const CalificacionesView: React.FC = () => {
                             </td>
                           );
                         })}
-                        {/* TOTAL cell */}
+                        {/* TOTAL cell — clickable to manually override: computed → A → D → computed */}
                         <td
-                          className="px-2 py-2 text-center font-bold text-xs border-r border-l border-gray-200 align-middle whitespace-nowrap"
+                          className="px-2 py-2 text-center font-bold text-xs border-r border-l border-gray-200 align-middle whitespace-nowrap cursor-pointer select-none"
                           style={{
                             height: TABLE_ROW_HEIGHT_PX,
                             maxHeight: TABLE_ROW_HEIGHT_PX,
-                            ...(phaseTotal === 'A'
+                            ...(displayPT === 'A'
                               ? { backgroundColor: '#16a34a', color: '#fff' }
-                              : phaseTotal === 'D'
+                              : displayPT === 'D'
                               ? { backgroundColor: '#dc2626', color: '#fff' }
                               : { backgroundColor: '#f9fafb', color: '#9ca3af' }),
+                            ...(manualPT ? { outline: '2px solid rgba(255,255,255,0.5)', outlineOffset: '-3px' } : {}),
                           }}
+                          onClick={() => handlePhaseTotalClick(student.id, phase, student.group)}
+                          title={`TOTAL ${phase} — Clic para cambiar manualmente: A → D → (automático)`}
                         >
-                          {phaseTotal || '-'}
+                          {displayPT || '-'}
                         </td>
                       </React.Fragment>
                     );
@@ -2940,10 +2996,15 @@ export const CalificacionesView: React.FC = () => {
                       <>
                         {hasActivities && (
                           <>
-                            {/* Pendientes: número de evidencias no entregadas o reprobadas */}
-                            <td className="px-4 py-4 text-sm border-r border-gray-200 align-middle overflow-hidden text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>
+                            {/* Pendientes: número de evidencias no entregadas o reprobadas — clic para ver detalle */}
+                            <td
+                              className="px-4 py-4 text-sm border-r border-gray-200 align-middle overflow-hidden text-center cursor-pointer select-none"
+                              style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}
+                              onClick={() => setPendingDetailsStudent({ studentId: student.id, name: `${student.firstName} ${student.lastName}`, group: student.group })}
+                              title="Clic para ver evidencias pendientes"
+                            >
                               {final.pending > 0
-                                ? <span className="font-bold text-red-500">{final.pending}</span>
+                                ? <span className="font-bold text-red-500 underline decoration-dotted">{final.pending}</span>
                                 : <span className="font-bold text-green-600">0</span>}
                             </td>
                             {/* Promedio estadístico */}
@@ -3553,6 +3614,83 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
                 <button
                   onClick={() => setRapModal(null)}
                   className="bg-gray-100 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {pendingDetailsStudent && (() => {
+        const { studentId, name, group } = pendingDetailsStudent;
+        const pendingList = getPendingEvidencesForStudent(studentId, group);
+        const missing = pendingList.filter(p => p.reason === 'missing');
+        const failed = pendingList.filter(p => p.reason === 'failed');
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setPendingDetailsStudent(null)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Evidencias pendientes</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{name}{group ? ` — Ficha ${group}` : ''}</p>
+                </div>
+                <button onClick={() => setPendingDetailsStudent(null)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {pendingList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <span className="text-3xl mb-2">✓</span>
+                  <p className="text-sm font-semibold text-green-700">Sin pendientes</p>
+                  <p className="text-xs text-gray-400 mt-1">Todas las evidencias están aprobadas.</p>
+                </div>
+              ) : (
+                <div className="overflow-y-auto flex-1 min-h-0 space-y-4">
+                  {missing.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1.5">No entregadas ({missing.length})</p>
+                      <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 overflow-hidden">
+                        {missing.map(({ activity }) => (
+                          <div key={activity.id} className="px-4 py-2.5 flex items-start gap-2">
+                            <span className="mt-0.5 w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs text-gray-800 leading-snug">{activity.detail || activity.name}</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{activity.phase}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {failed.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1.5">Reprobadas ({failed.length})</p>
+                      <div className="divide-y divide-gray-100 rounded-lg border border-red-100 overflow-hidden">
+                        {failed.map(({ activity, grade }) => (
+                          <div key={activity.id} className="px-4 py-2.5 flex items-start gap-2">
+                            <span className="mt-0.5 w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs text-gray-800 leading-snug">{activity.detail || activity.name}</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{activity.phase}</p>
+                            </div>
+                            {grade && (
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex-shrink-0">{grade.score} D</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-4 flex-shrink-0">
+                <button
+                  onClick={() => setPendingDetailsStudent(null)}
+                  className="w-full bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium"
                 >
                   Cerrar
                 </button>
