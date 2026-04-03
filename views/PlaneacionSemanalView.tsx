@@ -732,8 +732,17 @@ export const PlaneacionSemanalView: React.FC = () => {
       return cells;
     };
 
-    // Compact date: "DD/MM/YYYY" → "DD/MM/AA" for column headers
-    const shortDate = (full: string) => full.slice(0, 5) + '/' + full.slice(8, 10);
+    // Parse "DD/MM/YYYY" string → UTC Date for Excel
+    const parseDdMmYyyy = (full: string): Date => {
+      const [dd, mm, yyyy] = full.split('/').map(Number);
+      return new Date(Date.UTC(yyyy, mm - 1, dd));
+    };
+    // Column number (1-based) → Excel column letter (A, B, … AA, AB, …)
+    const colLetter = (n: number): string => {
+      let s = '';
+      while (n > 0) { s = String.fromCharCode(64 + ((n - 1) % 26 + 1)) + s; n = Math.floor((n - 1) / 26); }
+      return s;
+    };
 
     // ── ROW 1: Phase headers ──────────────────────────────────────────────────
     const r1 = ws.addRow([null]);
@@ -776,10 +785,18 @@ export const PlaneacionSemanalView: React.FC = () => {
     r3dates.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
     r3dates.getCell(1).font = { bold: true, size: 8, color: { argb: 'FF374151' } };
     r3dates.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    weeks.forEach(w => {
-      const cell = r3dates.getCell(w + WEEK_OFFSET);
+    const overrides = planeacion.weekDateOverrides ?? {};
+    weeks.forEach((w, i) => {
+      const col = w + WEEK_OFFSET;
+      const cell = r3dates.getCell(col);
       const seg = effectiveWeekPhaseMap[w];
-      cell.value = shortDate(weekDates.starts[w]);
+      // First week or explicit override → fixed date; otherwise formula =PREV+7
+      if (i === 0 || overrides[w]) {
+        cell.value = parseDdMmYyyy(weekDates.starts[w]);
+      } else {
+        cell.value = { formula: `=${colLetter(col - 1)}3+7` };
+      }
+      cell.numFmt = 'DD/MM/YYYY';
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.78) } };
       cell.font = { size: 7, color: { argb: 'FF374151' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
