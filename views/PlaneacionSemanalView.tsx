@@ -201,7 +201,7 @@ const DEFAULT_SEEDED_KEYS: ReadonlySet<string> = new Set([
   ...Object.keys(DEFAULT_TRANSVERSAL),
 ]);
 
-const EMPTY_DATA: PlaneacionSemanalFichaData = { tecnicaAssignments: {}, transversalCells: {}, cardDurations: {}, hiddenCards: [], weekDateOverrides: {}, phaseWeekCounts: {} };
+const EMPTY_DATA: PlaneacionSemanalFichaData = { tecnicaAssignments: {}, transversalAssignments: {}, transversalCells: {}, cardDurations: {}, hiddenCards: [], weekDateOverrides: {}, phaseWeekCounts: {} };
 
 // ─── Card key helpers ────────────────────────────────────────────────────────
 const actKey = (id: string)                   => `act::${id}`;
@@ -247,10 +247,15 @@ const AREA_STYLES: Record<string, { color: string; text: string }> = {
   CienciasNaturales: { color: '#9E9E9E', text: '#333333' },
 };
 
+/** Derive the area key (e.g. 'TICs', 'Bilingüismo', 'Técnica') from a SENA activity code */
+const getActivityArea = (activityName: string): string => {
+  const match = activityName.match(/[A-Z]+\d*-(\d+)-/);
+  return match ? (COMPETENCY_TO_AREA[match[1]] ?? 'Técnica') : 'Técnica';
+};
+
 /** Derive area color from activity.name (which holds the SENA code, e.g. GA1-220501046-AA1-EV01) */
 const getActivityAreaStyle = (activityName: string): { color: string; text: string } => {
-  const match = activityName.match(/[A-Z]+\d*-(\d+)-/);
-  const area = match ? (COMPETENCY_TO_AREA[match[1]] ?? 'Técnica') : 'Técnica';
+  const area = getActivityArea(activityName);
   return AREA_STYLES[area] ?? AREA_STYLES['Técnica'];
 };
 
@@ -447,8 +452,11 @@ export const PlaneacionSemanalView: React.FC = () => {
 
   // ── Derived ─────────────────────────────────────────────────────────────
   const unassigned = useMemo(
-    () => activities.filter(a => planeacion.tecnicaAssignments[a.id] === undefined),
-    [activities, planeacion.tecnicaAssignments],
+    () => activities.filter(a =>
+      planeacion.tecnicaAssignments[a.id] === undefined &&
+      !(planeacion.transversalAssignments ?? {})[a.id]
+    ),
+    [activities, planeacion.tecnicaAssignments, planeacion.transversalAssignments],
   );
 
   const unassignedByPhase = useMemo(() => {
@@ -479,8 +487,12 @@ export const PlaneacionSemanalView: React.FC = () => {
 
   const onDragOverCell = (e: React.DragEvent, rowKey: string, weekIdx: number) => {
     const ck = cellKey(rowKey, weekIdx);
-    // Use refs so the check is always fresh regardless of render timing
-    if (dragActivityIdRef.current && rowKey === 'Técnica') { e.preventDefault(); setDragOverCell(ck); return; }
+    if (dragActivityIdRef.current) {
+      const act = activities.find(a => a.id === dragActivityIdRef.current);
+      const area = act ? getActivityArea(act.name) : 'Técnica';
+      // Activity drops only on its matching row (Técnica area → Técnica row, TICs area → TICs row, etc.)
+      if (area === rowKey) { e.preventDefault(); setDragOverCell(ck); return; }
+    }
     if (dragLabelRef.current && dragLabelRef.current.rowKey === rowKey) { e.preventDefault(); setDragOverCell(ck); return; }
   };
 
@@ -491,11 +503,21 @@ export const PlaneacionSemanalView: React.FC = () => {
     const lbl   = dragLabelRef.current;
     dragActivityIdRef.current = null;
     dragLabelRef.current = null;
-    // Activity drop → only Técnica row
-    if (actId && rowKey === 'Técnica') {
-      persist({ ...planeacion, tecnicaAssignments: { ...planeacion.tecnicaAssignments, [actId]: toWeekIdx } });
-      setDragActivityId(null);
-      return;
+    // Activity drop → to its matching row
+    if (actId) {
+      const act = activities.find(a => a.id === actId);
+      const area = act ? getActivityArea(act.name) : 'Técnica';
+      if (area === rowKey) {
+        if (area === 'Técnica') {
+          persist({ ...planeacion, tecnicaAssignments: { ...planeacion.tecnicaAssignments, [actId]: toWeekIdx } });
+        } else {
+          const tra = { ...(planeacion.transversalAssignments ?? {}) };
+          tra[actId] = { rowKey, weekIdx: toWeekIdx };
+          persist({ ...planeacion, transversalAssignments: tra });
+        }
+        setDragActivityId(null);
+        return;
+      }
     }
     // Label drop → same row, different week
     if (lbl && lbl.rowKey === rowKey) {
@@ -522,14 +544,18 @@ export const PlaneacionSemanalView: React.FC = () => {
     if (!actId) return;
     const ta = { ...planeacion.tecnicaAssignments };
     delete ta[actId];
-    persist({ ...planeacion, tecnicaAssignments: ta });
+    const tra = { ...(planeacion.transversalAssignments ?? {}) };
+    delete tra[actId];
+    persist({ ...planeacion, tecnicaAssignments: ta, transversalAssignments: tra });
     setDragActivityId(null);
   };
 
   const unassignActivity = (id: string) => {
     const ta = { ...planeacion.tecnicaAssignments };
     delete ta[id];
-    persist({ ...planeacion, tecnicaAssignments: ta });
+    const tra = { ...(planeacion.transversalAssignments ?? {}) };
+    delete tra[id];
+    persist({ ...planeacion, tecnicaAssignments: ta, transversalAssignments: tra });
   };
 
   // ── Cell text editing ────────────────────────────────────────────────────
@@ -693,7 +719,9 @@ export const PlaneacionSemanalView: React.FC = () => {
       for (const w of weeks) {
         if (consumedW.has(w)) continue;
         const labels = planeacion.transversalCells[`${rowKey}::${w}`] ?? [];
-        const assigned = isTecnica ? activities.filter(a => planeacion.tecnicaAssignments[a.id] === w) : [];
+        const assigned = isTecnica
+          ? activities.filter(a => planeacion.tecnicaAssignments[a.id] === w)
+          : activities.filter(a => (planeacion.transversalAssignments ?? {})[a.id]?.rowKey === rowKey && (planeacion.transversalAssignments ?? {})[a.id]?.weekIdx === w);
         const hasSpan2 =
           labels.some(lbl => (durations[`lbl::${rowKey}::${lbl}`] ?? 1) === 2) ||
           assigned.some(a => (durations[`act::${a.id}`] ?? 1) === 2);
@@ -797,11 +825,15 @@ export const PlaneacionSemanalView: React.FC = () => {
       for (const { weekIdx: w, span } of buildSpans(row.key, false)) {
         const startCol = w + WEEK_OFFSET;
         if (span === 2 && w + 1 < effectiveTotalWeeks) ws.mergeCells(rowNum, startCol, rowNum, startCol + 1);
+        const assignedToRow = activities.filter(a => (planeacion.transversalAssignments ?? {})[a.id]?.rowKey === row.key && (planeacion.transversalAssignments ?? {})[a.id]?.weekIdx === w && !hidden.has(`act::${a.id}`));
         const labels = (planeacion.transversalCells[`${row.key}::${w}`] ?? []).filter(lbl => !hidden.has(`lbl::${row.key}::${lbl}`));
+        const allContent = [
+          ...assignedToRow.map(a => stripEvidenciaPrefix(a.detail?.trim() || a.name)),
+          ...labels,
+        ];
         const cell = exRow.getCell(startCol);
-        if (labels.length > 0) {
-          cell.value = labels.join('\n');
-          // Light background (70% white mix) with proper contrast text
+        if (allContent.length > 0) {
+          cell.value = allContent.join('\n');
           const lightBg = lighten(row.color, 0.72);
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lightBg } };
           cell.font = { size: 8, color: { argb: contrastARGB('#' + lightBg.slice(2)) } };
@@ -1169,6 +1201,26 @@ export const PlaneacionSemanalView: React.FC = () => {
                         onClick={() => { if (!isEdit) startEditCell(row.key, w); }}
                       >
                         <div className="flex flex-col gap-1">
+                          {/* Activities assigned to this transversal row */}
+                          {activities.filter(a => (planeacion.transversalAssignments ?? {})[a.id]?.rowKey === row.key && (planeacion.transversalAssignments ?? {})[a.id]?.weekIdx === w).map(a => {
+                            const key = actKey(a.id);
+                            return <GridCard key={a.id} activity={a} color={getActivityAreaStyle(a.name).color}
+                              textColor={getActivityAreaStyle(a.name).text}
+                              cardKey={key}
+                              duration={getDuration(key)}
+                              hidden={isHidden(key)}
+                              durationOpen={openDurationCard === key}
+                              weekIdx={w}
+                              weekStarts={weekDates.starts}
+                              weekEnds={weekDates.ends}
+                              onDragStart={() => { setOpenDurationCard(null); onDragStartActivity(a.id); }}
+                              isDragging={dragActivityId === a.id}
+                              onRemove={() => unassignActivity(a.id)}
+                              onToggleHidden={() => toggleHidden(key)}
+                              onSetDuration={d => setCardDuration(key, d)}
+                              onToggleDurationPicker={() => setOpenDurationCard(openDurationCard === key ? null : key)}
+                            />;
+                          })}
                           {labels.map((lbl, idx) => {
                             const key = lblKey(row.key, lbl);
                             return <TransLabel key={idx} label={lbl} color={row.color} textColor={row.textColor}
