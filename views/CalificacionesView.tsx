@@ -479,6 +479,22 @@ const getTipoBadge = (detail?: string | null): { bg: string; text: string; label
   return null;
 };
 
+/** Devuelve el tipo de evidencia ('Conocimiento' | 'Producto' | 'Desempeño' | null) de una actividad */
+const getEvidenceTipo = (activity: { detail?: string | null; name?: string }): string | null => {
+  const raw = `${activity.detail ?? ''} ${activity.name ?? ''}`.toLowerCase();
+  if (raw.includes('conocimiento')) return 'Conocimiento';
+  if (raw.includes('producto'))     return 'Producto';
+  if (raw.includes('desempeño'))    return 'Desempeño';
+  return null;
+};
+
+const EVIDENCE_TIPO_OPTIONS: Array<{ value: string; label: string; bg?: string; text?: string }> = [
+  { value: 'Todos',        label: 'Todos los tipos' },
+  { value: 'Conocimiento', label: 'Conocimiento', bg: '#dbeafe', text: '#1e40af' },
+  { value: 'Producto',     label: 'Producto',     bg: '#dcfce7', text: '#166534' },
+  { value: 'Desempeño',    label: 'Desempeño',    bg: '#ffedd5', text: '#9a3412' },
+];
+
 /** Mapeo código de competencia → color y etiqueta de área */
 const COMP_TO_AREA_COLOR: Record<string, { color: string; label: string }> = {
   '220501014': { color: '#f59e0b', label: 'Técnica' },
@@ -585,6 +601,8 @@ export const CalificacionesView: React.FC = () => {
   const [selectedPhase, setSelectedPhase] = useState(ALL_PHASES_VIEW);
   /** Área de competencia (Técnica, TIC's, …) para acotar columnas de evidencias */
   const [califEvidenceAreaFilter, setCalifEvidenceAreaFilter] = useState<string>(ALL_EVIDENCE_AREAS);
+  /** Tipo de evidencia: 'Todos' | 'Conocimiento' | 'Producto' | 'Desempeño' */
+  const [califEvidenceTipoFilter, setCalifEvidenceTipoFilter] = useState<string>('Todos');
   /** Vacío = todas las evidencias del contexto (área + ficha/fase); si no, solo ids listados */
   const [califSelectedEvidenceIdList, setCalifSelectedEvidenceIdList] = useState<string[]>([]);
   const [califEvidencePickerOpen, setCalifEvidencePickerOpen] = useState(false);
@@ -1031,9 +1049,10 @@ export const CalificacionesView: React.FC = () => {
   const califEvidencePickerPool = useMemo(
     () =>
       activitiesAfterSystemExclusions.filter((a) =>
-        activityMatchesEvidenceArea(a, califEvidenceAreaFilter)
+        activityMatchesEvidenceArea(a, califEvidenceAreaFilter) &&
+        (califEvidenceTipoFilter === 'Todos' || getEvidenceTipo(a) === califEvidenceTipoFilter)
       ),
-    [activitiesAfterSystemExclusions, califEvidenceAreaFilter]
+    [activitiesAfterSystemExclusions, califEvidenceAreaFilter, califEvidenceTipoFilter]
   );
 
   const califSelectedEvidenceIdSet = useMemo(
@@ -1058,6 +1077,9 @@ export const CalificacionesView: React.FC = () => {
       list = list.filter((a) => !hiddenActivityIds.has(a.id));
     }
     list = list.filter((a) => activityMatchesEvidenceArea(a, califEvidenceAreaFilter));
+    if (califEvidenceTipoFilter !== 'Todos') {
+      list = list.filter((a) => getEvidenceTipo(a) === califEvidenceTipoFilter);
+    }
     if (califSelectedEvidenceIdList.length > 0) {
       list = list.filter((a) => califSelectedEvidenceIdSet.has(a.id));
     }
@@ -1067,6 +1089,7 @@ export const CalificacionesView: React.FC = () => {
     hiddenActivityIds,
     showHiddenActivities,
     califEvidenceAreaFilter,
+    califEvidenceTipoFilter,
     califSelectedEvidenceIdList,
     califSelectedEvidenceIdSet,
   ]);
@@ -2570,12 +2593,34 @@ export const CalificacionesView: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <ListChecks className="w-4 h-4 text-teal-600 shrink-0" aria-hidden />
                     <span className="text-xs font-semibold text-gray-700 shrink-0">Evidencias en la tabla</span>
+                    {/* Filtro por tipo de evidencia */}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {EVIDENCE_TIPO_OPTIONS.map((opt) => {
+                        const active = califEvidenceTipoFilter === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => { setCalifEvidenceTipoFilter(opt.value); setCalifSelectedEvidenceIdList([]); }}
+                            className="px-2 py-1 rounded-full text-[11px] font-semibold border transition-colors whitespace-nowrap"
+                            style={active
+                              ? (opt.bg ? { backgroundColor: opt.bg, color: opt.text ?? '#000', borderColor: (opt.text ?? '#000') + '44' } : { backgroundColor: '#0d9488', color: '#fff', borderColor: '#0d9488' })
+                              : { backgroundColor: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }
+                            }
+                            title={`Filtrar por tipo: ${opt.label}`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Filtro por área de competencia */}
                     <label className="flex items-center gap-1.5 text-xs text-gray-600 shrink-0">
-                      <span className="whitespace-nowrap">Tipo / área</span>
+                      <span className="whitespace-nowrap">Área</span>
                       <select
                         className="pl-2 pr-7 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white shadow-sm font-medium text-gray-700 min-w-[9.5rem] sm:min-w-[11rem] max-w-[14rem] focus:ring-2 focus:ring-teal-500 outline-none"
                         value={califEvidenceAreaFilter}
-                        onChange={(e) => setCalifEvidenceAreaFilter(e.target.value)}
+                        onChange={(e) => { setCalifEvidenceAreaFilter(e.target.value); setCalifSelectedEvidenceIdList([]); }}
                         title="Filtrar por área de competencia (Técnica, TIC's, etc.)"
                       >
                         {califEvAreaOptions.map((ar) => (
@@ -2616,6 +2661,8 @@ export const CalificacionesView: React.FC = () => {
                           califEvidencePickerPool.map((a) => {
                             const implicitAll = califSelectedEvidenceIdList.length === 0;
                             const checked = implicitAll || califSelectedEvidenceIdList.includes(a.id);
+                            const tipoKey = getEvidenceTipo(a);
+                            const tipoOpt = tipoKey ? EVIDENCE_TIPO_OPTIONS.find(o => o.value === tipoKey && 'bg' in o) : null;
                             return (
                               <label
                                 key={a.id}
@@ -2644,6 +2691,9 @@ export const CalificacionesView: React.FC = () => {
                                   <span className="font-mono text-xs text-teal-700">{shortEvidenceLabel(a.name)}</span>
                                   <span className="text-gray-400 text-xs mx-1">·</span>
                                   <span className="text-xs text-gray-600">{a.phase || '—'}</span>
+                                  {tipoOpt?.bg && (
+                                    <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: tipoOpt.bg, color: tipoOpt.text ?? '#000' }}>{tipoKey}</span>
+                                  )}
                                   {(a.detail || a.name) && (
                                     <span className="block text-xs text-gray-500 truncate" title={a.detail || a.name}>
                                       {a.detail || a.name}
@@ -2657,7 +2707,6 @@ export const CalificacionesView: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
                 </div>
               </div>
             </div>
