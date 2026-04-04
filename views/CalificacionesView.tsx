@@ -197,8 +197,8 @@ interface CronogramaEvidence {
 const FASE_EVIDENCES: Record<string, CronogramaEvidence[]> = {
   'Fase Inducción': [
     { code: 'GI1-240201530-AA1-EV01', compCode: '240201530', aaKey: 'AA1', description: 'Evidencia de producto: Infografía. Contextualización Senología.' },
-    { code: 'GI1-240201530-AA2-EV01', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (1).' },
-    { code: 'GI1-240201530-AA2-EV02', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (2).' },
+    { code: 'GI1-240201530-AA2-EV01', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. AA2-EV01.' },
+    { code: 'GI1-240201530-AA3-EV01', compCode: '240201530', aaKey: 'AA3', description: 'Evidencia de conocimiento: Cuestionario. AA3-EV01.' },
   ],
   'Fase 1: Análisis': [
     { code: 'GA1-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario sobre técnicas de levantamiento de información, plan de seguridad y continuidad del servicio.' },
@@ -414,14 +414,14 @@ const splitActivityHeader = (header: string): { baseName: string; kind: 'real' |
   return { baseName: raw, kind: 'score' };
 };
 
-/** Clave canónica por evidencia. Si el nombre contiene un código GA completo (ej: GA1-220501014-AA1-EV01),
- *  usa ese código normalizado como clave para evitar colisiones entre evidencias de distintos GAs
- *  que comparten el mismo número de EV. Para nombres simples como "EV01" o "Evidencia 01" usa solo el número. */
+/** Clave canónica por evidencia. Si el nombre contiene un código SENA completo (GA/GI + fase, ej: GA1-220501014-AA1-EV01 o GI1-240201530-AA1-EV01),
+ *  usa ese código normalizado como clave para evitar colisiones entre evidencias de distintos GAs/GIs
+ *  que comparten el mismo AA#-EV##. Para nombres simples como "EV01" o "Evidencia 01" usa solo el número. */
 const getCanonicalEvidenceKey = (baseName: string): string => {
   const trimmed = baseName.trim();
-  // Código GA completo: GA#-######-AA#-EV##
-  const gaFullMatch = trimmed.match(/GA\d+-\d+-AA\d+-EV(\d+)/i);
-  if (gaFullMatch) return normalizeText(gaFullMatch[0]);
+  // Código completo fase técnica (GA) o inducción (GI): G[AI]#-######-AA#-EV##
+  const senaFullMatch = trimmed.match(/G[AI]\d+-\d+-AA\d+-EV\d+/i);
+  if (senaFullMatch) return normalizeText(senaFullMatch[0]);
   // Código parcial con AA: AA#-EV##
   const aaEvMatch = trimmed.match(/AA\d+-EV(\d+)/i);
   if (aaEvMatch) return normalizeText(aaEvMatch[0]);
@@ -788,7 +788,7 @@ export const CalificacionesView: React.FC = () => {
 
     // Codes that were incorrectly seeded and must be removed
     const OBSOLETE_SEED_IDS = new Set([
-      'seed-GI1-240201530-AA3-EV01',
+      'seed-GI1-240201530-AA2-EV02',
       'seed-GI1-PM-EV01',
       'seed-GA1-240201530-AA2-EV01',
       'seed-GA1-240201530-AA3-EV01',
@@ -1363,8 +1363,12 @@ export const CalificacionesView: React.FC = () => {
   };
 
   const handlePhaseTotalClick = (studentId: string, phase: string, studentGroup?: string) => {
+    const phaseActivities = visiblePhaseGroups.find(g => g.phase === phase)?.activities ?? [];
+    const auto = getPhaseLetterTotal(studentId, phaseActivities, studentGroup);
     const key = getPhaseTotalKey(studentGroup, phase);
-    const current = (manualPhaseTotals[key] || {})[studentId];
+    let current = (manualPhaseTotals[key] || {})[studentId];
+    // Manual D redundante (igual que el total calculado) se trata como sin override: evita D → D → A al hacer clic.
+    if (current === 'D' && auto === 'D') current = undefined;
     const next: 'A' | 'D' | undefined =
       current === undefined ? 'A' : current === 'A' ? 'D' : undefined;
     const updated = { ...manualPhaseTotals };
@@ -2982,7 +2986,7 @@ export const CalificacionesView: React.FC = () => {
                             ...(manualPT ? { outline: '2px solid rgba(255,255,255,0.5)', outlineOffset: '-3px' } : {}),
                           }}
                           onClick={() => handlePhaseTotalClick(student.id, phase, student.group)}
-                          title={`TOTAL ${phase} — Clic para cambiar manualmente: A → D → (automático)`}
+                          title={`TOTAL ${phase} — Clic: (-)/automático → A → D → (-)/automático`}
                         >
                           {displayPT || '-'}
                         </td>
