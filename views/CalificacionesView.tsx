@@ -20,6 +20,7 @@ import {
   getRapNotes,
   getStudentGradeObservations,
   getStudents,
+  getLmsLastAccess,
   saveGradeActivities,
   saveGrades,
   saveJuiciosEvaluativos,
@@ -43,6 +44,16 @@ import type { EvidenceCompMapData, EvCompEntry } from '../services/db';
 const PASSING_SCORE = 70;
 /** Altura fija de cada fila de la tabla (px) para que coincidan las dos mitades (datos + calificaciones). Misma que SofiaPlusView. */
 const TABLE_ROW_HEIGHT_PX = 52;
+
+/** Igual que AsistenciaLmsView: días desde último acceso LMS hasta hoy. */
+function daysSinceLms(dateStr: string): number {
+  const d = new Date(dateStr.replace(' ', 'T'));
+  if (isNaN(d.getTime())) return -1;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.floor((today.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+}
 
 // ---------------------------------------------------------------------------
 // DATOS ESTÁTICOS DEL CRONOGRAMA PEDAGÓGICO
@@ -504,6 +515,7 @@ export const CalificacionesView: React.FC = () => {
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [activities, setActivities] = useState<GradeActivity[]>([]);
   const [grades, setGrades] = useState<GradeEntry[]>([]);
+  const [lmsLastAccess, setLmsLastAccess] = useState<Record<string, string>>({});
   const [selectedFicha, setSelectedFicha] = useState<string>('Todas');
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [activityName, setActivityName] = useState('');
@@ -532,7 +544,7 @@ export const CalificacionesView: React.FC = () => {
   const [rapNewName, setRapNewName] = useState('');
   const [rapNewDetail, setRapNewDetail] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname'>('lastname');
+  const [sortOrder, setSortOrder] = useState<'lastname' | 'firstname' | 'daysInactive'>('lastname');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [showFichaFilter, setShowFichaFilter] = useState(false);
@@ -585,7 +597,7 @@ export const CalificacionesView: React.FC = () => {
     setHiddenActivityIds(newSet);
   };
 
-  const handleSort = (column: 'lastname' | 'firstname') => {
+  const handleSort = (column: 'lastname' | 'firstname' | 'daysInactive') => {
     if (sortOrder === column) {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
       return;
@@ -621,6 +633,7 @@ export const CalificacionesView: React.FC = () => {
     setManualFinals(getManualFinals());
     setManualPhaseTotals(getManualPhaseTotals());
     setEvidenceCompMap(getEvidenceCompMap());
+    setLmsLastAccess(getLmsLastAccess());
     setHiddenActivityIds(new Set(getHiddenGradeActivityIds()));
     if (loadedFichas.length > 0 && selectedFichaRef.current === '') {
       setSelectedFicha('Todas');
@@ -729,13 +742,20 @@ export const CalificacionesView: React.FC = () => {
       if (sortOrder === 'lastname') {
         cmp = a.lastName.localeCompare(b.lastName, 'es');
         if (cmp === 0) cmp = a.firstName.localeCompare(b.firstName, 'es');
-      } else {
+      } else if (sortOrder === 'firstname') {
         cmp = a.firstName.localeCompare(b.firstName, 'es');
+        if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName, 'es');
+      } else {
+        const lastA = lmsLastAccess[a.id];
+        const lastB = lmsLastAccess[b.id];
+        const daysA = lastA != null ? daysSinceLms(lastA) : -1;
+        const daysB = lastB != null ? daysSinceLms(lastB) : -1;
+        cmp = daysA - daysB;
         if (cmp === 0) cmp = a.lastName.localeCompare(b.lastName, 'es');
       }
       return direction * cmp;
     });
-  }, [students, selectedFicha, searchTerm, filterStatus, sortOrder, sortDirection]);
+  }, [students, selectedFicha, searchTerm, filterStatus, sortOrder, sortDirection, lmsLastAccess]);
 
 
   useEffect(() => {
@@ -1409,6 +1429,7 @@ export const CalificacionesView: React.FC = () => {
       'Correo electrónico',
       'Estado',
       'Ficha',
+      'Días sin ingresar',
       'Juicios Evaluativos',
       ...visiblePhaseGroups.flatMap(({ phase, activities }) => [
         ...activities.map(a => a.detail || a.name),
@@ -1442,6 +1463,10 @@ export const CalificacionesView: React.FC = () => {
       const juicioKey = getRapKeyForStudent(student.group);
       const juicioVal = (juiciosEvaluativos[juicioKey] || {})[student.id];
       const juicioLabel = juicioVal === 'green' ? 'Sí' : juicioVal === 'orange' ? 'En proceso' : '-';
+      const lastLms = lmsLastAccess[student.id];
+      const daysLms = lastLms != null ? daysSinceLms(lastLms) : null;
+      const daysExport =
+        daysLms != null && daysLms >= 0 ? String(daysLms) : '';
       return [
         student.documentNumber || '',
         student.firstName || '',
@@ -1449,6 +1474,7 @@ export const CalificacionesView: React.FC = () => {
         student.email || '',
         student.status || 'Formación',
         student.group || '',
+        daysExport,
         juicioLabel,
         ...activityScores,
         ...rapValues,
@@ -1466,7 +1492,7 @@ export const CalificacionesView: React.FC = () => {
     const { headers, rows } = data;
 
     // ── Column layout metadata ─────────────────────────────────────────────
-    const INFO_COLS = 7; // Documento…Juicios Evaluativos
+    const INFO_COLS = 8; // Documento…Días sin ingresar…Juicios Evaluativos
     const ACT_COUNT = visibleActivities.length + visiblePhaseGroups.length; // activities + one TOTAL per phase
     const TOTAL_COLS = headers.length;
 
@@ -1561,7 +1587,7 @@ export const CalificacionesView: React.FC = () => {
       });
     });
 
-    // ── Documento (col 1) y Ficha (col 6) como números ────────────────────
+    // ── Documento (col 1) y Ficha (col 6) como números; col 7 = días LMS ─
     for (let rowIdx = DATA_START; rowIdx < DATA_START + rows.length; rowIdx++) {
       const dataRow = sheet.getRow(rowIdx);
       // Documento: col 1
@@ -1572,6 +1598,16 @@ export const CalificacionesView: React.FC = () => {
       const fichaCell = dataRow.getCell(6);
       const fichaNum = Number(String(fichaCell.value ?? '').trim());
       if (!isNaN(fichaNum) && fichaNum > 0) { fichaCell.value = fichaNum; fichaCell.numFmt = '0'; }
+      // Días sin ingresar LMS: col 7
+      const daysCell = dataRow.getCell(7);
+      const daysRaw = String(daysCell.value ?? '').trim();
+      if (daysRaw !== '') {
+        const daysNum = Number(daysRaw);
+        if (!isNaN(daysNum) && daysNum >= 0) {
+          daysCell.value = daysNum;
+          daysCell.numFmt = '0';
+        }
+      }
     }
 
     // ── Evidence cell coloring (A = green, D = light red; TOTAL = bold green/red) ─
@@ -1659,7 +1695,7 @@ export const CalificacionesView: React.FC = () => {
     const { headers, rows } = data;
 
     // ── Column layout metadata ─────────────────────────────────────────────
-    const INFO_COLS = 7;
+    const INFO_COLS = 8;
     const ACT_COUNT = visibleActivities.length + visiblePhaseGroups.length; // activities + one TOTAL per phase
 
     // ── Build phase groups ─────────────────────────────────────────────────
@@ -1769,7 +1805,7 @@ export const CalificacionesView: React.FC = () => {
     const data = buildReportData();
     if (!data) return;
     const { headers, rows } = data;
-    const INFO_COLS = 7;
+    const INFO_COLS = 8;
     const ACT_COUNT = visibleActivities.length + visiblePhaseGroups.length; // activities + one TOTAL per phase
     const phaseGroups = buildPhaseGroups();
     const rapFinalCount = headers.length - INFO_COLS - ACT_COUNT;
@@ -1894,7 +1930,7 @@ export const CalificacionesView: React.FC = () => {
     const data = buildReportData();
     if (!data) return;
     const { headers, rows } = data;
-    const INFO_COLS = 7;
+    const INFO_COLS = 8;
     const ACT_COUNT = visibleActivities.length + visiblePhaseGroups.length; // activities + one TOTAL per phase
     const phaseGroups = buildPhaseGroups();
     const escMd = (s: unknown) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
@@ -2652,7 +2688,14 @@ export const CalificacionesView: React.FC = () => {
                   </div>
                 </th>
                 <th rowSpan={2} className="px-6 font-semibold text-gray-600 text-sm w-28 min-w-28 sticky left-[864px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle">Ficha</th>
-                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para ciclar: — → PE (Por Evaluar) → A (Aprobado) → —">Juicios Evaluativos</th>
+                <th rowSpan={2} className="px-3 font-semibold text-gray-600 text-sm w-20 min-w-20 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Días desde el último ingreso al LMS (Asistencia LMS)">
+                  <button type="button" onClick={() => handleSort('daysInactive')} className={`inline-flex flex-col items-center gap-0.5 hover:text-teal-700 leading-tight ${sortOrder === 'daysInactive' ? 'text-teal-700' : ''}`}>
+                    <span className="text-[11px]">Días sin</span>
+                    <span className="text-[11px]">ingresar</span>
+                    {sortOrder === 'daysInactive' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                  </button>
+                </th>
+                <th rowSpan={2} className="px-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[1056px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" title="Clic para ciclar: — → PE (Por Evaluar) → A (Aprobado) → —">Juicios Evaluativos</th>
 
                 {/* Evidence section in Row 1:
                     - if phaseGroups: show phase group headers (colSpan per phase) — "Todas las fases" view
@@ -2789,7 +2832,14 @@ export const CalificacionesView: React.FC = () => {
                     </div>
                   </th>
                   <th className="px-6 py-4 font-semibold text-gray-600 text-sm w-28 min-w-28 sticky left-[864px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>Ficha</th>
-                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para ciclar: — → PE (Por Evaluar) → A (Aprobado) → —">Juicios Evaluativos</th>
+                  <th className="px-3 py-4 font-semibold text-gray-600 text-sm w-20 min-w-20 sticky left-[976px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Días desde el último ingreso al LMS">
+                    <button type="button" onClick={() => handleSort('daysInactive')} className={`inline-flex flex-col items-center gap-0.5 hover:text-teal-700 leading-tight ${sortOrder === 'daysInactive' ? 'text-teal-700' : ''}`}>
+                      <span className="text-[11px]">Días sin</span>
+                      <span className="text-[11px]">ingresar</span>
+                      {sortOrder === 'daysInactive' && <span className="text-teal-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                    </button>
+                  </th>
+                  <th className="px-4 py-4 font-semibold text-gray-600 text-sm w-24 min-w-24 sticky left-[1056px] z-30 bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] overflow-hidden text-ellipsis whitespace-nowrap align-middle text-center" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title="Clic para ciclar: — → PE (Por Evaluar) → A (Aprobado) → —">Juicios Evaluativos</th>
                 </>
               )}
 
@@ -2879,13 +2929,13 @@ export const CalificacionesView: React.FC = () => {
           <tbody className="divide-y divide-gray-100">
             {studentsForFicha.length === 0 ? (
               <tr>
-                <td colSpan={9 + visibleActivities.length + visiblePhaseGroups.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={10 + visibleActivities.length + visiblePhaseGroups.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
                   {filterStatus !== 'Todos' ? 'Ningún aprendiz coincide con el filtro de estado seleccionado.' : hasSearchTerm ? 'No se encontraron aprendices con la búsqueda.' : selectedFicha === 'Todas' ? 'No hay aprendices.' : 'No hay aprendices en esta ficha.'}
                 </td>
               </tr>
             ) : studentsFilteredByFinal.length === 0 ? (
               <tr>
-                <td colSpan={9 + visibleActivities.length + visiblePhaseGroups.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={10 + visibleActivities.length + visiblePhaseGroups.length + activeRapColumns.length + (hasActivities ? 3 : 0)} className="px-6 py-8 text-center text-gray-500">
                   Ningún aprendiz coincide con el filtro FINAL seleccionado.
                 </td>
               </tr>
@@ -2915,8 +2965,22 @@ export const CalificacionesView: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 w-28 min-w-28 text-sm text-gray-700 sticky left-[864px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.group || <span className="text-gray-400">-</span>}</td>
+                  <td className="px-3 py-4 w-20 min-w-20 text-sm tabular-nums text-center sticky left-[976px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={lmsLastAccess[student.id] ? `Último acceso: ${lmsLastAccess[student.id]}` : 'Sin registro de acceso LMS'}>
+                    {(() => {
+                      const last = lmsLastAccess[student.id];
+                      const days = last != null ? daysSinceLms(last) : null;
+                      if (days != null && days >= 0) {
+                        return (
+                          <span className={`font-semibold ${days > 20 ? 'text-red-600' : days > 7 ? 'text-amber-600' : 'text-green-600'}`}>
+                            {days}
+                          </span>
+                        );
+                      }
+                      return <span className="text-gray-400">-</span>;
+                    })()}
+                  </td>
                   <td
-                    className="px-4 py-4 w-24 min-w-24 sticky left-[976px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] align-middle transition-colors cursor-pointer text-center overflow-hidden"
+                    className="px-4 py-4 w-24 min-w-24 sticky left-[1056px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#e5e7eb,2px_0_6px_-2px_rgba(0,0,0,0.12)] align-middle transition-colors cursor-pointer text-center overflow-hidden"
                     style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX, minHeight: TABLE_ROW_HEIGHT_PX }}
                     onClick={() => toggleJuicioEvaluativo(student.id, student.group)}
                     title={
