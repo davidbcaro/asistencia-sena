@@ -5,9 +5,9 @@ import { GradeActivity, PlaneacionSemanalFichaData } from '../types';
 import { deleteGradeActivity, getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
 
 // ─── Phase structure (matches PLANEACION SEMANAL GRD.xlsx exactly) ──────────
-// Inducción=2  Análisis=10  Planeación=24  Ejecución=40  Evaluación=30  → 106 total
+// Inducción=3  Análisis=10  Planeación=24  Ejecución=40  Evaluación=30  → 107 total (3 evidencias EEF en inducción)
 const PHASE_SEGMENTS = [
-  { phase: 'Fase Inducción',     count: 2,  color: '#f59e0b', text: '#ffffff' },
+  { phase: 'Fase Inducción',     count: 3,  color: '#f59e0b', text: '#ffffff' },
   { phase: 'Fase 1: Análisis',   count: 10, color: '#0d9488', text: '#ffffff' },
   { phase: 'Fase 2: Planeación', count: 24, color: '#3b82f6', text: '#ffffff' },
   { phase: 'Fase 3: Ejecución',  count: 40, color: '#8b5cf6', text: '#ffffff' },
