@@ -48,6 +48,17 @@ const PIE_SESSIONS  = ['#4f46e5', '#ef4444'];
 const PIE_LMS       = ['#22c55e', '#f59e0b', '#ef4444', '#9ca3af'];
 const PIE_EV        = ['#22c55e', '#fbbf24', '#f97316', '#ef4444'];
 
+/** Fases académicas (alineado con CalificacionesView); se completan con fases halladas en actividades. */
+const DEFAULT_GRADE_PHASES = [
+  'Fase Inducción',
+  'Fase 1: Análisis',
+  'Fase 2: Planeación',
+  'Fase 3: Ejecución',
+  'Fase 4: Evaluación',
+] as const;
+
+const ALL_PHASES_LABEL = 'Todas las fases';
+
 const barChartHeight = (count: number) => Math.max(count * 36, 220);
 
 // ─── Paginator (defined outside to avoid re-creation on every render) ────────
@@ -150,6 +161,8 @@ export const ReportsView: React.FC = () => {
 
   // ── shared filter ──
   const [selectedFicha, setSelectedFicha] = useState('Todas');
+  /** Solo aplica al tab Evidencias pendientes */
+  const [selectedEvPhase, setSelectedEvPhase] = useState<string>(ALL_PHASES_LABEL);
 
   // ── per-tab search ──
   const [searchSessions,   setSearchSessions]   = useState('');
@@ -251,7 +264,7 @@ export const ReportsView: React.FC = () => {
   // Reset pages on filter / tab change
   useEffect(() => { setPageSessions(1);   }, [selectedFicha, searchSessions, sortSessions, sortSessionsDirection, activeTab]);
   useEffect(() => { setPageLms(1);        }, [selectedFicha, searchLms, sortLms, sortLmsDirection, activeTab]);
-  useEffect(() => { setPageEvidencias(1); }, [selectedFicha, searchEvidencias, sortEvidencias, sortEvidenciasDirection, filterEvEstado, filterEvPendientes, activeTab]);
+  useEffect(() => { setPageEvidencias(1); }, [selectedFicha, selectedEvPhase, searchEvidencias, sortEvidencias, sortEvidenciasDirection, filterEvEstado, filterEvPendientes, activeTab]);
 
   // Reset search when switching tabs
   useEffect(() => {
@@ -510,6 +523,20 @@ export const ReportsView: React.FC = () => {
     return map;
   }, [grades]);
 
+  const evPhaseOptions = useMemo(() => {
+    const seen = new Set<string>(DEFAULT_GRADE_PHASES);
+    const extra: string[] = [];
+    gradeActivities.forEach(a => {
+      const p = a.phase?.trim();
+      if (p && !seen.has(p)) {
+        seen.add(p);
+        extra.push(p);
+      }
+    });
+    extra.sort((a, b) => a.localeCompare(b, 'es'));
+    return [ALL_PHASES_LABEL, ...DEFAULT_GRADE_PHASES, ...extra];
+  }, [gradeActivities]);
+
   const evidenciasStatsFull = useMemo(() =>
     students.map(student => {
       const group         = student.group || '';
@@ -517,8 +544,12 @@ export const ReportsView: React.FC = () => {
       const fichaActs     = fichaSpecific.length > 0
         ? fichaSpecific
         : gradeActivities.filter(a => a.group === '');
+      const actsForPhase =
+        selectedEvPhase === ALL_PHASES_LABEL
+          ? fichaActs
+          : fichaActs.filter(a => a.phase === selectedEvPhase);
       const pending: GradeActivity[] = [];
-      fichaActs.forEach(a => {
+      actsForPhase.forEach(a => {
         const g = gradeMap.get(`${student.id}-${a.id}`);
         if (!g || g.letter !== 'A') pending.push(a);
       });
@@ -533,10 +564,10 @@ export const ReportsView: React.FC = () => {
         status:              student.status || 'Formación',
         pendienteCount:      pending.length,
         pendienteActivities: pending,
-        totalActivities:     fichaActs.length,
+        totalActivities:     actsForPhase.length,
       };
     }),
-    [students, gradeActivities, gradeMap]
+    [students, gradeActivities, gradeMap, selectedEvPhase]
   );
 
   const evidenciasByFicha = useMemo(() =>
@@ -655,7 +686,7 @@ export const ReportsView: React.FC = () => {
           `"${actividadesDesc}"`,
         ];
       }),
-      `reporte_evidencias_${selectedFicha}_${TODAY_ISO}.csv`
+      `reporte_evidencias_${selectedFicha}_${selectedEvPhase === ALL_PHASES_LABEL ? 'todas-fases' : selectedEvPhase.replace(/[:/\\?*[\]]/g, '_')}_${TODAY_ISO}.csv`
     );
 
   // ─── shared tab config ─────────────────────────────────────────────────────
@@ -677,19 +708,40 @@ export const ReportsView: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900">Reportes</h2>
           <p className="text-gray-500">
             Estadísticas y reportes&nbsp;
-            {selectedFicha !== 'Todas' ? `— Ficha ${selectedFicha}` : 'de todos los grupos'}.
+            {selectedFicha !== 'Todas' ? `— Ficha ${selectedFicha}` : 'de todos los grupos'}
+            {activeTab === 'evidencias' && selectedEvPhase !== ALL_PHASES_LABEL
+              ? ` — ${selectedEvPhase}`
+              : ''}
+            .
           </p>
         </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <select
-            className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none appearance-none bg-white shadow-sm font-medium text-gray-700"
-            value={selectedFicha}
-            onChange={e => setSelectedFicha(e.target.value)}
-          >
-            <option value="Todas">Todas las Fichas</option>
-            {fichas.map(f => <option key={f.id} value={f.code}>{f.code}</option>)}
-          </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <select
+              className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none appearance-none bg-white shadow-sm font-medium text-gray-700"
+              value={selectedFicha}
+              onChange={e => setSelectedFicha(e.target.value)}
+            >
+              <option value="Todas">Todas las Fichas</option>
+              {fichas.map(f => <option key={f.id} value={f.code}>{f.code}</option>)}
+            </select>
+          </div>
+          {activeTab === 'evidencias' && (
+            <div className="relative">
+              <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <select
+                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none appearance-none bg-white shadow-sm font-medium text-gray-700 max-w-[min(100%,14rem)]"
+                value={selectedEvPhase}
+                onChange={e => setSelectedEvPhase(e.target.value)}
+                title="Filtrar evidencias por fase académica"
+              >
+                {evPhaseOptions.map((ph) => (
+                  <option key={ph} value={ph}>{ph}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

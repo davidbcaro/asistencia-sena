@@ -21,6 +21,7 @@ import {
   IndentIncrease,
   IndentDecrease,
   Copy,
+  BookOpen,
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import {
@@ -51,6 +52,39 @@ function daysSince(dateStr: string): number {
  * - Estado "Formación" y Final no es "A" y días < 20 → "Plan de mejoramiento"
  * - Resto → "-"
  */
+const ALL_PHASES_LABEL = 'Todas las fases';
+
+const DEFAULT_GRADE_PHASES = [
+  'Fase Inducción',
+  'Fase 1: Análisis',
+  'Fase 2: Planeación',
+  'Fase 3: Ejecución',
+  'Fase 4: Evaluación',
+] as const;
+
+/** Evidencias sin A para el aprendiz, opcionalmente restringidas a una fase (misma lógica que Reportes). */
+function getPendingGradeActivities(
+  student: Student,
+  activities: GradeActivity[],
+  gradeMap: Map<string, GradeEntry>,
+  phaseFilter: string
+): GradeActivity[] {
+  const group = student.group || '';
+  const fichaSpecific = activities.filter((a) => a.group === group);
+  const fichaActs =
+    fichaSpecific.length > 0 ? fichaSpecific : activities.filter((a) => a.group === '');
+  const actsForPhase =
+    phaseFilter === ALL_PHASES_LABEL
+      ? fichaActs
+      : fichaActs.filter((a) => a.phase === phaseFilter);
+  const pending: GradeActivity[] = [];
+  actsForPhase.forEach((a) => {
+    const g = gradeMap.get(`${student.id}-${a.id}`);
+    if (!g || g.letter !== 'A') pending.push(a);
+  });
+  return pending;
+}
+
 function getNovedad(
   student: Student,
   daysInactive: number | null,
@@ -144,6 +178,7 @@ export const AlertsView: React.FC = () => {
   const [grades, setGrades] = useState<GradeEntry[]>([]);
 
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
+  const [filterFase, setFilterFase] = useState<string>(ALL_PHASES_LABEL);
   const [filterNovedad, setFilterNovedad] = useState<string>('Ambos');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -227,6 +262,20 @@ Atentamente,`
     return map;
   }, [grades]);
 
+  const alertPhaseOptions = useMemo(() => {
+    const seen = new Set<string>(DEFAULT_GRADE_PHASES);
+    const extra: string[] = [];
+    gradeActivities.forEach((a) => {
+      const p = a.phase?.trim();
+      if (p && !seen.has(p)) {
+        seen.add(p);
+        extra.push(p);
+      }
+    });
+    extra.sort((a, b) => a.localeCompare(b, 'es'));
+    return [ALL_PHASES_LABEL, ...DEFAULT_GRADE_PHASES, ...extra];
+  }, [gradeActivities]);
+
   const getFinalForStudent = (
     student: Student
   ): { score: number | null; letter: 'A' | 'D' | null } => {
@@ -283,6 +332,13 @@ Atentamente,`
         ? [...apprenticesWithNovedad]
         : apprenticesWithNovedad.filter((a) => (a.student.group || '') === filterFicha);
 
+    if (filterFase !== ALL_PHASES_LABEL) {
+      list = list.filter(
+        (a) =>
+          getPendingGradeActivities(a.student, gradeActivities, gradeMap, filterFase).length > 0
+      );
+    }
+
     if (filterNovedad === 'Riesgo de deserción')
       list = list.filter((a) => a.novedad === 'Riesgo de deserción');
     else if (filterNovedad === 'Plan de mejoramiento')
@@ -298,7 +354,7 @@ Atentamente,`
       });
     }
     return list;
-  }, [apprenticesWithNovedad, filterFicha, filterNovedad, searchTerm]);
+  }, [apprenticesWithNovedad, filterFicha, filterFase, filterNovedad, searchTerm, gradeActivities, gradeMap]);
 
   const getLocalDate = () => {
     const d = new Date();
@@ -435,6 +491,19 @@ Atentamente,`
       const programName = ficha?.cronogramaProgramName || ficha?.program || student.group || 'N/A';
       const lastAccessFormatted = formatLastAccess(lmsLastAccess[student.id]);
 
+      const safe = escapeHtml;
+      const pendientes = getPendingGradeActivities(student, gradeActivities, gradeMap, filterFase);
+      const evidenciasPlain =
+        pendientes.length === 0
+          ? 'Ninguna evidencia pendiente en la fase filtrada.'
+          : pendientes.map((a) => (a.detail || a.name).replace(/\s+/g, ' ').trim()).join('; ');
+      const evidenciasHtml =
+        pendientes.length === 0
+          ? `<p>${safe('Ninguna evidencia pendiente en la fase filtrada.')}</p>`
+          : `<ul style="margin:0.5em 0;padding-left:1.25em;">${pendientes
+              .map((a) => `<li>${safe((a.detail || a.name).trim())}</li>`)
+              .join('')}</ul>`;
+
       let subject = templateSubject
         .replace(/{estudiante}/g, fullName)
         .replace(/{novedad}/g, novedad)
@@ -443,9 +512,9 @@ Atentamente,`
         .replace(/{fecha}/g, fecha)
         .replace(/{documento}/g, student.documentNumber || '')
         .replace(/{programa}/g, programName)
-        .replace(/{fecha_ultimo_ingreso}/g, lastAccessFormatted);
+        .replace(/{fecha_ultimo_ingreso}/g, lastAccessFormatted)
+        .replace(/{evidencias}/g, evidenciasPlain);
 
-      const safe = escapeHtml;
       let body = templateBody
         .replace(/{estudiante}/g, safe(fullName))
         .replace(/{novedad}/g, safe(novedad))
@@ -454,7 +523,8 @@ Atentamente,`
         .replace(/{fecha}/g, safe(fecha))
         .replace(/{documento}/g, safe(student.documentNumber || 'N/A'))
         .replace(/{programa}/g, safe(programName))
-        .replace(/{fecha_ultimo_ingreso}/g, safe(lastAccessFormatted));
+        .replace(/{fecha_ultimo_ingreso}/g, safe(lastAccessFormatted))
+        .replace(/{evidencias}/g, evidenciasHtml);
 
       return {
         studentId: student.id,
@@ -637,6 +707,21 @@ Atentamente,`
                 ))}
               </select>
             </div>
+            <div className="relative">
+              <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <select
+                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700 max-w-[min(100%,13rem)]"
+                value={filterFase}
+                onChange={(e) => setFilterFase(e.target.value)}
+                title="Lista solo aprendices con pendientes en esta fase; la variable {evidencias} usa la misma fase"
+              >
+                {alertPhaseOptions.map((ph) => (
+                  <option key={ph} value={ph}>
+                    {ph === ALL_PHASES_LABEL ? ph : `Fase: ${ph}`}
+                  </option>
+                ))}
+              </select>
+            </div>
             <select
               className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700"
               value={filterNovedad}
@@ -693,6 +778,7 @@ Atentamente,`
                   '{novedad}',
                   '{dias_sin_ingresar}',
                   '{fecha}',
+                  '{evidencias}',
                 ].map((v) => (
                   <button
                     key={v}
