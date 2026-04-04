@@ -6,12 +6,19 @@ import {
 } from 'recharts';
 import {
   FileDown, Search, Filter, ChevronLeft, ChevronRight,
-  ArrowUpDown, Monitor, BookOpen, CalendarCheck, X,
+  Monitor, BookOpen, CalendarCheck, X, ListChecks,
 } from 'lucide-react';
 import {
   getStudents, getAttendance, getFichas, getSessions,
   getLmsLastAccess, getGradeActivities, getGrades,
 } from '../services/db';
+import {
+  ALL_EVIDENCE_AREAS,
+  buildEvidenceAreaOptions,
+  filterActsForPendingEvidence,
+  shortEvidenceLabel,
+  activityMatchesEvidenceArea,
+} from '../services/evidenceMeta';
 import { Ficha, GradeActivity, GradeEntry } from '../types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -163,6 +170,11 @@ export const ReportsView: React.FC = () => {
   const [selectedFicha, setSelectedFicha] = useState('Todas');
   /** Solo aplica al tab Evidencias pendientes */
   const [selectedEvPhase, setSelectedEvPhase] = useState<string>(ALL_PHASES_LABEL);
+  /** Área de competencia (Técnica, TIC's, …) — filtra el listado de evidencias a marcar */
+  const [selectedEvArea, setSelectedEvArea] = useState<string>(ALL_EVIDENCE_AREAS);
+  /** ids seleccionados; vacío = todas las evidencias del contexto (ficha/fase/área) */
+  const [selectedEvidenceIdList, setSelectedEvidenceIdList] = useState<string[]>([]);
+  const [evidencePickerOpen, setEvidencePickerOpen] = useState(true);
 
   // ── per-tab search ──
   const [searchSessions,   setSearchSessions]   = useState('');
@@ -264,7 +276,7 @@ export const ReportsView: React.FC = () => {
   // Reset pages on filter / tab change
   useEffect(() => { setPageSessions(1);   }, [selectedFicha, searchSessions, sortSessions, sortSessionsDirection, activeTab]);
   useEffect(() => { setPageLms(1);        }, [selectedFicha, searchLms, sortLms, sortLmsDirection, activeTab]);
-  useEffect(() => { setPageEvidencias(1); }, [selectedFicha, selectedEvPhase, searchEvidencias, sortEvidencias, sortEvidenciasDirection, filterEvEstado, filterEvPendientes, activeTab]);
+  useEffect(() => { setPageEvidencias(1); }, [selectedFicha, selectedEvPhase, selectedEvArea, selectedEvidenceIdList, searchEvidencias, sortEvidencias, sortEvidenciasDirection, filterEvEstado, filterEvPendientes, activeTab]);
 
   // Reset search when switching tabs
   useEffect(() => {
@@ -537,6 +549,47 @@ export const ReportsView: React.FC = () => {
     return [ALL_PHASES_LABEL, ...DEFAULT_GRADE_PHASES, ...extra];
   }, [gradeActivities]);
 
+  /** Actividades candidatas (ficha + fase), sin filtrar por área — para opciones de área */
+  const evidenceBasePool = useMemo(() => {
+    let pool = gradeActivities.filter((a) => {
+      if (selectedFicha === 'Todas') return true;
+      return a.group === selectedFicha || a.group === '';
+    });
+    if (selectedEvPhase !== ALL_PHASES_LABEL) {
+      pool = pool.filter((a) => a.phase === selectedEvPhase);
+    }
+    return [...pool].sort(
+      (a, b) =>
+        (a.phase || '').localeCompare(b.phase || '', 'es') || a.name.localeCompare(b.name, 'es')
+    );
+  }, [gradeActivities, selectedFicha, selectedEvPhase]);
+
+  const evAreaOptions = useMemo(
+    () => buildEvidenceAreaOptions(evidenceBasePool),
+    [evidenceBasePool]
+  );
+
+  const evidencePickerPool = useMemo(
+    () => evidenceBasePool.filter((a) => activityMatchesEvidenceArea(a, selectedEvArea)),
+    [evidenceBasePool, selectedEvArea]
+  );
+
+  const selectedEvidenceIdSet = useMemo(
+    () => new Set(selectedEvidenceIdList),
+    [selectedEvidenceIdList]
+  );
+
+  useEffect(() => {
+    if (!evAreaOptions.includes(selectedEvArea)) {
+      setSelectedEvArea(ALL_EVIDENCE_AREAS);
+    }
+  }, [evAreaOptions, selectedEvArea]);
+
+  useEffect(() => {
+    const valid = new Set(evidencePickerPool.map((a) => a.id));
+    setSelectedEvidenceIdList((prev) => prev.filter((id) => valid.has(id)));
+  }, [evidencePickerPool]);
+
   const evidenciasStatsFull = useMemo(() =>
     students.map(student => {
       const group         = student.group || '';
@@ -544,12 +597,14 @@ export const ReportsView: React.FC = () => {
       const fichaActs     = fichaSpecific.length > 0
         ? fichaSpecific
         : gradeActivities.filter(a => a.group === '');
-      const actsForPhase =
-        selectedEvPhase === ALL_PHASES_LABEL
-          ? fichaActs
-          : fichaActs.filter(a => a.phase === selectedEvPhase);
+      const actsForPending = filterActsForPendingEvidence(fichaActs, {
+        phaseFilter: selectedEvPhase,
+        allPhasesLabel: ALL_PHASES_LABEL,
+        areaFilter: selectedEvArea,
+        selectedActivityIds: selectedEvidenceIdSet,
+      });
       const pending: GradeActivity[] = [];
-      actsForPhase.forEach(a => {
+      actsForPending.forEach(a => {
         const g = gradeMap.get(`${student.id}-${a.id}`);
         if (!g || g.letter !== 'A') pending.push(a);
       });
@@ -564,10 +619,10 @@ export const ReportsView: React.FC = () => {
         status:              student.status || 'Formación',
         pendienteCount:      pending.length,
         pendienteActivities: pending,
-        totalActivities:     actsForPhase.length,
+        totalActivities:     actsForPending.length,
       };
     }),
-    [students, gradeActivities, gradeMap, selectedEvPhase]
+    [students, gradeActivities, gradeMap, selectedEvPhase, selectedEvArea, selectedEvidenceIdSet]
   );
 
   const evidenciasByFicha = useMemo(() =>
@@ -712,6 +767,9 @@ export const ReportsView: React.FC = () => {
             {activeTab === 'evidencias' && selectedEvPhase !== ALL_PHASES_LABEL
               ? ` — ${selectedEvPhase}`
               : ''}
+            {activeTab === 'evidencias' && selectedEvArea !== ALL_EVIDENCE_AREAS
+              ? ` — ${selectedEvArea}`
+              : ''}
             .
           </p>
         </div>
@@ -728,19 +786,34 @@ export const ReportsView: React.FC = () => {
             </select>
           </div>
           {activeTab === 'evidencias' && (
-            <div className="relative">
-              <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <select
-                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none appearance-none bg-white shadow-sm font-medium text-gray-700 max-w-[min(100%,14rem)]"
-                value={selectedEvPhase}
-                onChange={e => setSelectedEvPhase(e.target.value)}
-                title="Filtrar evidencias por fase académica"
-              >
-                {evPhaseOptions.map((ph) => (
-                  <option key={ph} value={ph}>{ph}</option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div className="relative">
+                <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
+                  className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none appearance-none bg-white shadow-sm font-medium text-gray-700 max-w-[min(100%,14rem)]"
+                  value={selectedEvPhase}
+                  onChange={e => setSelectedEvPhase(e.target.value)}
+                  title="Filtrar evidencias por fase académica"
+                >
+                  {evPhaseOptions.map((ph) => (
+                    <option key={ph} value={ph}>{ph}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative">
+                <ListChecks className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
+                  className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none appearance-none bg-white shadow-sm font-medium text-gray-700 max-w-[min(100%,12rem)]"
+                  value={selectedEvArea}
+                  onChange={(e) => setSelectedEvArea(e.target.value)}
+                  title="Área de competencia (ej. Técnica). Reduce el listado de evidencias a marcar"
+                >
+                  {evAreaOptions.map((ar) => (
+                    <option key={ar} value={ar}>{ar}</option>
+                  ))}
+                </select>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -1223,6 +1296,90 @@ export const ReportsView: React.FC = () => {
       ═════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'evidencias' && (
         <div className="space-y-6">
+
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setEvidencePickerOpen((o) => !o)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100"
+            >
+              <span className="font-semibold text-gray-800 flex items-center gap-2">
+                <ListChecks className="w-4 h-4 text-teal-600" />
+                Evidencias incluidas en el reporte
+                <span className="text-sm font-normal text-gray-500">
+                  ({evidencePickerPool.length} en listado
+                  {selectedEvidenceIdList.length > 0
+                    ? ` · ${selectedEvidenceIdList.length} seleccionadas`
+                    : ' · todas'}
+                  )
+                </span>
+              </span>
+              <span className="text-xs text-gray-500">{evidencePickerOpen ? 'Ocultar' : 'Mostrar'}</span>
+            </button>
+            {evidencePickerOpen && (
+              <div className="px-4 py-3 space-y-3 bg-gray-50/80">
+                <p className="text-xs text-gray-600">
+                  Todas las casillas marcadas = se consideran todas las evidencias del listado (según ficha, fase y área).
+                  Desmarca las que no quieras incluir, o usa los botones para acotar.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEvidenceIdList([])}
+                    className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                  >
+                    Incluir todas las del listado
+                  </button>
+                </div>
+                <div className="max-h-52 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 space-y-1">
+                  {evidencePickerPool.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-2 text-center">No hay evidencias en este contexto.</p>
+                  ) : (
+                    evidencePickerPool.map((a) => {
+                      const implicitAll = selectedEvidenceIdList.length === 0;
+                      const checked = implicitAll || selectedEvidenceIdList.includes(a.id);
+                      return (
+                        <label
+                          key={a.id}
+                          className="flex items-start gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded px-2 py-1 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              const poolIds = evidencePickerPool.map((x) => x.id);
+                              setSelectedEvidenceIdList((prev) => {
+                                if (prev.length === 0) {
+                                  return poolIds.filter((x) => x !== a.id);
+                                }
+                                const s = new Set(prev);
+                                if (s.has(a.id)) s.delete(a.id);
+                                else s.add(a.id);
+                                const arr = Array.from(s).sort();
+                                if (arr.length === 0 || arr.length === poolIds.length) return [];
+                                return arr;
+                              });
+                            }}
+                            className="mt-0.5 w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                          />
+                          <span className="flex-1 min-w-0">
+                            <span className="font-mono text-xs text-teal-700">{shortEvidenceLabel(a.name)}</span>
+                            <span className="text-gray-400 text-xs mx-1">·</span>
+                            <span className="text-xs text-gray-600">{a.phase || '—'}</span>
+                            {(a.detail || a.name) && (
+                              <span className="block text-xs text-gray-500 truncate" title={a.detail || a.name}>
+                                {a.detail || a.name}
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

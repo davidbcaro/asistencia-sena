@@ -22,6 +22,7 @@ import {
   IndentDecrease,
   Copy,
   BookOpen,
+  ListChecks,
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import {
@@ -33,6 +34,14 @@ import {
   getEmailSettings,
   saveEmailSettings,
 } from '../services/db';
+import {
+  ALL_EVIDENCE_AREAS,
+  buildEvidenceAreaOptions,
+  filterActsForPendingEvidence,
+  shortEvidenceLabel,
+  activityMatchesEvidenceArea,
+  type EvidencePendingScope,
+} from '../services/evidenceMeta';
 import { Student, Ficha, GradeActivity, GradeEntry, EmailSettings } from '../types';
 
 /** Días desde la fecha/hora indicada hasta hoy. */
@@ -62,23 +71,20 @@ const DEFAULT_GRADE_PHASES = [
   'Fase 4: Evaluación',
 ] as const;
 
-/** Evidencias sin A para el aprendiz, opcionalmente restringidas a una fase (misma lógica que Reportes). */
+/** Evidencias sin A (fase, área y subconjunto de ids — misma lógica que Reportes). */
 function getPendingGradeActivities(
   student: Student,
   activities: GradeActivity[],
   gradeMap: Map<string, GradeEntry>,
-  phaseFilter: string
+  scope: EvidencePendingScope
 ): GradeActivity[] {
   const group = student.group || '';
   const fichaSpecific = activities.filter((a) => a.group === group);
   const fichaActs =
     fichaSpecific.length > 0 ? fichaSpecific : activities.filter((a) => a.group === '');
-  const actsForPhase =
-    phaseFilter === ALL_PHASES_LABEL
-      ? fichaActs
-      : fichaActs.filter((a) => a.phase === phaseFilter);
+  const acts = filterActsForPendingEvidence(fichaActs, scope);
   const pending: GradeActivity[] = [];
-  actsForPhase.forEach((a) => {
+  acts.forEach((a) => {
     const g = gradeMap.get(`${student.id}-${a.id}`);
     if (!g || g.letter !== 'A') pending.push(a);
   });
@@ -179,6 +185,9 @@ export const AlertsView: React.FC = () => {
 
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterFase, setFilterFase] = useState<string>(ALL_PHASES_LABEL);
+  const [filterEvidenceArea, setFilterEvidenceArea] = useState<string>(ALL_EVIDENCE_AREAS);
+  const [selectedAlertEvidenceIdList, setSelectedAlertEvidenceIdList] = useState<string[]>([]);
+  const [alertsEvidencePickerOpen, setAlertsEvidencePickerOpen] = useState(false);
   const [filterNovedad, setFilterNovedad] = useState<string>('Ambos');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -276,6 +285,59 @@ Atentamente,`
     return [ALL_PHASES_LABEL, ...DEFAULT_GRADE_PHASES, ...extra];
   }, [gradeActivities]);
 
+  const alertsEvidenceBasePool = useMemo(() => {
+    let pool = gradeActivities.filter((a) => {
+      if (filterFicha === 'Todas') return true;
+      return a.group === filterFicha || a.group === '';
+    });
+    if (filterFase !== ALL_PHASES_LABEL) {
+      pool = pool.filter((a) => a.phase === filterFase);
+    }
+    return [...pool].sort(
+      (a, b) =>
+        (a.phase || '').localeCompare(b.phase || '', 'es') || a.name.localeCompare(b.name, 'es')
+    );
+  }, [gradeActivities, filterFicha, filterFase]);
+
+  const alertsEvAreaOptions = useMemo(
+    () => buildEvidenceAreaOptions(alertsEvidenceBasePool),
+    [alertsEvidenceBasePool]
+  );
+
+  const alertsEvidencePickerPool = useMemo(
+    () =>
+      alertsEvidenceBasePool.filter((a) =>
+        activityMatchesEvidenceArea(a, filterEvidenceArea)
+      ),
+    [alertsEvidenceBasePool, filterEvidenceArea]
+  );
+
+  const alertSelectedEvidenceIdSet = useMemo(
+    () => new Set(selectedAlertEvidenceIdList),
+    [selectedAlertEvidenceIdList]
+  );
+
+  const alertsPendingScope = useMemo<EvidencePendingScope>(
+    () => ({
+      phaseFilter: filterFase,
+      allPhasesLabel: ALL_PHASES_LABEL,
+      areaFilter: filterEvidenceArea,
+      selectedActivityIds: alertSelectedEvidenceIdSet,
+    }),
+    [filterFase, filterEvidenceArea, alertSelectedEvidenceIdSet]
+  );
+
+  useEffect(() => {
+    if (!alertsEvAreaOptions.includes(filterEvidenceArea)) {
+      setFilterEvidenceArea(ALL_EVIDENCE_AREAS);
+    }
+  }, [alertsEvAreaOptions, filterEvidenceArea]);
+
+  useEffect(() => {
+    const valid = new Set(alertsEvidencePickerPool.map((a) => a.id));
+    setSelectedAlertEvidenceIdList((prev) => prev.filter((id) => valid.has(id)));
+  }, [alertsEvidencePickerPool]);
+
   const getFinalForStudent = (
     student: Student
   ): { score: number | null; letter: 'A' | 'D' | null } => {
@@ -332,10 +394,15 @@ Atentamente,`
         ? [...apprenticesWithNovedad]
         : apprenticesWithNovedad.filter((a) => (a.student.group || '') === filterFicha);
 
-    if (filterFase !== ALL_PHASES_LABEL) {
+    const restrictByPending =
+      filterFase !== ALL_PHASES_LABEL ||
+      selectedAlertEvidenceIdList.length > 0 ||
+      filterEvidenceArea !== ALL_EVIDENCE_AREAS;
+    if (restrictByPending) {
       list = list.filter(
         (a) =>
-          getPendingGradeActivities(a.student, gradeActivities, gradeMap, filterFase).length > 0
+          getPendingGradeActivities(a.student, gradeActivities, gradeMap, alertsPendingScope)
+            .length > 0
       );
     }
 
@@ -354,7 +421,18 @@ Atentamente,`
       });
     }
     return list;
-  }, [apprenticesWithNovedad, filterFicha, filterFase, filterNovedad, searchTerm, gradeActivities, gradeMap]);
+  }, [
+    apprenticesWithNovedad,
+    filterFicha,
+    filterFase,
+    filterEvidenceArea,
+    filterNovedad,
+    searchTerm,
+    gradeActivities,
+    gradeMap,
+    alertsPendingScope,
+    selectedAlertEvidenceIdList.length,
+  ]);
 
   const getLocalDate = () => {
     const d = new Date();
@@ -492,14 +570,19 @@ Atentamente,`
       const lastAccessFormatted = formatLastAccess(lmsLastAccess[student.id]);
 
       const safe = escapeHtml;
-      const pendientes = getPendingGradeActivities(student, gradeActivities, gradeMap, filterFase);
+      const pendientes = getPendingGradeActivities(
+        student,
+        gradeActivities,
+        gradeMap,
+        alertsPendingScope
+      );
       const evidenciasPlain =
         pendientes.length === 0
-          ? 'Ninguna evidencia pendiente en la fase filtrada.'
+          ? 'Ninguna evidencia pendiente según los filtros aplicados.'
           : pendientes.map((a) => (a.detail || a.name).replace(/\s+/g, ' ').trim()).join('; ');
       const evidenciasHtml =
         pendientes.length === 0
-          ? `<p>${safe('Ninguna evidencia pendiente en la fase filtrada.')}</p>`
+          ? `<p>${safe('Ninguna evidencia pendiente según los filtros aplicados.')}</p>`
           : `<ul style="margin:0.5em 0;padding-left:1.25em;">${pendientes
               .map((a) => `<li>${safe((a.detail || a.name).trim())}</li>`)
               .join('')}</ul>`;
@@ -722,6 +805,21 @@ Atentamente,`
                 ))}
               </select>
             </div>
+            <div className="relative">
+              <ListChecks className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <select
+                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700 max-w-[min(100%,12rem)]"
+                value={filterEvidenceArea}
+                onChange={(e) => setFilterEvidenceArea(e.target.value)}
+                title="Área de competencia (p. ej. Técnica). Acota pendientes y la variable {evidencias}"
+              >
+                {alertsEvAreaOptions.map((ar) => (
+                  <option key={ar} value={ar}>
+                    {ar === ALL_EVIDENCE_AREAS ? ar : `Área: ${ar}`}
+                  </option>
+                ))}
+              </select>
+            </div>
             <select
               className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700"
               value={filterNovedad}
@@ -731,6 +829,87 @@ Atentamente,`
               <option value="Riesgo de deserción">Riesgo de deserción</option>
               <option value="Plan de mejoramiento">Plan de mejoramiento</option>
             </select>
+          </div>
+          <div className="w-full border-t border-gray-100 pt-3 mt-1">
+            <button
+              type="button"
+              onClick={() => setAlertsEvidencePickerOpen((o) => !o)}
+              className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-800 hover:text-teal-700"
+            >
+              <span className="flex items-center gap-2">
+                <ListChecks className="w-4 h-4 text-teal-600" />
+                Evidencias para pendientes y {'{evidencias}'}
+                <span className="font-normal text-gray-500">
+                  ({alertsEvidencePickerPool.length} en listado
+                  {selectedAlertEvidenceIdList.length > 0
+                    ? ` · ${selectedAlertEvidenceIdList.length} fijadas`
+                    : ' · todas'}
+                  )
+                </span>
+              </span>
+              <span className="text-xs text-gray-500">{alertsEvidencePickerOpen ? 'Ocultar' : 'Mostrar'}</span>
+            </button>
+            {alertsEvidencePickerOpen && (
+              <div className="mt-2 space-y-2">
+                <p className="text-xs text-gray-600">
+                  Con todas marcadas se usan todas las evidencias del listado (según ficha, fase y área). Desmarca las
+                  que no quieras considerar.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAlertEvidenceIdList([])}
+                  className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                >
+                  Incluir todas las del listado
+                </button>
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-2 space-y-1">
+                  {alertsEvidencePickerPool.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-2 text-center">No hay evidencias en este contexto.</p>
+                  ) : (
+                    alertsEvidencePickerPool.map((a) => {
+                      const implicitAll = selectedAlertEvidenceIdList.length === 0;
+                      const checked = implicitAll || selectedAlertEvidenceIdList.includes(a.id);
+                      return (
+                        <label
+                          key={a.id}
+                          className="flex items-start gap-2 text-sm text-gray-700 hover:bg-white rounded px-2 py-1 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              const poolIds = alertsEvidencePickerPool.map((x) => x.id);
+                              setSelectedAlertEvidenceIdList((prev) => {
+                                if (prev.length === 0) {
+                                  return poolIds.filter((x) => x !== a.id);
+                                }
+                                const s = new Set(prev);
+                                if (s.has(a.id)) s.delete(a.id);
+                                else s.add(a.id);
+                                const arr = Array.from(s).sort();
+                                if (arr.length === 0 || arr.length === poolIds.length) return [];
+                                return arr;
+                              });
+                            }}
+                            className="mt-0.5 w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                          />
+                          <span className="flex-1 min-w-0">
+                            <span className="font-mono text-xs text-teal-700">{shortEvidenceLabel(a.name)}</span>
+                            <span className="text-gray-400 text-xs mx-1">·</span>
+                            <span className="text-xs text-gray-600">{a.phase || '—'}</span>
+                            {(a.detail || a.name) && (
+                              <span className="block text-xs text-gray-500 truncate" title={a.detail || a.name}>
+                                {a.detail || a.name}
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4 text-sm">
             <span className="text-gray-500">
