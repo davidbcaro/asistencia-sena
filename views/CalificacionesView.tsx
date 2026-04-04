@@ -2722,8 +2722,8 @@ export const CalificacionesView: React.FC = () => {
                                           )}
                                         </span>
                                         {(a.detail || a.name) && (
-                                          <span className="block text-[11px] text-gray-400 truncate leading-tight mt-0.5" title={a.detail || a.name}>
-                                            {a.detail || a.name}
+                                          <span className="block text-[11px] text-gray-400 truncate leading-tight mt-0.5" title={(a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '')}>
+                                            {(a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '')}
                                           </span>
                                         )}
                                       </span>
