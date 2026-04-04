@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FileDown, FileSpreadsheet, Filter, Pencil, Plus, Trash2, Upload, X, Search } from 'lucide-react';
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FileDown, FileSpreadsheet, Filter, Pencil, Plus, Trash2, Upload, X, Search, ListChecks } from 'lucide-react';
 import { Ficha, GradeActivity, GradeEntry, Student } from '../types';
 import {
   addGradeActivity,
@@ -40,6 +40,12 @@ import {
   type ManualFinals,
 } from '../services/db';
 import type { EvidenceCompMapData, EvCompEntry } from '../services/db';
+import {
+  ALL_EVIDENCE_AREAS,
+  activityMatchesEvidenceArea,
+  buildEvidenceAreaOptions,
+  shortEvidenceLabel,
+} from '../services/evidenceMeta';
 
 const PASSING_SCORE = 70;
 /** Altura fija de cada fila de la tabla (px) para que coincidan las dos mitades (datos + calificaciones). Misma que SofiaPlusView. */
@@ -577,6 +583,11 @@ export const CalificacionesView: React.FC = () => {
     'Fase 4: Evaluación',
   ];
   const [selectedPhase, setSelectedPhase] = useState(ALL_PHASES_VIEW);
+  /** Área de competencia (Técnica, TIC's, …) para acotar columnas de evidencias */
+  const [califEvidenceAreaFilter, setCalifEvidenceAreaFilter] = useState<string>(ALL_EVIDENCE_AREAS);
+  /** Vacío = todas las evidencias del contexto (área + ficha/fase); si no, solo ids listados */
+  const [califSelectedEvidenceIdList, setCalifSelectedEvidenceIdList] = useState<string[]>([]);
+  const [califEvidencePickerOpen, setCalifEvidencePickerOpen] = useState(false);
 
   const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -891,7 +902,7 @@ export const CalificacionesView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedFicha, selectedPhase, searchTerm, finalFilter, filterStatus, sortOrder, sortDirection]);
+  }, [selectedFicha, selectedPhase, searchTerm, finalFilter, filterStatus, sortOrder, sortDirection, califEvidenceAreaFilter]);
 
   useEffect(() => {
     if (!showFinalFilter) return;
@@ -1000,17 +1011,65 @@ export const CalificacionesView: React.FC = () => {
     return { activitiesForFicha: unified, activitiesByCanonicalAndFicha: byCanonical };
   }, [activities, selectedFicha, selectedPhase]);
 
-  const visibleActivities = useMemo(
+  /** Actividades candidatas (excl. columnas de sistema) sin filtrar por área ni por selección manual */
+  const activitiesAfterSystemExclusions = useMemo(
     () =>
-      activitiesForFicha.filter(activity => {
+      activitiesForFicha.filter((activity) => {
         const normalized = normalizeHeader(activity.name);
         const headerKey = normalizeHeaderKey(activity.name);
         if (EXCLUDED_ACTIVITY_HEADERS.has(normalized) || BASE_COMPUTED_HEADERS.has(headerKey)) return false;
-        if (!showHiddenActivities && hiddenActivityIds.has(activity.id)) return false;
         return true;
       }),
-    [activitiesForFicha, hiddenActivityIds, showHiddenActivities]
+    [activitiesForFicha]
   );
+
+  const califEvAreaOptions = useMemo(
+    () => buildEvidenceAreaOptions(activitiesAfterSystemExclusions),
+    [activitiesAfterSystemExclusions]
+  );
+
+  const califEvidencePickerPool = useMemo(
+    () =>
+      activitiesAfterSystemExclusions.filter((a) =>
+        activityMatchesEvidenceArea(a, califEvidenceAreaFilter)
+      ),
+    [activitiesAfterSystemExclusions, califEvidenceAreaFilter]
+  );
+
+  const califSelectedEvidenceIdSet = useMemo(
+    () => new Set(califSelectedEvidenceIdList),
+    [califSelectedEvidenceIdList]
+  );
+
+  useEffect(() => {
+    if (!califEvAreaOptions.includes(califEvidenceAreaFilter)) {
+      setCalifEvidenceAreaFilter(ALL_EVIDENCE_AREAS);
+    }
+  }, [califEvAreaOptions, califEvidenceAreaFilter]);
+
+  useEffect(() => {
+    const valid = new Set(califEvidencePickerPool.map((a) => a.id));
+    setCalifSelectedEvidenceIdList((prev) => prev.filter((id) => valid.has(id)));
+  }, [califEvidencePickerPool]);
+
+  const visibleActivities = useMemo(() => {
+    let list = activitiesAfterSystemExclusions;
+    if (!showHiddenActivities) {
+      list = list.filter((a) => !hiddenActivityIds.has(a.id));
+    }
+    list = list.filter((a) => activityMatchesEvidenceArea(a, califEvidenceAreaFilter));
+    if (califSelectedEvidenceIdList.length > 0) {
+      list = list.filter((a) => califSelectedEvidenceIdSet.has(a.id));
+    }
+    return list;
+  }, [
+    activitiesAfterSystemExclusions,
+    hiddenActivityIds,
+    showHiddenActivities,
+    califEvidenceAreaFilter,
+    califSelectedEvidenceIdList,
+    califSelectedEvidenceIdSet,
+  ]);
 
   /** Groups visibleActivities by phase in order. Used to compute per-phase totals. */
   const visiblePhaseGroups = useMemo<Array<{ phase: string; activities: GradeActivity[] }>>(() => {
@@ -2439,11 +2498,12 @@ export const CalificacionesView: React.FC = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div className="relative flex items-center gap-2">
+              <div className="relative flex flex-col gap-2 w-full sm:w-auto">
+                <div className="relative flex items-center gap-2 flex-wrap">
                 <div className="relative" ref={fichaFilterRef}>
                   <button
                     type="button"
-                    onClick={() => { setShowFichaFilter(prev => !prev); setShowPhaseFilter(false); }}
+                    onClick={() => { setShowFichaFilter(prev => !prev); setShowPhaseFilter(false); setCalifEvidencePickerOpen(false); }}
                     className="flex items-center space-x-1.5 bg-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 shadow-sm text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
                     <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
@@ -2471,7 +2531,7 @@ export const CalificacionesView: React.FC = () => {
                 <div className="relative" ref={phaseFilterRef}>
                   <button
                     type="button"
-                    onClick={() => { setShowPhaseFilter(prev => !prev); setShowFichaFilter(false); }}
+                    onClick={() => { setShowPhaseFilter(prev => !prev); setShowFichaFilter(false); setCalifEvidencePickerOpen(false); }}
                     className="flex items-center space-x-1.5 bg-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 shadow-sm text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
                     <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
@@ -2503,6 +2563,94 @@ export const CalificacionesView: React.FC = () => {
                       </div>
                     </>
                   )}
+                </div>
+                <div className="relative flex items-center gap-1.5 flex-wrap">
+                  <ListChecks className="w-4 h-4 text-gray-400 shrink-0" aria-hidden />
+                  <select
+                    className="pl-2 pr-7 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white shadow-sm font-medium text-gray-700 max-w-[11rem] sm:max-w-[13rem] focus:ring-2 focus:ring-teal-500 outline-none"
+                    value={califEvidenceAreaFilter}
+                    onChange={(e) => setCalifEvidenceAreaFilter(e.target.value)}
+                    title="Tipo / área de competencia de las evidencias"
+                  >
+                    {califEvAreaOptions.map((ar) => (
+                      <option key={ar} value={ar}>
+                        {ar === ALL_EVIDENCE_AREAS ? 'Todas las áreas' : ar}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setCalifEvidencePickerOpen((o) => !o)}
+                    className="flex items-center gap-1.5 bg-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 shadow-sm text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                    title="Elegir qué evidencias mostrar como columnas"
+                  >
+                    Evidencias
+                    <span className="text-teal-600 tabular-nums">
+                      ({visibleActivities.length}/{califEvidencePickerPool.length})
+                    </span>
+                  </button>
+                </div>
+                </div>
+                {califEvidencePickerOpen && (
+                  <div className="w-full max-w-2xl rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2 text-left">
+                    <p className="text-xs text-gray-600">
+                      Todas las casillas marcadas = se muestran todas las evidencias del listado (según ficha, fase y área). Desmarca las que no quieras ver en la tabla.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setCalifSelectedEvidenceIdList([])}
+                      className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                    >
+                      Mostrar todas las del listado
+                    </button>
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 space-y-1">
+                      {califEvidencePickerPool.length === 0 ? (
+                        <p className="text-sm text-gray-500 py-2 text-center">No hay evidencias en este contexto.</p>
+                      ) : (
+                        califEvidencePickerPool.map((a) => {
+                          const implicitAll = califSelectedEvidenceIdList.length === 0;
+                          const checked = implicitAll || califSelectedEvidenceIdList.includes(a.id);
+                          return (
+                            <label
+                              key={a.id}
+                              className="flex items-start gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded px-2 py-1 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {
+                                  const poolIds = califEvidencePickerPool.map((x) => x.id);
+                                  setCalifSelectedEvidenceIdList((prev) => {
+                                    if (prev.length === 0) {
+                                      return poolIds.filter((x) => x !== a.id);
+                                    }
+                                    const s = new Set(prev);
+                                    if (s.has(a.id)) s.delete(a.id);
+                                    else s.add(a.id);
+                                    const arr = Array.from(s).sort();
+                                    if (arr.length === 0 || arr.length === poolIds.length) return [];
+                                    return arr;
+                                  });
+                                }}
+                                className="mt-0.5 w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                              />
+                              <span className="flex-1 min-w-0">
+                                <span className="font-mono text-xs text-teal-700">{shortEvidenceLabel(a.name)}</span>
+                                <span className="text-gray-400 text-xs mx-1">·</span>
+                                <span className="text-xs text-gray-600">{a.phase || '—'}</span>
+                                {(a.detail || a.name) && (
+                                  <span className="block text-xs text-gray-500 truncate" title={a.detail || a.name}>
+                                    {a.detail || a.name}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
                 </div>
               </div>
             </div>
@@ -2965,16 +3113,12 @@ export const CalificacionesView: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 w-28 min-w-28 text-sm text-gray-700 sticky left-[864px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] overflow-hidden text-ellipsis whitespace-nowrap align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }}>{student.group || <span className="text-gray-400">-</span>}</td>
-                  <td className="px-3 py-4 w-20 min-w-20 text-sm tabular-nums text-center sticky left-[976px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={lmsLastAccess[student.id] ? `Último acceso: ${lmsLastAccess[student.id]}` : 'Sin registro de acceso LMS'}>
+                  <td className="px-3 py-4 w-20 min-w-20 text-sm tabular-nums text-center text-gray-700 sticky left-[976px] z-20 bg-white group-hover:bg-gray-50 shadow-[1px_0_0_0_#f3f4f6] align-middle transition-colors" style={{ height: TABLE_ROW_HEIGHT_PX, maxHeight: TABLE_ROW_HEIGHT_PX }} title={lmsLastAccess[student.id] ? `Último acceso: ${lmsLastAccess[student.id]}` : 'Sin registro de acceso LMS'}>
                     {(() => {
                       const last = lmsLastAccess[student.id];
                       const days = last != null ? daysSinceLms(last) : null;
                       if (days != null && days >= 0) {
-                        return (
-                          <span className={`font-semibold ${days > 20 ? 'text-red-600' : days > 7 ? 'text-amber-600' : 'text-green-600'}`}>
-                            {days}
-                          </span>
-                        );
+                        return <span className="font-semibold">{days}</span>;
                       }
                       return <span className="text-gray-400">-</span>;
                     })()}
