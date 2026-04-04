@@ -2521,87 +2521,86 @@ export const CalificacionesView: React.FC = () => {
         </div>
 
         <div className="flex flex-col gap-2 sm:gap-3">
-          <div className="flex flex-col xl:flex-row xl:items-center gap-2 sm:gap-3">
-            <div className="flex flex-col sm:flex-row items-stretch gap-2 sm:gap-3 flex-1">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar aprendiz..."
-                  className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none w-full bg-white shadow-sm"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div className="relative flex flex-col gap-2 w-full min-w-0">
-                <div className="relative flex items-center gap-2 flex-wrap">
-                <div className="relative" ref={fichaFilterRef}>
-                  <button
-                    type="button"
-                    onClick={() => { setShowFichaFilter(prev => !prev); setShowPhaseFilter(false); setCalifEvidencePickerOpen(false); }}
-                    className="flex items-center space-x-1.5 bg-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 shadow-sm text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
-                    <span>Ficha</span>
-                    {selectedFicha !== 'Todas' && <span className="text-teal-600 text-xs hidden sm:inline">({selectedFicha})</span>}
-                  </button>
-                  {showFichaFilter && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowFichaFilter(false)} />
-                      <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
-                        {[{ code: 'Todas', label: 'Todas las fichas' }, ...fichas.map(f => ({ code: f.code, label: `${f.code} — ${f.program}` }))].map(opt => (
-                          <button
-                            key={opt.code}
-                            type="button"
-                            onClick={() => { setSelectedFicha(opt.code); setShowFichaFilter(false); }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedFicha === opt.code ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div className="relative" ref={phaseFilterRef}>
-                  <button
-                    type="button"
-                    onClick={() => { setShowPhaseFilter(prev => !prev); setShowFichaFilter(false); setCalifEvidencePickerOpen(false); }}
-                    className="flex items-center space-x-1.5 bg-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 shadow-sm text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
-                    <span>Fase</span>
-                    <span className="text-teal-600 text-xs max-w-[80px] sm:max-w-[120px] truncate hidden sm:inline" title={selectedPhase}>{selectedPhase === ALL_PHASES_VIEW ? 'Todas' : selectedPhase.replace(/^Fase \d+:?\s*/, '')}</span>
-                  </button>
-                  {showPhaseFilter && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowPhaseFilter(false)} />
-                      <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
-                        <button
-                          type="button"
-                          onClick={() => { setSelectedPhase(ALL_PHASES_VIEW); setShowPhaseFilter(false); }}
-                          className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedPhase === ALL_PHASES_VIEW ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
-                        >
-                          📋 {ALL_PHASES_VIEW}
-                        </button>
-                        <div className="border-t border-gray-100 my-1" />
-                        {phases.map(phase => (
-                          <button
-                            key={phase}
-                            type="button"
-                            onClick={() => { setSelectedPhase(phase); setShowPhaseFilter(false); }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedPhase === phase ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
-                          >
-                            {phase}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-                </div>
-                {/* Filtro de evidencias — botón compacto que abre dropdown */}
-                <div className="relative" ref={evidenceFilterRef}>
+          {/* ── Fila única: búsqueda + filtros + acciones ── */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Búsqueda */}
+            <div className="relative min-w-[160px] flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar aprendiz..."
+                className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none w-full bg-white shadow-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            {/* Separador visual */}
+            <div className="hidden sm:block w-px h-6 bg-gray-200" />
+
+            {/* Filtro Ficha */}
+            <div className="relative" ref={fichaFilterRef}>
+              <button
+                type="button"
+                onClick={() => { setShowFichaFilter(prev => !prev); setShowPhaseFilter(false); setCalifEvidencePickerOpen(false); }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showFichaFilter ? 'bg-teal-600 border-teal-600 text-white' : selectedFicha !== 'Todas' ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              >
+                <Filter className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Ficha</span>
+                {selectedFicha !== 'Todas' && (
+                  <span className={`text-xs font-semibold max-w-[6rem] truncate ${showFichaFilter ? 'text-teal-100' : 'text-teal-600'}`}>{selectedFicha}</span>
+                )}
+              </button>
+              {showFichaFilter && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowFichaFilter(false)} />
+                  <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                    {[{ code: 'Todas', label: 'Todas las fichas' }, ...fichas.map(f => ({ code: f.code, label: `${f.code} — ${f.program}` }))].map(opt => (
+                      <button key={opt.code} type="button"
+                        onClick={() => { setSelectedFicha(opt.code); setShowFichaFilter(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedFicha === opt.code ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                      >{opt.label}</button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Filtro Fase */}
+            <div className="relative" ref={phaseFilterRef}>
+              <button
+                type="button"
+                onClick={() => { setShowPhaseFilter(prev => !prev); setShowFichaFilter(false); setCalifEvidencePickerOpen(false); }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showPhaseFilter ? 'bg-teal-600 border-teal-600 text-white' : selectedPhase !== ALL_PHASES_VIEW ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              >
+                <Filter className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Fase</span>
+                {selectedPhase !== ALL_PHASES_VIEW && (
+                  <span className={`text-xs font-semibold max-w-[7rem] truncate ${showPhaseFilter ? 'text-teal-100' : 'text-teal-600'}`}>{selectedPhase.replace(/^Fase \d+:?\s*/, '')}</span>
+                )}
+              </button>
+              {showPhaseFilter && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowPhaseFilter(false)} />
+                  <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                    <button type="button"
+                      onClick={() => { setSelectedPhase(ALL_PHASES_VIEW); setShowPhaseFilter(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedPhase === ALL_PHASES_VIEW ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                    >📋 {ALL_PHASES_VIEW}</button>
+                    <div className="border-t border-gray-100 my-1" />
+                    {phases.map(phase => (
+                      <button key={phase} type="button"
+                        onClick={() => { setSelectedPhase(phase); setShowPhaseFilter(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedPhase === phase ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                      >{phase}</button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Filtro Evidencias */}
+            <div className="relative" ref={evidenceFilterRef}>
                   <button
                     type="button"
                     onClick={() => setCalifEvidencePickerOpen((o) => !o)}
@@ -2749,11 +2748,13 @@ export const CalificacionesView: React.FC = () => {
                       </div>
                     </>
                   )}
-                </div>
-              </div>
             </div>
 
-            <div className="flex flex-row flex-wrap items-stretch gap-1.5 sm:gap-2">
+            {/* Separador visual */}
+            <div className="hidden sm:block w-px h-6 bg-gray-200" />
+
+            {/* Acciones */}
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={openAddActivity}
                 className="flex items-center justify-center space-x-1.5 bg-teal-600 hover:bg-teal-700 text-white px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm"
@@ -2866,10 +2867,10 @@ export const CalificacionesView: React.FC = () => {
                     </div>
                   </>
                 )}
-              </div>
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {uploadError && (
