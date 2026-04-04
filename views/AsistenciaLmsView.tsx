@@ -1,8 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users, X } from 'lucide-react';
+import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users, X, BookOpen, ListChecks } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
 import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep, getEstadoStepperTooltip } from '../services/db';
+import {
+  ALL_EVIDENCE_AREAS,
+  activityMatchesEvidenceArea,
+  buildEvidenceAreaOptions,
+  shortEvidenceLabel,
+  filterActsForPendingEvidence,
+  type EvidencePendingScope,
+} from '../services/evidenceMeta';
 
 /** Pasos del stepper Cancelación (igual que DebidoProcesoView). */
 const CANCELACION_STEPS: { step: number; tooltip: string }[] = [
@@ -194,6 +202,8 @@ function daysSince(dateStr: string): number {
   return Math.floor(diff / (24 * 60 * 60 * 1000));
 }
 
+const ALL_PHASES_LMS = 'Todas las fases';
+
 export const AsistenciaLmsView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [fichas, setFichas] = useState<Ficha[]>([]);
@@ -202,6 +212,9 @@ export const AsistenciaLmsView: React.FC = () => {
   const [grades, setGrades] = useState<GradeEntry[]>([]);
 
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
+  const [filterFase, setFilterFase] = useState<string>(ALL_PHASES_LMS);
+  const [filterEvidenceArea, setFilterEvidenceArea] = useState<string>(ALL_EVIDENCE_AREAS);
+  const [selectedEvidenceIdList, setSelectedEvidenceIdList] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('Todos');
   const [filterNovedad, setFilterNovedad] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
@@ -209,13 +222,13 @@ export const AsistenciaLmsView: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [showAllStudents, setShowAllStudents] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [showStatusFilter, setShowStatusFilter] = useState(false);
-  const [showNovedadFilter, setShowNovedadFilter] = useState(false);
+  const [showFichaDropdown, setShowFichaDropdown] = useState(false);
+  const [showFaseDropdown, setShowFaseDropdown] = useState(false);
+  const [evidencePickerOpen, setEvidencePickerOpen] = useState(false);
   const [pendientesModalStudent, setPendientesModalStudent] = useState<Student | null>(null);
-  const filtersRef = useRef<HTMLDivElement | null>(null);
-  const statusFilterRef = useRef<HTMLDivElement | null>(null);
-  const novedadFilterRef = useRef<HTMLDivElement | null>(null);
+  const fichaDropdownRef = useRef<HTMLDivElement>(null);
+  const faseDropdownRef = useRef<HTMLDivElement>(null);
+  const evidencePickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ITEMS_PER_PAGE = 15;
 
@@ -241,6 +254,66 @@ export const AsistenciaLmsView: React.FC = () => {
     window.addEventListener('asistenciapro-storage-update', loadData);
     return () => window.removeEventListener('asistenciapro-storage-update', loadData);
   }, []);
+
+  // Click-outside: close dropdowns
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (fichaDropdownRef.current && !fichaDropdownRef.current.contains(e.target as Node)) setShowFichaDropdown(false);
+      if (faseDropdownRef.current && !faseDropdownRef.current.contains(e.target as Node)) setShowFaseDropdown(false);
+      if (evidencePickerRef.current && !evidencePickerRef.current.contains(e.target as Node)) setEvidencePickerOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  /** Available phases derived from all activities (same pattern as AlertsView) */
+  const lmsPhaseOptions = useMemo(() => {
+    const known = ['Fase Inducción', 'Fase 1: Análisis', 'Fase 2: Planeación', 'Fase 3: Ejecución', 'Fase 4: Evaluación'];
+    const extra = [...new Set(gradeActivities.map(a => a.phase).filter(Boolean) as string[])]
+      .filter(p => !known.includes(p))
+      .sort((a, b) => a.localeCompare(b, 'es'));
+    return [ALL_PHASES_LMS, ...known.filter(p => gradeActivities.some(a => a.phase === p)), ...extra];
+  }, [gradeActivities]);
+
+  /** Activities visible for the selected ficha (global seeds + ficha-specific) */
+  const evidenceBasePool = useMemo(() => {
+    const isAll = filterFicha === 'Todas';
+    let pool = gradeActivities.filter(a => a.group === '' || (isAll ? false : a.group === filterFicha));
+    if (filterFase !== ALL_PHASES_LMS) pool = pool.filter(a => a.phase === filterFase);
+    return [...pool].sort((a, b) =>
+      (a.phase || '').localeCompare(b.phase || '', 'es') || a.name.localeCompare(b.name, 'es')
+    );
+  }, [gradeActivities, filterFicha, filterFase]);
+
+  const lmsEvAreaOptions = useMemo(() => buildEvidenceAreaOptions(evidenceBasePool), [evidenceBasePool]);
+
+  const evidencePickerPool = useMemo(
+    () => evidenceBasePool.filter(a => activityMatchesEvidenceArea(a, filterEvidenceArea)),
+    [evidenceBasePool, filterEvidenceArea]
+  );
+
+  const selectedEvidenceIdSet = useMemo(
+    () => new Set(selectedEvidenceIdList),
+    [selectedEvidenceIdList]
+  );
+
+  // Reset area filter if it's no longer available
+  useEffect(() => {
+    if (!lmsEvAreaOptions.includes(filterEvidenceArea)) setFilterEvidenceArea(ALL_EVIDENCE_AREAS);
+  }, [lmsEvAreaOptions, filterEvidenceArea]);
+
+  // Reset selected evidences when pool changes
+  useEffect(() => {
+    const valid = new Set(evidencePickerPool.map(a => a.id));
+    setSelectedEvidenceIdList(prev => prev.filter(id => valid.has(id)));
+  }, [evidencePickerPool]);
+
+  const pendingScope = useMemo<EvidencePendingScope>(() => ({
+    phaseFilter: filterFase,
+    allPhasesLabel: ALL_PHASES_LMS,
+    areaFilter: filterEvidenceArea,
+    selectedActivityIds: selectedEvidenceIdSet,
+  }), [filterFase, filterEvidenceArea, selectedEvidenceIdSet]);
 
   /** Mapa rápido studentId+activityId → GradeEntry */
   const gradeMap = useMemo(() => {
@@ -326,17 +399,18 @@ export const AsistenciaLmsView: React.FC = () => {
   };
 
   /**
-   * Pendientes del aprendiz: actividades sin calificación o con letra D.
-   * Usa deduplicación por clave canónica para tolerar cambios de ID entre importaciones.
+   * Pendientes del aprendiz: actividades sin calificación o con letra D,
+   * filtradas por el pendingScope activo (fase + área + evidencias seleccionadas).
    */
   const getPendientesForStudent = (student: Student): { count: number; activities: GradeActivity[] } => {
     const fichaActivities = getStudentActivities(student);
-    const activities: GradeActivity[] = [];
-    fichaActivities.forEach(activity => {
+    const scopedActivities = filterActsForPendingEvidence(fichaActivities, pendingScope);
+    const pending: GradeActivity[] = [];
+    scopedActivities.forEach(activity => {
       const grade = getGradeForActivity(student.id, activity);
-      if (!grade || grade.letter !== 'A') activities.push(activity);
+      if (!grade || grade.letter !== 'A') pending.push(activity);
     });
-    return { count: activities.length, activities };
+    return { count: pending.length, activities: pending };
   };
 
   /**
@@ -435,38 +509,6 @@ export const AsistenciaLmsView: React.FC = () => {
     setCurrentPage(1);
   }, [showAllStudents]);
 
-  useEffect(() => {
-    if (!showFilters) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (filtersRef.current && !filtersRef.current.contains(event.target as Node)) {
-        setShowFilters(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showFilters]);
-
-  useEffect(() => {
-    if (!showStatusFilter) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (statusFilterRef.current && !statusFilterRef.current.contains(event.target as Node)) {
-        setShowStatusFilter(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showStatusFilter]);
-
-  useEffect(() => {
-    if (!showNovedadFilter) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (novedadFilterRef.current && !novedadFilterRef.current.contains(event.target as Node)) {
-        setShowNovedadFilter(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showNovedadFilter]);
 
   const generateReport = () => {
     const headers = [
@@ -806,100 +848,202 @@ export const AsistenciaLmsView: React.FC = () => {
           <p className="text-gray-500">Último acceso al LMS y días sin ingresar por aprendiz.</p>
         </div>
 
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-wrap">
-          <div className="relative min-w-0">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Búsqueda */}
+          <div className="relative min-w-[160px] flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Buscar..."
-              className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none w-full md:w-64 bg-white shadow-sm"
+              placeholder="Buscar aprendiz..."
+              className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none w-full bg-white shadow-sm"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
 
-          <div className="relative" ref={filtersRef}>
+          <div className="hidden sm:block w-px h-6 bg-gray-200" />
+
+          {/* Filtro Ficha */}
+          <div className="relative" ref={fichaDropdownRef}>
             <button
               type="button"
-              onClick={() => setShowFilters(prev => !prev)}
-              className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+              onClick={() => { setShowFichaDropdown(p => !p); setShowFaseDropdown(false); setEvidencePickerOpen(false); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showFichaDropdown ? 'bg-teal-600 border-teal-600 text-white' : filterFicha !== 'Todas' ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
             >
-              <Filter className="w-4 h-4 text-gray-500" />
-              <span>Filtros</span>
+              <Filter className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>Ficha</span>
+              {filterFicha !== 'Todas' && (
+                <span className={`text-xs font-semibold max-w-[5rem] truncate ${showFichaDropdown ? 'text-teal-100' : 'text-teal-600'}`}>{filterFicha}</span>
+              )}
             </button>
-            {showFilters && (
-              <div className="absolute right-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-lg z-20 p-4 space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Ficha</label>
-                  <select
-                    value={filterFicha}
-                    onChange={e => {
-                      setFilterFicha(e.target.value);
-                      setShowFilters(false);
-                    }}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
-                  >
-                    <option value="Todas">Todas las Fichas</option>
-                    {fichas.map(f => (
-                      <option key={f.id} value={f.code}>{f.code}</option>
-                    ))}
-                  </select>
+            {showFichaDropdown && (
+              <div className="absolute left-0 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                {[{ code: 'Todas', label: 'Todas las fichas' }, ...fichas.map(f => ({ code: f.code, label: `${f.code} — ${f.program}` }))].map(opt => (
+                  <button key={opt.code} type="button"
+                    onClick={() => { setFilterFicha(opt.code); setShowFichaDropdown(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${filterFicha === opt.code ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                  >{opt.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Filtro Fase */}
+          <div className="relative" ref={faseDropdownRef}>
+            <button
+              type="button"
+              onClick={() => { setShowFaseDropdown(p => !p); setShowFichaDropdown(false); setEvidencePickerOpen(false); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showFaseDropdown ? 'bg-teal-600 border-teal-600 text-white' : filterFase !== ALL_PHASES_LMS ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+            >
+              <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>Fase</span>
+              {filterFase !== ALL_PHASES_LMS && (
+                <span className={`text-xs font-semibold max-w-[7rem] truncate ${showFaseDropdown ? 'text-teal-100' : 'text-teal-600'}`}>{filterFase.replace(/^Fase\s*\d*:?\s*/i, '')}</span>
+              )}
+            </button>
+            {showFaseDropdown && (
+              <div className="absolute left-0 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                {lmsPhaseOptions.map(ph => (
+                  <button key={ph} type="button"
+                    onClick={() => { setFilterFase(ph); setShowFaseDropdown(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${filterFase === ph ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                  >{ph === ALL_PHASES_LMS ? ph : ph.replace(/^Fase\s*\d*:?\s*/i, '')}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Filtro Evidencias */}
+          <div className="relative" ref={evidencePickerRef}>
+            <button
+              type="button"
+              onClick={() => { setEvidencePickerOpen(p => !p); setShowFichaDropdown(false); setShowFaseDropdown(false); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${evidencePickerOpen ? 'bg-teal-600 border-teal-600 text-white' : (filterEvidenceArea !== ALL_EVIDENCE_AREAS || selectedEvidenceIdList.length > 0) ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+            >
+              <ListChecks className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>Evidencias</span>
+              {(filterEvidenceArea !== ALL_EVIDENCE_AREAS || selectedEvidenceIdList.length > 0) && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${evidencePickerOpen ? 'bg-white/20 text-white' : 'bg-teal-500 text-white'}`}>
+                  {selectedEvidenceIdList.length > 0 ? `${selectedEvidenceIdList.length}/${evidencePickerPool.length}` : evidencePickerPool.length}
+                </span>
+              )}
+            </button>
+            {evidencePickerOpen && (
+              <div className="absolute left-0 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                  <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Filtrar evidencias para Pendientes</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Estado</label>
-                  <select
-                    value={filterStatus}
-                    onChange={e => {
-                      setFilterStatus(e.target.value);
-                      setShowFilters(false);
-                    }}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
-                  >
-                    <option value="Todos">Todos los Estados</option>
-                    <option value="Formación">Formación</option>
-                    <option value="Cancelado">Cancelado</option>
-                    <option value="Retiro Voluntario">Retiro Voluntario</option>
-                    <option value="Deserción">Deserción</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">Novedad</label>
-                  <select
-                    value={filterNovedad}
-                    onChange={e => {
-                      setFilterNovedad(e.target.value);
-                      setShowFilters(false);
-                    }}
-                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
-                  >
-                    <option value="Todos">Todas las Novedades</option>
-                    <option value="Riesgo de deserción">Riesgo de deserción</option>
-                    <option value="Plan de mejoramiento">Plan de mejoramiento</option>
-                    <option value="Sin novedad">Sin novedad</option>
-                  </select>
+                <div className="p-3 space-y-3">
+                  {/* Área */}
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Área</p>
+                    <select
+                      className="w-full pl-2.5 pr-8 py-1.5 border border-gray-200 rounded-lg text-xs bg-white font-medium text-gray-700 focus:ring-2 focus:ring-teal-500 outline-none"
+                      value={filterEvidenceArea}
+                      onChange={e => { setFilterEvidenceArea(e.target.value); setSelectedEvidenceIdList([]); }}
+                    >
+                      {lmsEvAreaOptions.map(ar => (
+                        <option key={ar} value={ar}>{ar === ALL_EVIDENCE_AREAS ? 'Todas las áreas' : ar}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Evidencias individuales */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Columnas</p>
+                      {selectedEvidenceIdList.length > 0 && (
+                        <button type="button" onClick={() => setSelectedEvidenceIdList([])}
+                          className="text-[11px] text-teal-600 hover:text-teal-800 font-medium">Mostrar todas</button>
+                      )}
+                    </div>
+                    <div className="max-h-52 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 divide-y divide-gray-100">
+                      {evidencePickerPool.length === 0
+                        ? <p className="text-xs text-gray-400 py-4 text-center">Sin evidencias en este contexto.</p>
+                        : evidencePickerPool.map(a => {
+                          const implicitAll = selectedEvidenceIdList.length === 0;
+                          const checked = implicitAll || selectedEvidenceIdSet.has(a.id);
+                          return (
+                            <label key={a.id} className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-white transition-colors ${checked ? '' : 'opacity-50'}`}>
+                              <input type="checkbox" checked={checked}
+                                onChange={() => {
+                                  const poolIds = evidencePickerPool.map(x => x.id);
+                                  setSelectedEvidenceIdList(prev => {
+                                    if (prev.length === 0) return poolIds.filter(x => x !== a.id);
+                                    const s = new Set(prev);
+                                    if (s.has(a.id)) s.delete(a.id); else s.add(a.id);
+                                    const arr = Array.from(s);
+                                    return arr.length === 0 || arr.length === poolIds.length ? [] : arr;
+                                  });
+                                }}
+                                className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 flex-shrink-0"
+                              />
+                              <span className="flex-1 min-w-0">
+                                <span className="font-mono text-[11px] font-semibold text-teal-700">{shortEvidenceLabel(a.name)}</span>
+                                {(a.detail || a.name) && (
+                                  <span className="block text-[11px] text-gray-400 truncate leading-tight mt-0.5">
+                                    {(a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '')}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        })
+                      }
+                    </div>
+                  </div>
+                  {(filterEvidenceArea !== ALL_EVIDENCE_AREAS || selectedEvidenceIdList.length > 0) && (
+                    <button type="button"
+                      onClick={() => { setFilterEvidenceArea(ALL_EVIDENCE_AREAS); setSelectedEvidenceIdList([]); }}
+                      className="w-full text-center text-xs text-gray-400 hover:text-red-500 py-1 transition-colors">
+                      Limpiar filtros
+                    </button>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
+          <div className="hidden sm:block w-px h-6 bg-gray-200" />
+
+          {/* Estado */}
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-medium text-gray-700 focus:ring-2 focus:ring-teal-500 outline-none shadow-sm"
+          >
+            <option value="Todos">Todos los estados</option>
+            <option value="Formación">Formación</option>
+            <option value="Cancelado">Cancelado</option>
+            <option value="Retiro Voluntario">Retiro Voluntario</option>
+            <option value="Deserción">Deserción</option>
+          </select>
+
+          {/* Novedad */}
+          <select
+            value={filterNovedad}
+            onChange={e => setFilterNovedad(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-medium text-gray-700 focus:ring-2 focus:ring-teal-500 outline-none shadow-sm"
+          >
+            <option value="Todos">Todas las novedades</option>
+            <option value="Riesgo de deserción">Riesgo de deserción</option>
+            <option value="Plan de mejoramiento">Plan de mejoramiento</option>
+            <option value="Sin novedad">Sin novedad</option>
+          </select>
+
+          <div className="hidden sm:block w-px h-6 bg-gray-200" />
+
           <button
             onClick={generateReport}
-            className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+            className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm text-sm font-medium"
           >
             <FileDown className="w-4 h-4" />
             <span>Reporte</span>
           </button>
 
-          <label className="flex items-center justify-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
+          <label className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm cursor-pointer text-sm font-medium">
             <Upload className="w-4 h-4" />
-            <span>Cargar documento</span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv,.txt"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
+            <span>Cargar</span>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv,.txt" className="hidden" onChange={handleFileUpload} />
           </label>
         </div>
       </div>
@@ -966,42 +1110,8 @@ export const AsistenciaLmsView: React.FC = () => {
                 </button>
               </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
-                <div className="relative inline-flex items-center gap-2" ref={statusFilterRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowStatusFilter(prev => !prev)}
-                    className="inline-flex items-center gap-1 hover:text-gray-900"
-                  >
-                    Estado
-                    <Filter className="w-3.5 h-3.5 text-gray-400" />
-                    {filterStatus !== 'Todos' && (
-                      <span className="text-teal-600 text-xs">({filterStatus})</span>
-                    )}
-                  </button>
-                  {showStatusFilter && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowStatusFilter(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                        {['Todos los Estados', 'Formación', 'Cancelado', 'Retiro Voluntario', 'Deserción'].map(opt => {
-                          const val = opt === 'Todos los Estados' ? 'Todos' : opt;
-                          return (
-                            <button
-                              key={val}
-                              type="button"
-                              onClick={() => {
-                                setFilterStatus(val);
-                                setShowStatusFilter(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-sm ${filterStatus === val ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
+                Estado
+                {filterStatus !== 'Todos' && <span className="ml-1 text-teal-600 text-xs font-normal">({filterStatus})</span>}
               </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center">Pendientes</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
@@ -1041,42 +1151,8 @@ export const AsistenciaLmsView: React.FC = () => {
                 </button>
               </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm">
-                <div className="relative inline-flex items-center gap-2" ref={novedadFilterRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowNovedadFilter(prev => !prev)}
-                    className="inline-flex items-center gap-1 hover:text-gray-900"
-                  >
-                    Novedad
-                    <Filter className="w-3.5 h-3.5 text-gray-400" />
-                    {filterNovedad !== 'Todos' && (
-                      <span className="text-teal-600 text-xs">({filterNovedad})</span>
-                    )}
-                  </button>
-                  {showNovedadFilter && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowNovedadFilter(false)} />
-                      <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1">
-                        {['Todas las Novedades', 'Riesgo de deserción', 'Plan de mejoramiento', 'Sin novedad'].map(opt => {
-                          const val = opt === 'Todas las Novedades' ? 'Todos' : opt;
-                          return (
-                            <button
-                              key={val}
-                              type="button"
-                              onClick={() => {
-                                setFilterNovedad(val);
-                                setShowNovedadFilter(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 text-sm ${filterNovedad === val ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
+                Novedad
+                {filterNovedad !== 'Todos' && <span className="ml-1 text-teal-600 text-xs font-normal">({filterNovedad})</span>}
               </th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center">Cancelación</th>
               <th className="px-6 py-4 font-semibold text-gray-600 text-sm text-center">Retiro voluntario</th>
