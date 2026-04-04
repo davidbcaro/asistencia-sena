@@ -573,6 +573,7 @@ export const CalificacionesView: React.FC = () => {
   const [showPhaseFilter, setShowPhaseFilter] = useState(false);
   const fichaFilterRef = useRef<HTMLDivElement | null>(null);
   const phaseFilterRef = useRef<HTMLDivElement | null>(null);
+  const evidenceFilterRef = useRef<HTMLDivElement | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [finalFilter, setFinalFilter] = useState<'all' | 'A' | '-'>('all');
   const [showFinalFilter, setShowFinalFilter] = useState(false);
@@ -812,6 +813,17 @@ export const CalificacionesView: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showPhaseFilter]);
+
+  useEffect(() => {
+    if (!califEvidencePickerOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (evidenceFilterRef.current && !evidenceFilterRef.current.contains(event.target as Node)) {
+        setCalifEvidencePickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [califEvidencePickerOpen]);
 
   useEffect(() => {
     if (studentDetailModal) {
@@ -2588,124 +2600,154 @@ export const CalificacionesView: React.FC = () => {
                   )}
                 </div>
                 </div>
-                {/* Fila dedicada: después de Ficha y Fase — tipo de evidencia + qué columnas mostrar */}
-                <div className="w-full flex flex-col gap-2 rounded-lg border border-teal-100 bg-teal-50/40 px-2 py-2 sm:px-3 sm:py-2.5">
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    <ListChecks className="w-4 h-4 text-teal-600 shrink-0" aria-hidden />
-                    <span className="text-xs font-semibold text-gray-700 shrink-0">Evidencias en la tabla</span>
-                    {/* Filtro por tipo de evidencia */}
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {EVIDENCE_TIPO_OPTIONS.map((opt) => {
-                        const active = califEvidenceTipoFilter === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => { setCalifEvidenceTipoFilter(opt.value); setCalifSelectedEvidenceIdList([]); }}
-                            className="px-2 py-1 rounded-full text-[11px] font-semibold border transition-colors whitespace-nowrap"
-                            style={active
-                              ? (opt.bg ? { backgroundColor: opt.bg, color: opt.text ?? '#000', borderColor: (opt.text ?? '#000') + '44' } : { backgroundColor: '#0d9488', color: '#fff', borderColor: '#0d9488' })
-                              : { backgroundColor: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }
-                            }
-                            title={`Filtrar por tipo: ${opt.label}`}
-                          >
-                            {opt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {/* Filtro por área de competencia */}
-                    <label className="flex items-center gap-1.5 text-xs text-gray-600 shrink-0">
-                      <span className="whitespace-nowrap">Área</span>
-                      <select
-                        className="pl-2 pr-7 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white shadow-sm font-medium text-gray-700 min-w-[9.5rem] sm:min-w-[11rem] max-w-[14rem] focus:ring-2 focus:ring-teal-500 outline-none"
-                        value={califEvidenceAreaFilter}
-                        onChange={(e) => { setCalifEvidenceAreaFilter(e.target.value); setCalifSelectedEvidenceIdList([]); }}
-                        title="Filtrar por área de competencia (Técnica, TIC's, etc.)"
-                      >
-                        {califEvAreaOptions.map((ar) => (
-                          <option key={ar} value={ar}>
-                            {ar === ALL_EVIDENCE_AREAS ? 'Todas las áreas' : ar}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setCalifEvidencePickerOpen((o) => !o)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${califEvidencePickerOpen ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm'}`}
-                      title="Marcar qué evidencias aparecen como columnas (además del filtro por área)"
-                    >
-                      Columnas visibles
-                      <span className={`tabular-nums ${califEvidencePickerOpen ? 'text-teal-100' : 'text-teal-600'}`}>
-                        ({visibleActivities.length}/{califEvidencePickerPool.length})
+                {/* Filtro de evidencias — botón compacto que abre dropdown */}
+                <div className="relative" ref={evidenceFilterRef}>
+                  <button
+                    type="button"
+                    onClick={() => setCalifEvidencePickerOpen((o) => !o)}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border text-xs sm:text-sm font-medium whitespace-nowrap transition-colors shadow-sm ${
+                      califEvidencePickerOpen
+                        ? 'bg-teal-600 border-teal-600 text-white'
+                        : (califEvidenceTipoFilter !== 'Todos' || califEvidenceAreaFilter !== ALL_EVIDENCE_AREAS || califSelectedEvidenceIdList.length > 0)
+                          ? 'bg-teal-50 border-teal-400 text-teal-700'
+                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <ListChecks className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>Evidencias</span>
+                    {/* Badge de filtros activos */}
+                    {(califEvidenceTipoFilter !== 'Todos' || califEvidenceAreaFilter !== ALL_EVIDENCE_AREAS || califSelectedEvidenceIdList.length > 0) && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${califEvidencePickerOpen ? 'bg-white/20 text-white' : 'bg-teal-500 text-white'}`}>
+                        {visibleActivities.length}/{califEvidencePickerPool.length}
                       </span>
-                    </button>
-                  </div>
+                    )}
+                  </button>
+
                   {califEvidencePickerOpen && (
-                    <div className="w-full max-w-2xl rounded-lg border border-gray-200 bg-white p-3 space-y-2 text-left shadow-sm">
-                      <p className="text-xs text-gray-600">
-                        Con todas las casillas marcadas se muestran todas las evidencias del listado actual (ficha, fase y área). Desmarca las que no quieras ver en la tabla.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setCalifSelectedEvidenceIdList([])}
-                        className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100"
-                      >
-                        Mostrar todas las del listado
-                      </button>
-                      <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50/80 p-2 space-y-1">
-                        {califEvidencePickerPool.length === 0 ? (
-                          <p className="text-sm text-gray-500 py-2 text-center">No hay evidencias en este contexto.</p>
-                        ) : (
-                          califEvidencePickerPool.map((a) => {
-                            const implicitAll = califSelectedEvidenceIdList.length === 0;
-                            const checked = implicitAll || califSelectedEvidenceIdList.includes(a.id);
-                            const tipoKey = getEvidenceTipo(a);
-                            const tipoOpt = tipoKey ? EVIDENCE_TIPO_OPTIONS.find(o => o.value === tipoKey && 'bg' in o) : null;
-                            return (
-                              <label
-                                key={a.id}
-                                className="flex items-start gap-2 text-sm text-gray-700 hover:bg-white rounded px-2 py-1 cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => {
-                                    const poolIds = califEvidencePickerPool.map((x) => x.id);
-                                    setCalifSelectedEvidenceIdList((prev) => {
-                                      if (prev.length === 0) {
-                                        return poolIds.filter((x) => x !== a.id);
-                                      }
-                                      const s = new Set(prev);
-                                      if (s.has(a.id)) s.delete(a.id);
-                                      else s.add(a.id);
-                                      const arr = Array.from(s).sort();
-                                      if (arr.length === 0 || arr.length === poolIds.length) return [];
-                                      return arr;
-                                    });
-                                  }}
-                                  className="mt-0.5 w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
-                                />
-                                <span className="flex-1 min-w-0">
-                                  <span className="font-mono text-xs text-teal-700">{shortEvidenceLabel(a.name)}</span>
-                                  <span className="text-gray-400 text-xs mx-1">·</span>
-                                  <span className="text-xs text-gray-600">{a.phase || '—'}</span>
-                                  {tipoOpt?.bg && (
-                                    <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: tipoOpt.bg, color: tipoOpt.text ?? '#000' }}>{tipoKey}</span>
-                                  )}
-                                  {(a.detail || a.name) && (
-                                    <span className="block text-xs text-gray-500 truncate" title={a.detail || a.name}>
-                                      {a.detail || a.name}
-                                    </span>
-                                  )}
-                                </span>
-                              </label>
-                            );
-                          })
-                        )}
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setCalifEvidencePickerOpen(false)} />
+                      <div className="absolute left-0 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden">
+                        {/* Header */}
+                        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Filtrar evidencias</p>
+                        </div>
+
+                        <div className="p-3 space-y-4">
+                          {/* Tipo */}
+                          <div>
+                            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Tipo</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {EVIDENCE_TIPO_OPTIONS.map((opt) => {
+                                const active = califEvidenceTipoFilter === opt.value;
+                                return (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => { setCalifEvidenceTipoFilter(opt.value); setCalifSelectedEvidenceIdList([]); }}
+                                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
+                                    style={active
+                                      ? (opt.bg ? { backgroundColor: opt.bg, color: opt.text ?? '#000', borderColor: opt.bg } : { backgroundColor: '#0d9488', color: '#fff', borderColor: '#0d9488' })
+                                      : { backgroundColor: 'transparent', color: '#6b7280', borderColor: '#e5e7eb' }
+                                    }
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Área */}
+                          <div>
+                            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Área</p>
+                            <select
+                              className="w-full pl-2.5 pr-8 py-1.5 border border-gray-200 rounded-lg text-xs bg-white font-medium text-gray-700 focus:ring-2 focus:ring-teal-500 outline-none"
+                              value={califEvidenceAreaFilter}
+                              onChange={(e) => { setCalifEvidenceAreaFilter(e.target.value); setCalifSelectedEvidenceIdList([]); }}
+                            >
+                              {califEvAreaOptions.map((ar) => (
+                                <option key={ar} value={ar}>{ar === ALL_EVIDENCE_AREAS ? 'Todas las áreas' : ar}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Evidencias individuales */}
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Columnas</p>
+                              {califSelectedEvidenceIdList.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setCalifSelectedEvidenceIdList([])}
+                                  className="text-[11px] text-teal-600 hover:text-teal-800 font-medium"
+                                >
+                                  Mostrar todas
+                                </button>
+                              )}
+                            </div>
+                            <div className="max-h-52 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 divide-y divide-gray-100">
+                              {califEvidencePickerPool.length === 0 ? (
+                                <p className="text-xs text-gray-400 py-4 text-center">Sin evidencias en este contexto.</p>
+                              ) : (
+                                califEvidencePickerPool.map((a) => {
+                                  const implicitAll = califSelectedEvidenceIdList.length === 0;
+                                  const checked = implicitAll || califSelectedEvidenceIdList.includes(a.id);
+                                  const tipoKey = getEvidenceTipo(a);
+                                  const tipoOpt = tipoKey ? EVIDENCE_TIPO_OPTIONS.find(o => o.value === tipoKey && o.bg) : null;
+                                  return (
+                                    <label
+                                      key={a.id}
+                                      className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors hover:bg-white ${checked ? '' : 'opacity-50'}`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => {
+                                          const poolIds = califEvidencePickerPool.map((x) => x.id);
+                                          setCalifSelectedEvidenceIdList((prev) => {
+                                            if (prev.length === 0) return poolIds.filter((x) => x !== a.id);
+                                            const s = new Set(prev);
+                                            if (s.has(a.id)) s.delete(a.id); else s.add(a.id);
+                                            const arr = Array.from(s).sort();
+                                            if (arr.length === 0 || arr.length === poolIds.length) return [];
+                                            return arr;
+                                          });
+                                        }}
+                                        className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 flex-shrink-0"
+                                      />
+                                      <span className="flex-1 min-w-0">
+                                        <span className="flex items-center gap-1.5">
+                                          <span className="font-mono text-[11px] font-semibold text-teal-700">{shortEvidenceLabel(a.name)}</span>
+                                          {tipoOpt?.bg && (
+                                            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold leading-none" style={{ backgroundColor: tipoOpt.bg, color: tipoOpt.text ?? '#000' }}>{tipoKey}</span>
+                                          )}
+                                        </span>
+                                        {(a.detail || a.name) && (
+                                          <span className="block text-[11px] text-gray-400 truncate leading-tight mt-0.5" title={a.detail || a.name}>
+                                            {a.detail || a.name}
+                                          </span>
+                                        )}
+                                      </span>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Reset */}
+                          {(califEvidenceTipoFilter !== 'Todos' || califEvidenceAreaFilter !== ALL_EVIDENCE_AREAS || califSelectedEvidenceIdList.length > 0) && (
+                            <button
+                              type="button"
+                              onClick={() => { setCalifEvidenceTipoFilter('Todos'); setCalifEvidenceAreaFilter(ALL_EVIDENCE_AREAS); setCalifSelectedEvidenceIdList([]); }}
+                              className="w-full text-center text-xs text-gray-400 hover:text-red-500 py-1 transition-colors"
+                            >
+                              Limpiar filtros
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
                 </div>
               </div>
