@@ -579,12 +579,12 @@ Atentamente,`
       const evidenciasPlain =
         pendientes.length === 0
           ? 'Ninguna evidencia pendiente según los filtros aplicados.'
-          : pendientes.map((a) => (a.detail || a.name).replace(/\s+/g, ' ').trim()).join('; ');
+          : pendientes.map((a) => (a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').replace(/\s+/g, ' ').trim()).join('; ');
       const evidenciasHtml =
         pendientes.length === 0
           ? `<p>${safe('Ninguna evidencia pendiente según los filtros aplicados.')}</p>`
           : `<ul style="margin:0.5em 0;padding-left:1.25em;">${pendientes
-              .map((a) => `<li>${safe((a.detail || a.name).trim())}</li>`)
+              .map((a) => `<li>${safe((a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').trim())}</li>`)
               .join('')}</ul>`;
 
       let subject = templateSubject
@@ -898,8 +898,8 @@ Atentamente,`
                             <span className="text-gray-400 text-xs mx-1">·</span>
                             <span className="text-xs text-gray-600">{a.phase || '—'}</span>
                             {(a.detail || a.name) && (
-                              <span className="block text-xs text-gray-500 truncate" title={a.detail || a.name}>
-                                {a.detail || a.name}
+                              <span className="block text-xs text-gray-500 truncate" title={(a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '')}>
+                                {(a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '')}
                               </span>
                             )}
                           </span>
