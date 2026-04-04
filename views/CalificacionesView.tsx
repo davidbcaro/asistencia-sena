@@ -930,6 +930,58 @@ export const CalificacionesView: React.FC = () => {
     });
   }, []);
 
+  // ── One-time deduplication: remove non-seed activities that shadow a seed ──
+  // Runs after the seed init (both have [] deps so they run in order).
+  // Remaps grades from duplicate IDs to the matching seed ID, then deletes the duplicates.
+  useEffect(() => {
+    const all = getGradeActivities();
+
+    // Build seed lookup: full canonical key AND phase-scoped partial AA-EV key
+    const seedByKey = new Map<string, GradeActivity>();
+    all.filter(a => a.id.startsWith('seed-')).forEach(a => {
+      const fullKey = getActivityCanonicalKey(a);
+      seedByKey.set(fullKey, a);
+      // Phase-scoped partial: lets "Fase Inducción::aa1-ev01" match "GI1-...-AA1-EV01"
+      const partial = fullKey.match(/aa\d+-ev\d+/i)?.[0]?.toLowerCase();
+      if (partial && a.phase) seedByKey.set(`${a.phase}::${partial}`, a);
+    });
+
+    const toRemoveIds = new Set<string>();
+    const gradeRemap = new Map<string, string>(); // duplicateId → seedId
+
+    all.filter(a => !a.id.startsWith('seed-')).forEach(a => {
+      const canonKey = getActivityCanonicalKey(a);
+      // 1. Try exact canonical key match
+      let seed = seedByKey.get(canonKey);
+      // 2. Fallback: phase-scoped partial key
+      if (!seed && a.phase) {
+        const partial = canonKey.match(/aa\d+-ev\d+/i)?.[0]?.toLowerCase();
+        if (partial) seed = seedByKey.get(`${a.phase}::${partial}`);
+      }
+      if (seed) {
+        toRemoveIds.add(a.id);
+        gradeRemap.set(a.id, seed.id);
+      }
+    });
+
+    if (toRemoveIds.size === 0) return;
+
+    // Remap grades from duplicate IDs → seed IDs, then deduplicate (keep most recent per student+activity)
+    const allGrades = getGrades();
+    const remapped = allGrades.map(g =>
+      gradeRemap.has(g.activityId) ? { ...g, activityId: gradeRemap.get(g.activityId)! } : g
+    );
+    const gradeDedup = new Map<string, GradeEntry>();
+    remapped.forEach(g => {
+      const k = `${g.studentId}::${g.activityId}`;
+      const prev = gradeDedup.get(k);
+      if (!prev || g.updatedAt >= prev.updatedAt) gradeDedup.set(k, g);
+    });
+    saveGrades(Array.from(gradeDedup.values()));
+    saveGradeActivities(all.filter(a => !toRemoveIds.has(a.id)));
+    loadData();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedFicha, selectedPhase, searchTerm, finalFilter, filterStatus, sortOrder, sortDirection, califEvidenceAreaFilter]);
