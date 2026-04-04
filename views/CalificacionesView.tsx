@@ -3289,7 +3289,7 @@ export const CalificacionesView: React.FC = () => {
                       const last = lmsLastAccess[student.id];
                       const days = last != null ? daysSinceLms(last) : null;
                       if (days != null && days >= 0) {
-                        return <span className="font-semibold">{days}</span>;
+                        return <span className={`font-semibold ${days >= 20 ? 'text-red-600' : ''}`}>{days}</span>;
                       }
                       return <span className="text-gray-400">-</span>;
                     })()}

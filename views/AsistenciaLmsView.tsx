@@ -1235,8 +1235,10 @@ export const AsistenciaLmsView: React.FC = () => {
                     <td className="px-6 py-4 text-gray-600 text-sm tabular-nums">
                       {lastAccess || '-'}
                     </td>
-                    <td className="px-6 py-4 text-gray-600 text-sm tabular-nums">
-                      {days != null && days >= 0 ? String(days) : '-'}
+                    <td className="px-6 py-4 text-sm tabular-nums">
+                      {days != null && days >= 0
+                        ? <span className={days >= 20 ? 'font-semibold text-red-600' : 'text-gray-600'}>{days}</span>
+                        : <span className="text-gray-400">-</span>}
                     </td>
                     {(() => {
                       const final = getFinalForStudent(student);
