@@ -510,7 +510,7 @@ export const CalificacionesView: React.FC = () => {
   const [editingActivity, setEditingActivity] = useState<GradeActivity | null>(null);
   const [activityToDelete, setActivityToDelete] = useState<GradeActivity | null>(null);
   const [hiddenActivityIds, setHiddenActivityIds] = useState<Set<string>>(new Set());
-  const [showHiddenActivities, setShowHiddenActivities] = useState(false);
+  const [showHiddenActivities, setShowHiddenActivities] = useState(true);
   const [uploadError, setUploadError] = useState<string>('');
   const [uploadInfo, setUploadInfo] = useState<string>('');
   const [editingCell, setEditingCell] = useState<{ studentId: string; activityId: string } | null>(null);
@@ -599,6 +599,11 @@ export const CalificacionesView: React.FC = () => {
   }, [selectedFicha]);
 
   const loadData = () => {
+    const HIDDEN_RESET_FLAG = 'asistenciapro_calificaciones_show_all_evidence_v1';
+    if (!localStorage.getItem(HIDDEN_RESET_FLAG)) {
+      saveHiddenGradeActivityIds([]);
+      localStorage.setItem(HIDDEN_RESET_FLAG, '1');
+    }
     const loadedStudents = getStudents();
     const loadedFichas = getFichas();
     const loadedActivities = getGradeActivities();
@@ -1171,29 +1176,6 @@ export const CalificacionesView: React.FC = () => {
     return groups.length > 0 ? groups : null;
   }, [activeRapColumns]);
 
-  /** Returns 'A' if all activities in a phase are 'A', 'D' if any are D/missing once at least one is graded, '' if nothing graded yet. */
-  const getPhaseLetterTotal = (studentId: string, phaseActivities: GradeActivity[], studentGroup?: string): 'A' | 'D' | '' => {
-    if (phaseActivities.length === 0) return '';
-    let hasAny = false;
-    let allA = true;
-    for (const activity of phaseActivities) {
-      const actToUse = activitiesByCanonicalAndFicha
-        ? (activitiesByCanonicalAndFicha.get(getActivityPhaseScopedKey(activity))?.get(studentGroup || '')
-           ?? activitiesByCanonicalAndFicha.get(getActivityPhaseScopedKey(activity))?.get('')
-           ?? activity)
-        : activity;
-      const grade = gradeMap.get(`${studentId}-${actToUse.id}`);
-      if (grade?.letter) {
-        hasAny = true;
-        if (grade.letter !== 'A') allA = false;
-      } else {
-        allA = false;
-      }
-    }
-    if (!hasAny) return '';
-    return allA ? 'A' : 'D';
-  };
-
   const getFinalForStudent = (studentId: string, studentGroup?: string) => {
     // Excluir siempre las evidencias ocultas del cálculo, independientemente de showHiddenActivities
     const countableActivities = visibleActivities.filter(a => !hiddenActivityIds.has(a.id));
@@ -1383,12 +1365,10 @@ export const CalificacionesView: React.FC = () => {
   };
 
   const handlePhaseTotalClick = (studentId: string, phase: string, studentGroup?: string) => {
-    const phaseActivities = visiblePhaseGroups.find(g => g.phase === phase)?.activities ?? [];
-    const auto = getPhaseLetterTotal(studentId, phaseActivities, studentGroup);
     const key = getPhaseTotalKey(studentGroup, phase);
-    let current = (manualPhaseTotals[key] || {})[studentId];
-    // Manual D redundante (igual que el total calculado) se trata como sin override: evita D → D → A al hacer clic.
-    if (current === 'D' && auto === 'D') current = undefined;
+    const raw = (manualPhaseTotals[key] || {})[studentId];
+    const current = raw === 'A' ? 'A' : raw === 'D' ? 'D' : undefined;
+    // Ciclo manual: (-) → A → D → (-)
     const next: 'A' | 'D' | undefined =
       current === undefined ? 'A' : current === 'A' ? 'D' : undefined;
     const updated = { ...manualPhaseTotals };
@@ -1448,7 +1428,10 @@ export const CalificacionesView: React.FC = () => {
           const grade = gradeMap.get(`${student.id}-${activity.id}`);
           return grade ? grade.letter : '';
         }),
-        getPhaseLetterTotal(student.id, activities, student.group),
+        (() => {
+          const v = getManualPhaseTotal(student.id, phase, student.group);
+          return v === 'A' || v === 'D' ? v : '-';
+        })(),
       ]);
       const final = getFinalForStudent(student.id, student.group);
       const rapValues = rapColumnsForFicha.map(() => '');
@@ -2961,9 +2944,8 @@ export const CalificacionesView: React.FC = () => {
                   </td>
                   {visiblePhaseGroups.map(({ phase, activities }) => {
                     const phColor = PHASE_HEADER_COLORS[phase];
-                    const phaseTotal = getPhaseLetterTotal(student.id, activities, student.group);
                     const manualPT = getManualPhaseTotal(student.id, phase, student.group);
-                    const displayPT = manualPT || phaseTotal;
+                    const displayPT = manualPT === 'A' || manualPT === 'D' ? manualPT : '-';
                     return (
                       <React.Fragment key={`phase-data-${phase}`}>
                         {activities.map(activity => {
@@ -2992,7 +2974,7 @@ export const CalificacionesView: React.FC = () => {
                             </td>
                           );
                         })}
-                        {/* TOTAL cell — clickable to manually override: computed → A → D → computed */}
+                        {/* TOTAL fase — solo manual: (-) → A → D → (-) */}
                         <td
                           className="px-2 py-2 text-center font-bold text-xs border-r border-l border-gray-200 align-middle whitespace-nowrap cursor-pointer select-none"
                           style={{
@@ -3003,12 +2985,14 @@ export const CalificacionesView: React.FC = () => {
                               : displayPT === 'D'
                               ? { backgroundColor: '#dc2626', color: '#fff' }
                               : { backgroundColor: '#f9fafb', color: '#9ca3af' }),
-                            ...(manualPT ? { outline: '2px solid rgba(255,255,255,0.5)', outlineOffset: '-3px' } : {}),
+                            ...(manualPT === 'A' || manualPT === 'D'
+                              ? { outline: '2px solid rgba(255,255,255,0.5)', outlineOffset: '-3px' }
+                              : {}),
                           }}
                           onClick={() => handlePhaseTotalClick(student.id, phase, student.group)}
-                          title={`TOTAL ${phase} — Clic: (-)/automático → A → D → (-)/automático`}
+                          title={`TOTAL ${phase} — Clic: - → A → D → -`}
                         >
-                          {displayPT || '-'}
+                          {displayPT}
                         </td>
                       </React.Fragment>
                     );
