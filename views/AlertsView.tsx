@@ -189,6 +189,12 @@ export const AlertsView: React.FC = () => {
   const [selectedAlertEvidenceIdList, setSelectedAlertEvidenceIdList] = useState<string[]>([]);
   const [alertsEvidencePickerOpen, setAlertsEvidencePickerOpen] = useState(false);
   const [filterNovedad, setFilterNovedad] = useState<string>('Ambos');
+  const [showFichaDropdown, setShowFichaDropdown] = useState(false);
+  const [showFaseDropdown, setShowFaseDropdown] = useState(false);
+  const [showAreaDropdown, setShowAreaDropdown] = useState(false);
+  const fichaDropdownRef = useRef<HTMLDivElement>(null);
+  const faseDropdownRef = useRef<HTMLDivElement>(null);
+  const areaDropdownRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Plantilla de correo (deserción - ver email/correo_desercion.txt)
@@ -337,6 +343,16 @@ Atentamente,`
     const valid = new Set(alertsEvidencePickerPool.map((a) => a.id));
     setSelectedAlertEvidenceIdList((prev) => prev.filter((id) => valid.has(id)));
   }, [alertsEvidencePickerPool]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (fichaDropdownRef.current && !fichaDropdownRef.current.contains(e.target as Node)) setShowFichaDropdown(false);
+      if (faseDropdownRef.current && !faseDropdownRef.current.contains(e.target as Node)) setShowFaseDropdown(false);
+      if (areaDropdownRef.current && !areaDropdownRef.current.contains(e.target as Node)) setShowAreaDropdown(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const getFinalForStudent = (
     student: Student
@@ -774,52 +790,85 @@ Atentamente,`
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <select
-                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700"
-                value={filterFicha}
-                onChange={(e) => setFilterFicha(e.target.value)}
+          <div className="flex gap-2 flex-wrap items-center">
+            {/* Filtro Ficha */}
+            <div className="relative" ref={fichaDropdownRef}>
+              <button
+                type="button"
+                onClick={() => { setShowFichaDropdown(p => !p); setShowFaseDropdown(false); setShowAreaDropdown(false); }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showFichaDropdown ? 'bg-teal-600 border-teal-600 text-white' : filterFicha !== 'Todas' ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               >
-                <option value="Todas">Todas las Fichas</option>
-                {fichas.map((f) => (
-                  <option key={f.id} value={f.code}>
-                    {f.code}
-                  </option>
-                ))}
-              </select>
+                <Filter className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Ficha</span>
+                {filterFicha !== 'Todas' && (
+                  <span className={`text-xs font-semibold max-w-[5rem] truncate ${showFichaDropdown ? 'text-teal-100' : 'text-teal-600'}`}>{filterFicha}</span>
+                )}
+              </button>
+              {showFichaDropdown && (
+                <div className="absolute left-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                  {[{ code: 'Todas', label: 'Todas las fichas' }, ...fichas.map(f => ({ code: f.code, label: `${f.code} — ${f.program}` }))].map(opt => (
+                    <button key={opt.code} type="button"
+                      onClick={() => { setFilterFicha(opt.code); setShowFichaDropdown(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${filterFicha === opt.code ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="relative">
-              <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <select
-                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700 max-w-[min(100%,13rem)]"
-                value={filterFase}
-                onChange={(e) => setFilterFase(e.target.value)}
+
+            {/* Filtro Fase */}
+            <div className="relative" ref={faseDropdownRef}>
+              <button
+                type="button"
+                onClick={() => { setShowFaseDropdown(p => !p); setShowFichaDropdown(false); setShowAreaDropdown(false); }}
                 title="Lista solo aprendices con pendientes en esta fase; la variable {evidencias} usa la misma fase"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showFaseDropdown ? 'bg-teal-600 border-teal-600 text-white' : filterFase !== ALL_PHASES_LABEL ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               >
-                {alertPhaseOptions.map((ph) => (
-                  <option key={ph} value={ph}>
-                    {ph === ALL_PHASES_LABEL ? ph : `Fase: ${ph}`}
-                  </option>
-                ))}
-              </select>
+                <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Fase</span>
+                {filterFase !== ALL_PHASES_LABEL && (
+                  <span className={`text-xs font-semibold max-w-[7rem] truncate ${showFaseDropdown ? 'text-teal-100' : 'text-teal-600'}`}>{filterFase.replace(/^Fase\s*\d*:?\s*/i, '')}</span>
+                )}
+              </button>
+              {showFaseDropdown && (
+                <div className="absolute left-0 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                  {alertPhaseOptions.map((ph) => (
+                    <button key={ph} type="button"
+                      onClick={() => { setFilterFase(ph); setShowFaseDropdown(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${filterFase === ph ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                    >{ph === ALL_PHASES_LABEL ? ph : ph.replace(/^Fase\s*\d*:?\s*/i, '')}</button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="relative">
-              <ListChecks className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <select
-                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700 max-w-[min(100%,12rem)]"
-                value={filterEvidenceArea}
-                onChange={(e) => setFilterEvidenceArea(e.target.value)}
+
+            {/* Filtro Área */}
+            <div className="relative" ref={areaDropdownRef}>
+              <button
+                type="button"
+                onClick={() => { setShowAreaDropdown(p => !p); setShowFichaDropdown(false); setShowFaseDropdown(false); }}
                 title="Área de competencia (p. ej. Técnica). Acota pendientes y la variable {evidencias}"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showAreaDropdown ? 'bg-teal-600 border-teal-600 text-white' : filterEvidenceArea !== ALL_EVIDENCE_AREAS ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               >
-                {alertsEvAreaOptions.map((ar) => (
-                  <option key={ar} value={ar}>
-                    {ar === ALL_EVIDENCE_AREAS ? ar : `Área: ${ar}`}
-                  </option>
-                ))}
-              </select>
+                <ListChecks className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Área</span>
+                {filterEvidenceArea !== ALL_EVIDENCE_AREAS && (
+                  <span className={`text-xs font-semibold max-w-[6rem] truncate ${showAreaDropdown ? 'text-teal-100' : 'text-teal-600'}`}>{filterEvidenceArea}</span>
+                )}
+              </button>
+              {showAreaDropdown && (
+                <div className="absolute left-0 mt-2 w-52 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                  {alertsEvAreaOptions.map((ar) => (
+                    <button key={ar} type="button"
+                      onClick={() => { setFilterEvidenceArea(ar); setShowAreaDropdown(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${filterEvidenceArea === ar ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                    >{ar}</button>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Filtro Novedad */}
             <select
               className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium text-gray-700"
               value={filterNovedad}
