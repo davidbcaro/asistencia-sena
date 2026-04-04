@@ -2498,7 +2498,7 @@ export const CalificacionesView: React.FC = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div className="relative flex flex-col gap-2 w-full sm:w-auto">
+              <div className="relative flex flex-col gap-2 w-full min-w-0">
                 <div className="relative flex items-center gap-2 flex-wrap">
                 <div className="relative" ref={fichaFilterRef}>
                   <button
@@ -2564,93 +2564,100 @@ export const CalificacionesView: React.FC = () => {
                     </>
                   )}
                 </div>
-                <div className="relative flex items-center gap-1.5 flex-wrap">
-                  <ListChecks className="w-4 h-4 text-gray-400 shrink-0" aria-hidden />
-                  <select
-                    className="pl-2 pr-7 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white shadow-sm font-medium text-gray-700 max-w-[11rem] sm:max-w-[13rem] focus:ring-2 focus:ring-teal-500 outline-none"
-                    value={califEvidenceAreaFilter}
-                    onChange={(e) => setCalifEvidenceAreaFilter(e.target.value)}
-                    title="Tipo / área de competencia de las evidencias"
-                  >
-                    {califEvAreaOptions.map((ar) => (
-                      <option key={ar} value={ar}>
-                        {ar === ALL_EVIDENCE_AREAS ? 'Todas las áreas' : ar}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setCalifEvidencePickerOpen((o) => !o)}
-                    className="flex items-center gap-1.5 bg-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 shadow-sm text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap"
-                    title="Elegir qué evidencias mostrar como columnas"
-                  >
-                    Evidencias
-                    <span className="text-teal-600 tabular-nums">
-                      ({visibleActivities.length}/{califEvidencePickerPool.length})
-                    </span>
-                  </button>
                 </div>
-                </div>
-                {califEvidencePickerOpen && (
-                  <div className="w-full max-w-2xl rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2 text-left">
-                    <p className="text-xs text-gray-600">
-                      Todas las casillas marcadas = se muestran todas las evidencias del listado (según ficha, fase y área). Desmarca las que no quieras ver en la tabla.
-                    </p>
+                {/* Fila dedicada: después de Ficha y Fase — tipo de evidencia + qué columnas mostrar */}
+                <div className="w-full flex flex-col gap-2 rounded-lg border border-teal-100 bg-teal-50/40 px-2 py-2 sm:px-3 sm:py-2.5">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <ListChecks className="w-4 h-4 text-teal-600 shrink-0" aria-hidden />
+                    <span className="text-xs font-semibold text-gray-700 shrink-0">Evidencias en la tabla</span>
+                    <label className="flex items-center gap-1.5 text-xs text-gray-600 shrink-0">
+                      <span className="whitespace-nowrap">Tipo / área</span>
+                      <select
+                        className="pl-2 pr-7 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm bg-white shadow-sm font-medium text-gray-700 min-w-[9.5rem] sm:min-w-[11rem] max-w-[14rem] focus:ring-2 focus:ring-teal-500 outline-none"
+                        value={califEvidenceAreaFilter}
+                        onChange={(e) => setCalifEvidenceAreaFilter(e.target.value)}
+                        title="Filtrar por área de competencia (Técnica, TIC's, etc.)"
+                      >
+                        {califEvAreaOptions.map((ar) => (
+                          <option key={ar} value={ar}>
+                            {ar === ALL_EVIDENCE_AREAS ? 'Todas las áreas' : ar}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <button
                       type="button"
-                      onClick={() => setCalifSelectedEvidenceIdList([])}
-                      className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                      onClick={() => setCalifEvidencePickerOpen((o) => !o)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${califEvidencePickerOpen ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm'}`}
+                      title="Marcar qué evidencias aparecen como columnas (además del filtro por área)"
                     >
-                      Mostrar todas las del listado
+                      Columnas visibles
+                      <span className={`tabular-nums ${califEvidencePickerOpen ? 'text-teal-100' : 'text-teal-600'}`}>
+                        ({visibleActivities.length}/{califEvidencePickerPool.length})
+                      </span>
                     </button>
-                    <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 space-y-1">
-                      {califEvidencePickerPool.length === 0 ? (
-                        <p className="text-sm text-gray-500 py-2 text-center">No hay evidencias en este contexto.</p>
-                      ) : (
-                        califEvidencePickerPool.map((a) => {
-                          const implicitAll = califSelectedEvidenceIdList.length === 0;
-                          const checked = implicitAll || califSelectedEvidenceIdList.includes(a.id);
-                          return (
-                            <label
-                              key={a.id}
-                              className="flex items-start gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded px-2 py-1 cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => {
-                                  const poolIds = califEvidencePickerPool.map((x) => x.id);
-                                  setCalifSelectedEvidenceIdList((prev) => {
-                                    if (prev.length === 0) {
-                                      return poolIds.filter((x) => x !== a.id);
-                                    }
-                                    const s = new Set(prev);
-                                    if (s.has(a.id)) s.delete(a.id);
-                                    else s.add(a.id);
-                                    const arr = Array.from(s).sort();
-                                    if (arr.length === 0 || arr.length === poolIds.length) return [];
-                                    return arr;
-                                  });
-                                }}
-                                className="mt-0.5 w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
-                              />
-                              <span className="flex-1 min-w-0">
-                                <span className="font-mono text-xs text-teal-700">{shortEvidenceLabel(a.name)}</span>
-                                <span className="text-gray-400 text-xs mx-1">·</span>
-                                <span className="text-xs text-gray-600">{a.phase || '—'}</span>
-                                {(a.detail || a.name) && (
-                                  <span className="block text-xs text-gray-500 truncate" title={a.detail || a.name}>
-                                    {a.detail || a.name}
-                                  </span>
-                                )}
-                              </span>
-                            </label>
-                          );
-                        })
-                      )}
-                    </div>
                   </div>
-                )}
+                  {califEvidencePickerOpen && (
+                    <div className="w-full max-w-2xl rounded-lg border border-gray-200 bg-white p-3 space-y-2 text-left shadow-sm">
+                      <p className="text-xs text-gray-600">
+                        Con todas las casillas marcadas se muestran todas las evidencias del listado actual (ficha, fase y área). Desmarca las que no quieras ver en la tabla.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setCalifSelectedEvidenceIdList([])}
+                        className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100"
+                      >
+                        Mostrar todas las del listado
+                      </button>
+                      <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50/80 p-2 space-y-1">
+                        {califEvidencePickerPool.length === 0 ? (
+                          <p className="text-sm text-gray-500 py-2 text-center">No hay evidencias en este contexto.</p>
+                        ) : (
+                          califEvidencePickerPool.map((a) => {
+                            const implicitAll = califSelectedEvidenceIdList.length === 0;
+                            const checked = implicitAll || califSelectedEvidenceIdList.includes(a.id);
+                            return (
+                              <label
+                                key={a.id}
+                                className="flex items-start gap-2 text-sm text-gray-700 hover:bg-white rounded px-2 py-1 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    const poolIds = califEvidencePickerPool.map((x) => x.id);
+                                    setCalifSelectedEvidenceIdList((prev) => {
+                                      if (prev.length === 0) {
+                                        return poolIds.filter((x) => x !== a.id);
+                                      }
+                                      const s = new Set(prev);
+                                      if (s.has(a.id)) s.delete(a.id);
+                                      else s.add(a.id);
+                                      const arr = Array.from(s).sort();
+                                      if (arr.length === 0 || arr.length === poolIds.length) return [];
+                                      return arr;
+                                    });
+                                  }}
+                                  className="mt-0.5 w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                                />
+                                <span className="flex-1 min-w-0">
+                                  <span className="font-mono text-xs text-teal-700">{shortEvidenceLabel(a.name)}</span>
+                                  <span className="text-gray-400 text-xs mx-1">·</span>
+                                  <span className="text-xs text-gray-600">{a.phase || '—'}</span>
+                                  {(a.detail || a.name) && (
+                                    <span className="block text-xs text-gray-500 truncate" title={a.detail || a.name}>
+                                      {a.detail || a.name}
+                                    </span>
+                                  )}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 </div>
               </div>
             </div>
