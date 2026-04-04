@@ -439,7 +439,15 @@ const getCanonicalEvidenceKey = (baseName: string): string => {
 const getActivityCanonicalKey = (a: { name: string; detail?: string | null }): string =>
   getCanonicalEvidenceKey(`${a.name} ${a.detail ?? ''}`);
 
+/** Clave estable por actividad para mapas en vista "Todas las fases" (y mezcla ficha+global).
+ *  Incluye fase + clave canónica + id para que varias evidencias mal nombradas (p. ej. tres "EV01")
+ *  en la misma fase no colapsen en una sola columna. */
+const getActivityPhaseScopedKey = (a: { id: string; phase?: string | null; name: string; detail?: string | null }) =>
+  `${a.phase || 'Sin fase'}::${getActivityCanonicalKey(a)}::${a.id}`;
+
 const getActivityShortLabel = (name: string) => {
+  const aaEv = name.match(/AA\d+-EV\d+/i);
+  if (aaEv) return aaEv[0].toUpperCase();
   const match = name.match(/EV\d+/i);
   return match ? match[0].toUpperCase() : name;
 };
@@ -800,6 +808,17 @@ export const CalificacionesView: React.FC = () => {
     const hadObsolete = existing.some(a => OBSOLETE_SEED_IDS.has(a.id));
     let needsMigration = hadObsolete;
     const migrated = existing.filter(a => !OBSOLETE_SEED_IDS.has(a.id)).map(a => {
+      if (a.id.startsWith('seed-')) {
+        const codeFromId = a.id.slice('seed-'.length);
+        if (/^G[AI]\d+-\d+-AA\d+-EV\d+$/i.test(codeFromId) && a.name !== codeFromId) {
+          needsMigration = true;
+          return {
+            ...a,
+            name: codeFromId,
+            detail: descByCode[codeFromId] ?? a.detail,
+          };
+        }
+      }
       if (a.id.startsWith('seed-') && descByCode[a.name] && a.detail === a.name) {
         needsMigration = true;
         return { ...a, detail: descByCode[a.name] };
@@ -913,14 +932,14 @@ export const CalificacionesView: React.FC = () => {
       // Hay actividades propias: mezclar con las globales que NO tienen contraparte en la ficha.
       // Para cada clave canónica, la actividad de la ficha tiene prioridad sobre la global.
       const best = new Map<string, GradeActivity>();
-      globals.forEach(a => best.set(getActivityCanonicalKey(a), a));
-      fichaSpecific.forEach(a => best.set(getActivityCanonicalKey(a), a)); // sobreescribe
+      globals.forEach(a => best.set(getActivityPhaseScopedKey(a), a));
+      fichaSpecific.forEach(a => best.set(getActivityPhaseScopedKey(a), a)); // sobreescribe
 
-      // Reconstruir en el orden de phaseMatch (fase → nombre), deduplicado por clave canónica
+      // Reconstruir en el orden de phaseMatch (fase → nombre), deduplicado por fase + clave canónica
       const seen = new Set<string>();
       const result: GradeActivity[] = [];
       phaseMatch.forEach(a => {
-        const k = getActivityCanonicalKey(a);
+        const k = getActivityPhaseScopedKey(a);
         if (!seen.has(k)) {
           seen.add(k);
           result.push(best.get(k)!);
@@ -937,7 +956,7 @@ export const CalificacionesView: React.FC = () => {
     const representative = new Map<string, GradeActivity>();
 
     phaseMatch.forEach(a => {
-      const key = getActivityCanonicalKey(a);
+      const key = getActivityPhaseScopedKey(a);
       if (!byCanonical.has(key)) byCanonical.set(key, new Map());
       byCanonical.get(key)!.set(a.group, a);
       // Como representativa usar la primera encontrada (solo para nombre/orden)
@@ -1158,8 +1177,8 @@ export const CalificacionesView: React.FC = () => {
     let allA = true;
     for (const activity of phaseActivities) {
       const actToUse = activitiesByCanonicalAndFicha
-        ? (activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get(studentGroup || '')
-           ?? activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get('')
+        ? (activitiesByCanonicalAndFicha.get(getActivityPhaseScopedKey(activity))?.get(studentGroup || '')
+           ?? activitiesByCanonicalAndFicha.get(getActivityPhaseScopedKey(activity))?.get('')
            ?? activity)
         : activity;
       const grade = gradeMap.get(`${studentId}-${actToUse.id}`);
@@ -1188,10 +1207,10 @@ export const CalificacionesView: React.FC = () => {
       // En vista "Todas": resolver la actividad real de la ficha del estudiante
       const resolvedActivity = activitiesByCanonicalAndFicha
         ? (activitiesByCanonicalAndFicha
-            .get(getActivityCanonicalKey(activity))
+            .get(getActivityPhaseScopedKey(activity))
             ?.get(studentGroup || '') ??
           activitiesByCanonicalAndFicha
-            .get(getActivityCanonicalKey(activity))
+            .get(getActivityPhaseScopedKey(activity))
             ?.get('') ?? activity)
         : activity;
       const grade = gradeMap.get(`${studentId}-${resolvedActivity.id}`);
@@ -1209,10 +1228,10 @@ export const CalificacionesView: React.FC = () => {
     const allApproved = delivered === totalActivities && countableActivities.every(activity => {
       const resolvedActivity = activitiesByCanonicalAndFicha
         ? (activitiesByCanonicalAndFicha
-            .get(getActivityCanonicalKey(activity))
+            .get(getActivityPhaseScopedKey(activity))
             ?.get(studentGroup || '') ??
           activitiesByCanonicalAndFicha
-            .get(getActivityCanonicalKey(activity))
+            .get(getActivityPhaseScopedKey(activity))
             ?.get('') ?? activity)
         : activity;
       return gradeMap.get(`${studentId}-${resolvedActivity.id}`)?.letter === 'A';
@@ -1237,8 +1256,8 @@ export const CalificacionesView: React.FC = () => {
       let count = 0;
       studentsForFicha.forEach(student => {
         const actToUse = activitiesByCanonicalAndFicha
-          ? (activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get(student.group || '')
-             ?? activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get('')
+          ? (activitiesByCanonicalAndFicha.get(getActivityPhaseScopedKey(activity))?.get(student.group || '')
+             ?? activitiesByCanonicalAndFicha.get(getActivityPhaseScopedKey(activity))?.get('')
              ?? activity)
           : activity;
         if (gradeMap.get(`${student.id}-${actToUse.id}`)?.letter === 'A') count++;
@@ -1388,8 +1407,8 @@ export const CalificacionesView: React.FC = () => {
     return countableActivities
       .map(activity => {
         const resolvedActivity = activitiesByCanonicalAndFicha
-          ? (activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get(studentGroup || '')
-             ?? activitiesByCanonicalAndFicha.get(getActivityCanonicalKey(activity))?.get('')
+          ? (activitiesByCanonicalAndFicha.get(getActivityPhaseScopedKey(activity))?.get(studentGroup || '')
+             ?? activitiesByCanonicalAndFicha.get(getActivityPhaseScopedKey(activity))?.get('')
              ?? activity)
           : activity;
         const grade = gradeMap.get(`${studentId}-${resolvedActivity.id}`);
@@ -2950,10 +2969,10 @@ export const CalificacionesView: React.FC = () => {
                           // En vista "Todas": resolver la actividad real de la ficha del estudiante
                           const resolvedActivity = activitiesByCanonicalAndFicha
                             ? (activitiesByCanonicalAndFicha
-                                .get(getActivityCanonicalKey(activity))
+                                .get(getActivityPhaseScopedKey(activity))
                                 ?.get(student.group || '') ??
                               activitiesByCanonicalAndFicha
-                                .get(getActivityCanonicalKey(activity))
+                                .get(getActivityPhaseScopedKey(activity))
                                 ?.get('') ?? activity)
                             : activity;
                           const grade = gradeMap.get(`${student.id}-${resolvedActivity.id}`);
