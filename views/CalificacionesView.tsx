@@ -204,10 +204,11 @@ const FASE_RAPS: Record<string, CronogramaRap[]> = {
 };
 
 interface CronogramaEvidence {
-  code: string;         // e.g., "GA1-220501014-AA1-EV01"
-  compCode: string;     // e.g., "220501014"
-  aaKey: string;        // e.g., "AA1"
-  description: string;  // full evidence name from cronograma
+  code: string;           // e.g., "GA1-220501014-AA1-EV01"
+  compCode: string;       // e.g., "220501014"
+  aaKey: string;          // e.g., "AA1"
+  description: string;    // full evidence name from cronograma
+  sofiaAliases?: string[]; // alternate AA#-EV## codes Sofia Plus may use for this evidence
 }
 
 /** Evidencias por fase, extraídas de los cronogramas pedagógicos */
@@ -215,7 +216,7 @@ const FASE_EVIDENCES: Record<string, CronogramaEvidence[]> = {
   'Fase Inducción': [
     { code: 'GI1-240201530-AA1-EV01', compCode: '240201530', aaKey: 'AA1', description: 'Evidencia de producto: Infografía. Contextualización Senología.' },
     { code: 'GI1-240201530-AA2-EV01', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (1).' },
-    { code: 'GI1-240201530-AA2-EV03', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (3).' },
+    { code: 'GI1-240201530-AA2-EV03', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (3).', sofiaAliases: ['AA3-EV01'] },
   ],
   'Fase 1: Análisis': [
     { code: 'GA1-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario sobre técnicas de levantamiento de información, plan de seguridad y continuidad del servicio.' },
@@ -936,14 +937,24 @@ export const CalificacionesView: React.FC = () => {
   useEffect(() => {
     const all = getGradeActivities();
 
-    // Build seed lookup: full canonical key AND phase-scoped partial AA-EV key
+    // Build seed lookup: full canonical key + phase-scoped partial AA-EV key + Sofia Plus aliases
     const seedByKey = new Map<string, GradeActivity>();
+    // Build alias map: sofiaAliases canonical key → seed SENA code
+    const aliasBySeedCode = new Map<string, string[]>(); // seedId → alias canonical keys
+    Object.values(FASE_EVIDENCES).forEach(evs => evs.forEach(ev => {
+      if (ev.sofiaAliases) aliasBySeedCode.set(`seed-${ev.code}`, ev.sofiaAliases.map(a => getCanonicalEvidenceKey(a)));
+    }));
     all.filter(a => a.id.startsWith('seed-')).forEach(a => {
       const fullKey = getActivityCanonicalKey(a);
       seedByKey.set(fullKey, a);
       // Phase-scoped partial: lets "Fase Inducción::aa1-ev01" match "GI1-...-AA1-EV01"
       const partial = fullKey.match(/aa\d+-ev\d+/i)?.[0]?.toLowerCase();
       if (partial && a.phase) seedByKey.set(`${a.phase}::${partial}`, a);
+      // Sofia Plus aliases (e.g. AA3-EV01 → GI1-240201530-AA2-EV03)
+      aliasBySeedCode.get(a.id)?.forEach(aliasKey => {
+        seedByKey.set(aliasKey, a);
+        if (a.phase) seedByKey.set(`${a.phase}::${aliasKey}`, a);
+      });
     });
 
     const toRemoveIds = new Set<string>();
@@ -2272,12 +2283,24 @@ export const CalificacionesView: React.FC = () => {
       // ── Buscar actividades existentes buscando en TODAS las fases ───────────
       // (no filtramos por selectedPhase para que el re-import siempre reutilice
       //  las actividades semilla correctas independientemente del filtro activo)
+      // Build Sofia Plus alias lookup: aliasCanonicalKey → seed activity
+      const seedAliasByKey = new Map<string, GradeActivity>();
+      Object.values(FASE_EVIDENCES).forEach(evs => evs.forEach(ev => {
+        if (!ev.sofiaAliases) return;
+        const seedAct = activities.find(a => a.id === `seed-${ev.code}`);
+        if (!seedAct) return;
+        ev.sofiaAliases.forEach(alias => {
+          const aliasKey = getCanonicalEvidenceKey(alias);
+          seedAliasByKey.set(aliasKey, seedAct);
+          if (seedAct.phase) seedAliasByKey.set(`${seedAct.phase}::${aliasKey}`, seedAct);
+        });
+      }));
+
       const existingByDetail = new Map<string, GradeActivity>();
       const addToExistingByDetail = (activity: GradeActivity, override = false) => {
         const fullKey = getActivityCanonicalKey(activity);
         if (override || !existingByDetail.has(fullKey)) existingByDetail.set(fullKey, activity);
         // Secondary phase-scoped partial key: lets "AA1-EV01" columns match "GI1-...-AA1-EV01" seeds.
-        // Extract the AA#-EV## fragment from the full SENA key (if present).
         const partialAaEv = fullKey.match(/aa\d+-ev\d+/i)?.[0]?.toLowerCase();
         if (partialAaEv && activity.phase) {
           const scopedKey = `${activity.phase}::${partialAaEv}`;
@@ -2306,13 +2329,20 @@ export const CalificacionesView: React.FC = () => {
 
       evidenceMap.forEach((entry, canonicalKey) => {
         let activity = existingByDetail.get(canonicalKey);
-        // Fallback: if full key didn't match, try phase-scoped partial key
-        // (handles Sofia Plus exports where header is "Infografía. AA1-EV01" instead of full code)
         if (!activity) {
           const autoPhase = detectPhaseFromCode(entry.baseName);
+          // Fallback 1: phase-scoped partial AA-EV key
+          // (handles Sofia Plus exports where header is "Infografía. AA1-EV01" instead of full code)
           const partialAaEv = canonicalKey.match(/aa\d+-ev\d+/i)?.[0]?.toLowerCase();
           if (partialAaEv && autoPhase) {
             activity = existingByDetail.get(`${autoPhase}::${partialAaEv}`);
+          }
+          // Fallback 2: Sofia Plus alias map (e.g. AA3-EV01 → GI1-240201530-AA2-EV03)
+          if (!activity) {
+            activity = seedAliasByKey.get(canonicalKey);
+            if (!activity && partialAaEv && autoPhase) {
+              activity = seedAliasByKey.get(`${autoPhase}::${partialAaEv}`);
+            }
           }
         }
         if (!activity) {
