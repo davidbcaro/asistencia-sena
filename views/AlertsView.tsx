@@ -267,7 +267,10 @@ Atentamente,`
     const el = editorRef.current;
     if (!el) return;
     const isPlain = !/<\/?[a-z][^>]*>/i.test(templateBody);
-    el.innerHTML = isPlain ? templateBody.replace(/\n/g, '<br>') : templateBody;
+    const htmlContent = isPlain ? templateBody.replace(/\n/g, '<br>') : templateBody;
+    el.innerHTML = htmlContent;
+    // Sincronizar el estado con la versión HTML para que generatePreviews use <br> y no \n
+    if (isPlain) setTemplateBody(htmlContent);
   }, []);
 
   // Guardar selección cuando cambie y esté dentro del editor
@@ -625,7 +628,13 @@ Atentamente,`
         .replace(/{fecha_ultimo_ingreso}/g, lastAccessFormatted)
         .replace(/{evidencias}/g, evidenciasPlain);
 
-      let body = templateBody
+      // Si templateBody es texto plano (el usuario no ha editado en el editor),
+      // convertir \n a <br> para que el HTML renderice con saltos de línea correctos.
+      const bodySource = !/<\/?[a-z][^>]*>/i.test(templateBody)
+        ? templateBody.replace(/\n/g, '<br>')
+        : templateBody;
+
+      let body = bodySource
         .replace(/{estudiante}/g, safe(fullName))
         .replace(/{novedad}/g, safe(novedad))
         .replace(/{grupo}/g, safe(student.group || ''))
