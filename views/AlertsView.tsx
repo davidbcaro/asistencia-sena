@@ -147,6 +147,17 @@ function htmlToPlainText(html: string): string {
   return (div.textContent ?? div.innerText ?? '').trim();
 }
 
+/** Inyecta estilos inline para que el HTML pegado en Gmail/Outlook conserve formato. */
+function buildEmailHtml(body: string): string {
+  const styled = body
+    .replace(/<p(?=[^>]*>)/gi, '<p style="margin:0.5em 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;"')
+    .replace(/<ul(?=[^>]*>)/gi, '<ul style="margin:0.5em 0;padding-left:1.5em;"')
+    .replace(/<ol(?=[^>]*>)/gi, '<ol style="margin:0.5em 0;padding-left:1.5em;"')
+    .replace(/<li(?=[^>]*>)/gi, '<li style="margin:0.2em 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;"')
+    .replace(/<blockquote(?=[^>]*>)/gi, '<blockquote style="border-left:3px solid #ccc;margin:0.5em 0;padding-left:1em;color:#555555;"');
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;max-width:640px;word-wrap:break-word;">${styled}</div>`;
+}
+
 /** Indica si un nodo está dentro del editor. */
 function isInsideEditor(editor: HTMLDivElement | null, node: Node | null): boolean {
   if (!editor || !node) return false;
@@ -731,7 +742,7 @@ Atentamente,`
   const handleCopyBodyWithFormat = async () => {
     if (!currentPreviewEmail) return;
     try {
-      const html = currentPreviewEmail.body;
+      const html = buildEmailHtml(currentPreviewEmail.body);
       const plain = htmlToPlainText(html);
       await navigator.clipboard.write([
         new ClipboardItem({
