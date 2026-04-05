@@ -147,15 +147,17 @@ function htmlToPlainText(html: string): string {
   return (div.textContent ?? div.innerText ?? '').trim();
 }
 
-/** Inyecta estilos inline para que el HTML pegado en Gmail/Outlook conserve formato. */
+/** Inyecta estilos inline para que el HTML pegado en Gmail/Outlook conserve formato y ocupe el ancho completo. */
 function buildEmailHtml(body: string): string {
+  const BASE = 'font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;';
   const styled = body
-    .replace(/<p(?=[^>]*>)/gi, '<p style="margin:0.5em 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;"')
+    .replace(/<p(?=[^>]*>)/gi, `<p style="margin:0.5em 0;${BASE}"`)
     .replace(/<ul(?=[^>]*>)/gi, '<ul style="margin:0.5em 0;padding-left:1.5em;"')
     .replace(/<ol(?=[^>]*>)/gi, '<ol style="margin:0.5em 0;padding-left:1.5em;"')
-    .replace(/<li(?=[^>]*>)/gi, '<li style="margin:0.2em 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;"')
+    .replace(/<li(?=[^>]*>)/gi, `<li style="margin:0.2em 0;${BASE}"`)
     .replace(/<blockquote(?=[^>]*>)/gi, '<blockquote style="border-left:3px solid #ccc;margin:0.5em 0;padding-left:1em;color:#555555;"');
-  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;word-wrap:break-word;">${styled}</div>`;
+  // Usar <table> de ancho 100% para que Outlook respete el ancho completo del área de composición
+  return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;"><tr><td style="${BASE}word-wrap:break-word;">${styled}</td></tr></table>`;
 }
 
 /** Indica si un nodo está dentro del editor. */
