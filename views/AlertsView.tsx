@@ -155,7 +155,7 @@ function buildEmailHtml(body: string): string {
     .replace(/<ol(?=[^>]*>)/gi, '<ol style="margin:0.5em 0;padding-left:1.5em;"')
     .replace(/<li(?=[^>]*>)/gi, '<li style="margin:0.2em 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;"')
     .replace(/<blockquote(?=[^>]*>)/gi, '<blockquote style="border-left:3px solid #ccc;margin:0.5em 0;padding-left:1em;color:#555555;"');
-  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;max-width:640px;word-wrap:break-word;">${styled}</div>`;
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;word-wrap:break-word;">${styled}</div>`;
 }
 
 /** Indica si un nodo está dentro del editor. */
@@ -213,23 +213,7 @@ export const AlertsView: React.FC = () => {
     'Notificación de Inicio de Proceso de Deserción'
   );
   const [templateBody, setTemplateBody] = useState(
-    `Estimado(a) Aprendiz:
-
-{estudiante}
-C.C. {documento}
-Programa: Gestión de Redes de Datos
-Ficha: {grupo}
-
-Reciba un cordial saludo.
-Como instructor responsable de su proceso formativo en el programa, me permito comunicarle que, tras la revisión del sistema de gestión académica Zajuna, se ha evidenciado que usted no registra ingresos a la plataforma desde hace {dias_sin_ingresar} días y no reporta entrega de las evidencias.
-De acuerdo con el Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA), su situación se enmarca en la causal de deserción establecida para la modalidad virtual, la cual cito a continuación:
-Artículo 30º. Deserción: Se considera deserción en el proceso de formación, cuando el aprendiz:
-"b) En la formación bajo la modalidad virtual en etapa lectiva, se presenta cuando el aprendiz no asiste a tres (3) citaciones seguidas elevadas por el instructor o por el responsable del grupo o no ingresa a su ambiente virtual de formación (plataforma LMS) durante veinte (20) días consecutivos, sin previa justificación soportada ante el sistema de gestión académico-administrativo."
-En caso de que existan situaciones personales, laborales o de fuerza mayor que le impidan continuar, informarle sobre su derecho a solicitar un Retiro Voluntario.
-Novedad de Retiro Voluntario: Es la solicitud formal que el aprendiz presenta ante el Centro de Formación para retirarse del programa. A diferencia de la deserción, el retiro voluntario debidamente justificado puede evitar o disminuir los términos de sanción para futuras inscripciones, siempre que se realice antes de que se formalice el proceso de deserción por parte de la entidad.
-En caso de no recibir respuesta de solicitud de retiro voluntario, el Centro de Formación procederá a tramitar la deserción y la cancelación de su matrícula en el programa de formación, con la respectiva sanción de no poder participar en procesos de ingreso al SENA por el término establecido en el reglamento.
-
-Atentamente,`
+    `Estimado(a) Aprendiz:<br><br><strong>{estudiante}</strong><br><strong>C.C.</strong> {documento}<br><strong>Programa:</strong> {programa}<br><strong>Ficha:</strong> {grupo}<br><br>Reciba un cordial saludo.<br>Como instructor responsable de su proceso formativo en el programa, me permito comunicarle que, tras la revisión del sistema de gestión académica Zajuna, se ha evidenciado que usted no registra ingresos a la plataforma desde hace <strong>{dias_sin_ingresar}</strong> días y no reporta entrega de las evidencias.<br><br>De acuerdo con el <strong>Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA)</strong>, su situación se enmarca en la causal de deserción establecida para la modalidad virtual, la cual cito a continuación:<br><br><em>"Artículo 30º. Deserción: Se considera deserción en el proceso de formación, cuando el aprendiz:<br>b) En la formación bajo la modalidad virtual en etapa lectiva, se presenta cuando el aprendiz no asiste a tres (3) citaciones seguidas elevadas por el instructor o por el responsable del grupo o no ingresa a su ambiente virtual de formación (plataforma LMS) durante veinte (20) días consecutivos, sin previa justificación soportada ante el sistema de gestión académico-administrativo."</em><br><br>De no recibir respuesta con una justificación válida o evidencia de actividad en el proceso formativo, se procederá conforme a lo establecido en el reglamento del aprendiz.<br><br>Atentamente,`
   );
 
   const [preparedEmails, setPreparedEmails] = useState<PreparedEmail[]>([]);
