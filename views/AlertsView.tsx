@@ -23,6 +23,9 @@ import {
   Copy,
   BookOpen,
   ListChecks,
+  Save,
+  Trash2,
+  Plus,
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import {
@@ -121,6 +124,42 @@ interface PreparedEmail {
   status?: 'pending' | 'sending' | 'sent' | 'error';
 }
 
+interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+}
+
+// ─── Gestión de plantillas de correo ────────────────────────────────────────
+const TEMPLATES_KEY = 'asistenciapro_email_templates';
+
+const DEFAULT_TEMPLATE_BODY =
+  `Estimado(a) Aprendiz:<br><br><strong>{estudiante}</strong><br><strong>C.C.</strong> {documento}<br><strong>Programa:</strong> {programa}<br><strong>Ficha:</strong> {grupo}<br><br>Reciba un cordial saludo.<br>Como instructor responsable de su proceso formativo en el programa, me permito comunicarle que, tras la revisión del sistema de gestión académica Zajuna, se ha evidenciado que usted no registra ingresos a la plataforma desde hace <strong>{dias_sin_ingresar}</strong> días y no reporta entrega de las evidencias.<br><br>De acuerdo con el <strong>Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA)</strong>, su situación se enmarca en la causal de deserción establecida para la modalidad virtual, la cual cito a continuación:<br><br><em>"Artículo 30º. Deserción: Se considera deserción en el proceso de formación, cuando el aprendiz:<br>b) En la formación bajo la modalidad virtual en etapa lectiva, se presenta cuando el aprendiz no asiste a tres (3) citaciones seguidas elevadas por el instructor o por el responsable del grupo o no ingresa a su ambiente virtual de formación (plataforma LMS) durante veinte (20) días consecutivos, sin previa justificación soportada ante el sistema de gestión académico-administrativo."</em><br><br>De no recibir respuesta con una justificación válida o evidencia de actividad en el proceso formativo, se procederá conforme a lo establecido en el reglamento del aprendiz.<br><br>Atentamente,`;
+
+const DEFAULT_TEMPLATE: EmailTemplate = {
+  id: 'default',
+  name: 'Deserción (por defecto)',
+  subject: 'Notificación de Inicio de Proceso de Deserción',
+  body: DEFAULT_TEMPLATE_BODY,
+};
+
+function loadEmailTemplates(): EmailTemplate[] {
+  try {
+    const raw = localStorage.getItem(TEMPLATES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as EmailTemplate[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return [DEFAULT_TEMPLATE];
+}
+
+function persistEmailTemplates(templates: EmailTemplate[]): void {
+  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 /** Fuentes seguras para correo (compatibles con clientes de email). */
 const EMAIL_FONTS = [
   { name: 'Fuente', value: '' },
@@ -210,13 +249,16 @@ export const AlertsView: React.FC = () => {
   const areaDropdownRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Plantilla de correo (deserción - ver email/correo_desercion.txt)
-  const [templateSubject, setTemplateSubject] = useState(
-    'Notificación de Inicio de Proceso de Deserción'
-  );
-  const [templateBody, setTemplateBody] = useState(
-    `Estimado(a) Aprendiz:<br><br><strong>{estudiante}</strong><br><strong>C.C.</strong> {documento}<br><strong>Programa:</strong> {programa}<br><strong>Ficha:</strong> {grupo}<br><br>Reciba un cordial saludo.<br>Como instructor responsable de su proceso formativo en el programa, me permito comunicarle que, tras la revisión del sistema de gestión académica Zajuna, se ha evidenciado que usted no registra ingresos a la plataforma desde hace <strong>{dias_sin_ingresar}</strong> días y no reporta entrega de las evidencias.<br><br>De acuerdo con el <strong>Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA)</strong>, su situación se enmarca en la causal de deserción establecida para la modalidad virtual, la cual cito a continuación:<br><br><em>"Artículo 30º. Deserción: Se considera deserción en el proceso de formación, cuando el aprendiz:<br>b) En la formación bajo la modalidad virtual en etapa lectiva, se presenta cuando el aprendiz no asiste a tres (3) citaciones seguidas elevadas por el instructor o por el responsable del grupo o no ingresa a su ambiente virtual de formación (plataforma LMS) durante veinte (20) días consecutivos, sin previa justificación soportada ante el sistema de gestión académico-administrativo."</em><br><br>De no recibir respuesta con una justificación válida o evidencia de actividad en el proceso formativo, se procederá conforme a lo establecido en el reglamento del aprendiz.<br><br>Atentamente,`
-  );
+  // ── Plantillas de correo ──────────────────────────────────────────────────
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>(() => loadEmailTemplates());
+  const [activeTemplateId, setActiveTemplateId] = useState<string>(() => loadEmailTemplates()[0]?.id ?? 'default');
+  const [showSaveNewModal, setShowSaveNewModal] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
+
+  const activeTemplate = emailTemplates.find((t) => t.id === activeTemplateId) ?? emailTemplates[0];
+  const [templateSubject, setTemplateSubject] = useState(() => activeTemplate?.subject ?? DEFAULT_TEMPLATE.subject);
+  const [templateBody, setTemplateBody] = useState(() => activeTemplate?.body ?? DEFAULT_TEMPLATE.body);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const [preparedEmails, setPreparedEmails] = useState<PreparedEmail[]>([]);
   const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
@@ -717,6 +759,56 @@ export const AlertsView: React.FC = () => {
     setShowSettings(false);
   };
 
+  // ── Handlers de gestión de plantillas ────────────────────────────────────
+  const handleSelectTemplate = (id: string) => {
+    const tpl = emailTemplates.find((t) => t.id === id);
+    if (!tpl) return;
+    setActiveTemplateId(id);
+    setTemplateSubject(tpl.subject);
+    setTemplateBody(tpl.body);
+    if (editorRef.current) editorRef.current.innerHTML = tpl.body;
+    setPreparedEmails([]); // limpiar vista previa al cambiar plantilla
+  };
+
+  const handleUpdateTemplate = () => {
+    const updated = emailTemplates.map((t) =>
+      t.id === activeTemplateId ? { ...t, subject: templateSubject, body: templateBody } : t
+    );
+    setEmailTemplates(updated);
+    persistEmailTemplates(updated);
+  };
+
+  const handleSaveAsNew = () => {
+    const name = newTemplateName.trim();
+    if (!name) return;
+    const newTpl: EmailTemplate = {
+      id: `tpl_${Date.now()}`,
+      name,
+      subject: templateSubject,
+      body: templateBody,
+    };
+    const updated = [...emailTemplates, newTpl];
+    setEmailTemplates(updated);
+    persistEmailTemplates(updated);
+    setActiveTemplateId(newTpl.id);
+    setNewTemplateName('');
+    setShowSaveNewModal(false);
+  };
+
+  const handleDeleteTemplate = () => {
+    if (emailTemplates.length <= 1) return;
+    const updated = emailTemplates.filter((t) => t.id !== activeTemplateId);
+    setEmailTemplates(updated);
+    persistEmailTemplates(updated);
+    const first = updated[0];
+    setActiveTemplateId(first.id);
+    setTemplateSubject(first.subject);
+    setTemplateBody(first.body);
+    if (editorRef.current) editorRef.current.innerHTML = first.body;
+    setPreparedEmails([]);
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
   const currentPreviewEmail = preparedEmails[currentPreviewIndex];
 
   const showCopyFeedback = (msg: string) => {
@@ -988,6 +1080,83 @@ export const AlertsView: React.FC = () => {
             Redactar plantilla
           </h3>
           <div className="space-y-4">
+
+            {/* ── Selector de plantillas ── */}
+            <div className="rounded-xl border border-teal-100 bg-teal-50 p-3 space-y-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <BookOpen className="w-4 h-4 text-teal-600" />
+                <span className="text-sm font-semibold text-teal-800">Plantillas guardadas</span>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                <select
+                  value={activeTemplateId}
+                  onChange={(e) => handleSelectTemplate(e.target.value)}
+                  className="flex-1 min-w-0 text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:ring-2 focus:ring-teal-500 outline-none"
+                >
+                  {emailTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleUpdateTemplate}
+                  title="Guardar cambios en la plantilla actual"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-teal-300 bg-white text-teal-700 hover:bg-teal-100"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Guardar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setNewTemplateName(''); setShowSaveNewModal(true); }}
+                  title="Guardar como nueva plantilla"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Nueva
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteTemplate}
+                  disabled={emailTemplates.length <= 1}
+                  title="Eliminar plantilla actual"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Mini-modal inline: guardar como nueva */}
+              {showSaveNewModal && (
+                <div className="mt-2 flex items-center gap-2 p-3 bg-white rounded-lg border border-teal-200 shadow-sm">
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Nombre de la nueva plantilla..."
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveAsNew(); if (e.key === 'Escape') setShowSaveNewModal(false); }}
+                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-teal-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveAsNew}
+                    disabled={!newTemplateName.trim()}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+                  >
+                    Crear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveNewModal(false)}
+                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 text-gray-500"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Asunto</label>
               <input
