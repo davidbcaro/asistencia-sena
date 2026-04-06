@@ -1598,7 +1598,6 @@ export const CalificacionesView: React.FC = () => {
         }),
         PHASE_TOTAL_LABELS[phase] ?? `TOTAL ${phase}`,
       ]),
-      ...rapColumnsForFicha,
       ...(hasActivities ? ['Pendientes', 'Promedio', 'FINAL'] : []),
     ];
 
@@ -1618,7 +1617,6 @@ export const CalificacionesView: React.FC = () => {
         })(),
       ]);
       const final = getFinalForStudent(student.id, student.group);
-      const rapValues = rapColumnsForFicha.map(() => '');
       const manualFinalVal = getManualFinal(student.id, student.group);
       const finalValues = hasActivities
         ? [final.pending, final.score != null ? Number(final.score).toFixed(2) : '', manualFinalVal]
@@ -1640,7 +1638,6 @@ export const CalificacionesView: React.FC = () => {
         daysExport,
         juicioLabel,
         ...activityScores,
-        ...rapValues,
         ...finalValues,
       ];
     });
@@ -1703,7 +1700,7 @@ export const CalificacionesView: React.FC = () => {
       colOffset += group.count;
     });
 
-    // RAP + Final cols: dark color
+    // Final cols (Pendientes, Promedio, FINAL): dark color — no aplica más allá de TOTAL_COLS
     for (let c = colOffset; c <= TOTAL_COLS; c++) {
       phaseRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF374151' } };
     }
