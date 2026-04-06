@@ -121,6 +121,7 @@ interface PreparedEmail {
   novedad: string;
   subject: string;
   body: string;
+  templateId?: string;
   status?: 'pending' | 'sending' | 'sent' | 'error';
 }
 
@@ -254,6 +255,8 @@ export const AlertsView: React.FC = () => {
   const [activeTemplateId, setActiveTemplateId] = useState<string>(() => loadEmailTemplates()[0]?.id ?? 'default');
   const [showSaveNewModal, setShowSaveNewModal] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
+  const [renamingTemplateId, setRenamingTemplateId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   const activeTemplate = emailTemplates.find((t) => t.id === activeTemplateId) ?? emailTemplates[0];
   const [templateSubject, setTemplateSubject] = useState(() => activeTemplate?.subject ?? DEFAULT_TEMPLATE.subject);
@@ -615,74 +618,71 @@ export const AlertsView: React.FC = () => {
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
   };
 
+  /** Construye un PreparedEmail para un aprendiz usando la plantilla indicada. */
+  const buildEmailItem = (
+    item: ApprenticeWithNovedad,
+    subjectTpl: string,
+    bodyTpl: string,
+    tplId: string,
+    keepStatus?: PreparedEmail['status']
+  ): PreparedEmail => {
+    const fecha = getLocalDate();
+    const { student, novedad, daysInactive } = item;
+    const fullName = `${student.firstName} ${student.lastName}`;
+    const diasStr = daysInactive != null && daysInactive >= 0 ? String(daysInactive) : 'N/A';
+    const ficha = fichas.find((f) => f.code === (student.group || ''));
+    const programName = ficha?.cronogramaProgramName || ficha?.program || student.group || 'N/A';
+    const lastAccessFormatted = formatLastAccess(lmsLastAccess[student.id]);
+    const safe = escapeHtml;
+    const pendientes = getPendingGradeActivities(student, gradeActivities, gradeMap, alertsPendingScope);
+    const evidenciasPlain =
+      pendientes.length === 0
+        ? 'Ninguna evidencia pendiente según los filtros aplicados.'
+        : pendientes.map((a) => (a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').replace(/\s+/g, ' ').trim()).join('; ');
+    const evidenciasHtml =
+      pendientes.length === 0
+        ? `<p>${safe('Ninguna evidencia pendiente según los filtros aplicados.')}</p>`
+        : `<ul style="margin:0.5em 0;padding-left:1.25em;">${pendientes
+            .map((a) => `<li>${safe((a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').trim())}</li>`)
+            .join('')}</ul>`;
+    const subject = subjectTpl
+      .replace(/{estudiante}/g, fullName)
+      .replace(/{novedad}/g, novedad)
+      .replace(/{grupo}/g, student.group || '')
+      .replace(/{dias_sin_ingresar}/g, diasStr)
+      .replace(/{fecha}/g, fecha)
+      .replace(/{documento}/g, student.documentNumber || '')
+      .replace(/{programa}/g, programName)
+      .replace(/{fecha_ultimo_ingreso}/g, lastAccessFormatted)
+      .replace(/{evidencias}/g, evidenciasPlain);
+    const bodySource = !/<\/?[a-z][^>]*>/i.test(bodyTpl) ? bodyTpl.replace(/\n/g, '<br>') : bodyTpl;
+    const body = bodySource
+      .replace(/{estudiante}/g, safe(fullName))
+      .replace(/{novedad}/g, safe(novedad))
+      .replace(/{grupo}/g, safe(student.group || ''))
+      .replace(/{dias_sin_ingresar}/g, safe(diasStr))
+      .replace(/{fecha}/g, safe(fecha))
+      .replace(/{documento}/g, safe(student.documentNumber || 'N/A'))
+      .replace(/{programa}/g, safe(programName))
+      .replace(/{fecha_ultimo_ingreso}/g, safe(lastAccessFormatted))
+      .replace(/{evidencias}/g, evidenciasHtml);
+    return {
+      studentId: student.id,
+      studentName: fullName,
+      email: student.email,
+      novedad,
+      subject,
+      body,
+      templateId: tplId,
+      status: keepStatus ?? 'pending',
+    };
+  };
+
   const generatePreviews = () => {
     if (filteredList.length === 0) return;
-    const fecha = getLocalDate();
-    const results: PreparedEmail[] = filteredList.map((item) => {
-      const { student, novedad, daysInactive } = item;
-      const fullName = `${student.firstName} ${student.lastName}`;
-      const diasStr =
-        daysInactive != null && daysInactive >= 0 ? String(daysInactive) : 'N/A';
-      const ficha = fichas.find((f) => f.code === (student.group || ''));
-      const programName = ficha?.cronogramaProgramName || ficha?.program || student.group || 'N/A';
-      const lastAccessFormatted = formatLastAccess(lmsLastAccess[student.id]);
-
-      const safe = escapeHtml;
-      const pendientes = getPendingGradeActivities(
-        student,
-        gradeActivities,
-        gradeMap,
-        alertsPendingScope
-      );
-      const evidenciasPlain =
-        pendientes.length === 0
-          ? 'Ninguna evidencia pendiente según los filtros aplicados.'
-          : pendientes.map((a) => (a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').replace(/\s+/g, ' ').trim()).join('; ');
-      const evidenciasHtml =
-        pendientes.length === 0
-          ? `<p>${safe('Ninguna evidencia pendiente según los filtros aplicados.')}</p>`
-          : `<ul style="margin:0.5em 0;padding-left:1.25em;">${pendientes
-              .map((a) => `<li>${safe((a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').trim())}</li>`)
-              .join('')}</ul>`;
-
-      let subject = templateSubject
-        .replace(/{estudiante}/g, fullName)
-        .replace(/{novedad}/g, novedad)
-        .replace(/{grupo}/g, student.group || '')
-        .replace(/{dias_sin_ingresar}/g, diasStr)
-        .replace(/{fecha}/g, fecha)
-        .replace(/{documento}/g, student.documentNumber || '')
-        .replace(/{programa}/g, programName)
-        .replace(/{fecha_ultimo_ingreso}/g, lastAccessFormatted)
-        .replace(/{evidencias}/g, evidenciasPlain);
-
-      // Si templateBody es texto plano (el usuario no ha editado en el editor),
-      // convertir \n a <br> para que el HTML renderice con saltos de línea correctos.
-      const bodySource = !/<\/?[a-z][^>]*>/i.test(templateBody)
-        ? templateBody.replace(/\n/g, '<br>')
-        : templateBody;
-
-      let body = bodySource
-        .replace(/{estudiante}/g, safe(fullName))
-        .replace(/{novedad}/g, safe(novedad))
-        .replace(/{grupo}/g, safe(student.group || ''))
-        .replace(/{dias_sin_ingresar}/g, safe(diasStr))
-        .replace(/{fecha}/g, safe(fecha))
-        .replace(/{documento}/g, safe(student.documentNumber || 'N/A'))
-        .replace(/{programa}/g, safe(programName))
-        .replace(/{fecha_ultimo_ingreso}/g, safe(lastAccessFormatted))
-        .replace(/{evidencias}/g, evidenciasHtml);
-
-      return {
-        studentId: student.id,
-        studentName: fullName,
-        email: student.email,
-        novedad,
-        subject,
-        body,
-        status: 'pending' as const,
-      };
-    });
+    const results = filteredList.map((item) =>
+      buildEmailItem(item, templateSubject, templateBody, activeTemplateId)
+    );
     setPreparedEmails(results);
     setCurrentPreviewIndex(0);
   };
@@ -806,6 +806,32 @@ export const AlertsView: React.FC = () => {
     setTemplateBody(first.body);
     if (editorRef.current) editorRef.current.innerHTML = first.body;
     setPreparedEmails([]);
+  };
+
+  const handleRenameTemplate = () => {
+    const name = renameValue.trim();
+    if (!name || !renamingTemplateId) return;
+    const updated = emailTemplates.map((t) =>
+      t.id === renamingTemplateId ? { ...t, name } : t
+    );
+    setEmailTemplates(updated);
+    persistEmailTemplates(updated);
+    setRenamingTemplateId(null);
+  };
+
+  /** Regenera el correo en `index` usando la plantilla con id `tplId`. */
+  const regenerateSingleEmail = (index: number, tplId: string) => {
+    const tpl = emailTemplates.find((t) => t.id === tplId);
+    if (!tpl) return;
+    const email = preparedEmails[index];
+    const item = filteredList.find((i) => i.student.id === email.studentId);
+    if (!item) return;
+    const rebuilt = buildEmailItem(item, tpl.subject, tpl.body, tplId, email.status);
+    setPreparedEmails((prev) => {
+      const next = [...prev];
+      next[index] = rebuilt;
+      return next;
+    });
   };
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -1117,6 +1143,19 @@ export const AlertsView: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  onClick={() => {
+                    const tpl = emailTemplates.find((t) => t.id === activeTemplateId);
+                    setRenameValue(tpl?.name ?? '');
+                    setRenamingTemplateId(activeTemplateId);
+                    setShowSaveNewModal(false);
+                  }}
+                  title="Renombrar plantilla"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
                   onClick={handleDeleteTemplate}
                   disabled={emailTemplates.length <= 1}
                   title="Eliminar plantilla actual"
@@ -1125,6 +1164,36 @@ export const AlertsView: React.FC = () => {
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
+
+              {/* Mini-modal inline: renombrar plantilla */}
+              {renamingTemplateId && (
+                <div className="mt-2 flex items-center gap-2 p-3 bg-white rounded-lg border border-amber-200 shadow-sm">
+                  <span className="text-xs text-amber-700 font-medium flex-shrink-0">Renombrar:</span>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleRenameTemplate(); if (e.key === 'Escape') setRenamingTemplateId(null); }}
+                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRenameTemplate}
+                    disabled={!renameValue.trim()}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50"
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRenamingTemplateId(null)}
+                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 text-gray-500"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
               {/* Mini-modal inline: guardar como nueva */}
               {showSaveNewModal && (
@@ -1331,40 +1400,58 @@ export const AlertsView: React.FC = () => {
               <div className="flex flex-col h-full bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                 {currentPreviewEmail && (
                   <>
-                    <div className="p-4 border-b border-gray-100 flex justify-between items-start">
-                      <div>
-                        <p className="font-bold text-gray-800">
-                          {currentPreviewEmail.studentName}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {currentPreviewEmail.email}
-                        </p>
-                        <span className="text-xs text-amber-600 font-medium">
-                          {currentPreviewEmail.novedad}
-                        </span>
+                    <div className="p-4 border-b border-gray-100 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-bold text-gray-800">
+                            {currentPreviewEmail.studentName}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {currentPreviewEmail.email}
+                          </p>
+                          <span className="text-xs text-amber-600 font-medium">
+                            {currentPreviewEmail.novedad}
+                          </span>
+                        </div>
+                        <div>
+                          {currentPreviewEmail.status === 'sent' && (
+                            <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded">
+                              <CheckCircle className="w-3 h-3" /> Enviado
+                            </span>
+                          )}
+                          {currentPreviewEmail.status === 'error' && (
+                            <span className="text-red-600 text-xs font-bold bg-red-50 px-2 py-1 rounded">
+                              Error
+                            </span>
+                          )}
+                          {currentPreviewEmail.status === 'sending' && (
+                            <span className="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded flex items-center gap-1">
+                              <RefreshCw className="w-3 h-3 animate-spin" /> Enviando
+                            </span>
+                          )}
+                          {currentPreviewEmail.status === 'pending' && (
+                            <span className="text-gray-500 text-xs font-bold bg-gray-100 px-2 py-1 rounded">
+                              Pendiente
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        {currentPreviewEmail.status === 'sent' && (
-                          <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded">
-                            <CheckCircle className="w-3 h-3" /> Enviado
-                          </span>
-                        )}
-                        {currentPreviewEmail.status === 'error' && (
-                          <span className="text-red-600 text-xs font-bold bg-red-50 px-2 py-1 rounded">
-                            Error
-                          </span>
-                        )}
-                        {currentPreviewEmail.status === 'sending' && (
-                          <span className="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded flex items-center gap-1">
-                            <RefreshCw className="w-3 h-3 animate-spin" /> Enviando
-                          </span>
-                        )}
-                        {currentPreviewEmail.status === 'pending' && (
-                          <span className="text-gray-500 text-xs font-bold bg-gray-100 px-2 py-1 rounded">
-                            Pendiente
-                          </span>
-                        )}
-                      </div>
+                      {/* Selector de plantilla por correo */}
+                      {emailTemplates.length > 1 && (
+                        <div className="flex items-center gap-2 pt-1">
+                          <BookOpen className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
+                          <span className="text-xs text-gray-500 flex-shrink-0">Plantilla:</span>
+                          <select
+                            value={currentPreviewEmail.templateId ?? activeTemplateId}
+                            onChange={(e) => regenerateSingleEmail(currentPreviewIndex, e.target.value)}
+                            className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:ring-1 focus:ring-teal-400 outline-none text-gray-700"
+                          >
+                            {emailTemplates.map((t) => (
+                              <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 p-4 bg-gray-50 text-sm text-gray-700 overflow-y-auto flex flex-col">
                       <div className="flex flex-wrap items-center gap-2 mb-2 border-b pb-2 border-gray-200">
