@@ -2904,16 +2904,14 @@ export const CalificacionesView: React.FC = () => {
                 </button>
               )}
 
-              {selectedPhases.length === 1 && gradesCountForSelectedPhase > 0 && (
-                <button
-                  onClick={() => setClearPhaseConfirm(selectedPhases[0])}
-                  title={`Eliminar las ${gradesCountForSelectedPhase} calificaciones de ${selectedPhases[0]}`}
-                  className="inline-flex items-center justify-center space-x-1.5 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm"
-                >
-                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span>Limpiar notas</span>
-                </button>
-              )}
+              <button
+                onClick={() => selectedPhases.length === 1 && gradesCountForSelectedPhase > 0 && setClearPhaseConfirm(selectedPhases[0])}
+                title={selectedPhases.length === 1 && gradesCountForSelectedPhase > 0 ? `Eliminar las ${gradesCountForSelectedPhase} calificaciones de ${selectedPhases[0]}` : ''}
+                className={`inline-flex items-center justify-center space-x-1.5 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm ${selectedPhases.length === 1 && gradesCountForSelectedPhase > 0 ? 'visible' : 'invisible pointer-events-none'}`}
+              >
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>Limpiar notas</span>
+              </button>
 
               <div className="relative">
                 <button
