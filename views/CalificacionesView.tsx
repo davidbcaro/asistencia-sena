@@ -600,7 +600,7 @@ export const CalificacionesView: React.FC = () => {
     'Fase 3: Ejecución',
     'Fase 4: Evaluación',
   ];
-  const [selectedPhase, setSelectedPhase] = useState(ALL_PHASES_VIEW);
+  const [selectedPhases, setSelectedPhases] = useState<string[]>([]);
   /** Área de competencia (Técnica, TIC's, …) para acotar columnas de evidencias */
   const [califEvidenceAreaFilter, setCalifEvidenceAreaFilter] = useState<string>(ALL_EVIDENCE_AREAS);
   /** Tipo de evidencia: 'Todos' | 'Conocimiento' | 'Producto' | 'Desempeño' */
@@ -608,6 +608,15 @@ export const CalificacionesView: React.FC = () => {
   /** Vacío = todas las evidencias del contexto (área + ficha/fase); si no, solo ids listados */
   const [califSelectedEvidenceIdList, setCalifSelectedEvidenceIdList] = useState<string[]>([]);
   const [califEvidencePickerOpen, setCalifEvidencePickerOpen] = useState(false);
+
+  // Derived: '' or all phases → ALL_PHASES_VIEW; single selection → that phase string
+  const effectiveSinglePhase = selectedPhases.length === 1 ? selectedPhases[0] : ALL_PHASES_VIEW;
+  const exportPhaseSlug = selectedPhases.length > 1
+    ? 'multiples_fases'
+    : effectiveSinglePhase.replace(/[^a-z0-9]/gi, '_');
+  const exportPhaseTitle = selectedPhases.length > 1
+    ? `Múltiples fases (${selectedPhases.length})`
+    : effectiveSinglePhase;
 
   const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -791,7 +800,7 @@ export const CalificacionesView: React.FC = () => {
 
   useEffect(() => {
     setSelectedStudents(new Set());
-  }, [selectedFicha, selectedPhase, searchTerm, filterStatus]);
+  }, [selectedFicha, selectedPhases, searchTerm, filterStatus]);
 
   useEffect(() => {
     if (!showFichaFilter) return;
@@ -835,19 +844,19 @@ export const CalificacionesView: React.FC = () => {
   // Auto-inicializar columnas RAP desde el cronograma cuando son genéricas o vacías
   useEffect(() => {
     if (selectedFicha === 'Todas') return;
-    const key = `${selectedFicha}::${selectedPhase}`;
+    const key = `${selectedFicha}::${effectiveSinglePhase}`;
     const existing = rapColumns[key] || rapColumns[selectedFicha] || [];
     const isGenericOrEmpty =
       existing.length === 0 || existing.every(r => /^RAP\s*\d+$/i.test(r.trim()));
     if (!isGenericOrEmpty) return;
 
-    const phaseRaps = FASE_RAPS[selectedPhase];
+    const phaseRaps = FASE_RAPS[effectiveSinglePhase];
     if (!phaseRaps || phaseRaps.length === 0) return;
 
     const rapCodes = phaseRaps.map(r => r.rapCode);
     const current = getRapColumns();
     saveRapColumns({ ...current, [key]: rapCodes });
-  }, [selectedFicha, selectedPhase]);
+  }, [selectedFicha, selectedPhases]);
 
   // Seed default evidence columns for ALL phases on mount (runs once)
   useEffect(() => {
@@ -995,7 +1004,7 @@ export const CalificacionesView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedFicha, selectedPhase, searchTerm, finalFilter, filterStatus, sortOrder, sortDirection, califEvidenceAreaFilter]);
+  }, [selectedFicha, selectedPhases, searchTerm, finalFilter, filterStatus, sortOrder, sortDirection, califEvidenceAreaFilter]);
 
   useEffect(() => {
     if (!showFinalFilter) return;
@@ -1022,12 +1031,12 @@ export const CalificacionesView: React.FC = () => {
   const hasSearchTerm = searchTerm.trim() !== '';
   const showAllFichasColumns = selectedFicha === 'Todas' || hasSearchTerm;
 
-  /** Número de notas guardadas para la fase actualmente seleccionada (0 si es ALL_PHASES_VIEW). */
+  /** Número de notas guardadas para la fase actualmente seleccionada (0 si no hay fase única). */
   const gradesCountForSelectedPhase = useMemo(() => {
-    if (selectedPhase === ALL_PHASES_VIEW) return 0;
-    const phaseIds = new Set(activities.filter(a => a.phase === selectedPhase).map(a => a.id));
+    if (selectedPhases.length !== 1) return 0;
+    const phaseIds = new Set(activities.filter(a => a.phase === selectedPhases[0]).map(a => a.id));
     return grades.filter(g => phaseIds.has(g.activityId)).length;
-  }, [activities, grades, selectedPhase]);
+  }, [activities, grades, selectedPhases]);
 
   /**
    * En vista "Todas": construye una lista de actividades representativas
@@ -1036,9 +1045,9 @@ export const CalificacionesView: React.FC = () => {
    * En vista de ficha específica: devuelve directamente las actividades de esa ficha.
    */
   const { activitiesForFicha, activitiesByCanonicalAndFicha } = useMemo(() => {
-    const isAllPhases = selectedPhase === ALL_PHASES_VIEW;
+    const isAllPhases = selectedPhases.length === 0;
 
-    // En vista "todas las fases": mezclar actividades de todas las fases en orden
+    // En vista "todas las fases" (o multi-fase): mezclar actividades en orden de fase
     const phaseOrder = (a: GradeActivity) => {
       const idx = phases.indexOf(a.phase || phases[1]);
       return idx >= 0 ? idx : 999;
@@ -1048,7 +1057,10 @@ export const CalificacionesView: React.FC = () => {
           const diff = phaseOrder(a) - phaseOrder(b);
           return diff !== 0 ? diff : a.name.localeCompare(b.name, undefined, { numeric: true });
         })
-      : activities.filter(a => (a.phase || phases[1]) === selectedPhase);
+      : [...activities.filter(a => selectedPhases.includes(a.phase || phases[1]))].sort((a, b) => {
+          const diff = phaseOrder(a) - phaseOrder(b);
+          return diff !== 0 ? diff : a.name.localeCompare(b.name, undefined, { numeric: true });
+        });
 
     if (selectedFicha !== 'Todas') {
       const fichaSpecific = phaseMatch.filter(a => a.group === selectedFicha);
@@ -1093,16 +1105,11 @@ export const CalificacionesView: React.FC = () => {
       if (!representative.has(key)) representative.set(key, a);
     });
 
-    // En vista de fases: preservar el orden por fase del phaseMatch (insertionOrder de Map)
-    // En vista de fase única: ordenar por nombre (EV01, EV02…)
-    const unified = isAllPhases
-      ? Array.from(representative.values())
-      : Array.from(representative.values()).sort((a, b) =>
-          a.name.localeCompare(b.name, undefined, { numeric: true })
-        );
+    // Preservar el orden por fase del phaseMatch (insertionOrder de Map)
+    const unified = Array.from(representative.values());
 
     return { activitiesForFicha: unified, activitiesByCanonicalAndFicha: byCanonical };
-  }, [activities, selectedFicha, selectedPhase]);
+  }, [activities, selectedFicha, selectedPhases]);
 
   /** Actividades candidatas (excl. columnas de sistema) sin filtrar por área ni por selección manual */
   const activitiesAfterSystemExclusions = useMemo(
@@ -1171,8 +1178,8 @@ export const CalificacionesView: React.FC = () => {
 
   /** Groups visibleActivities by phase in order. Used to compute per-phase totals. */
   const visiblePhaseGroups = useMemo<Array<{ phase: string; activities: GradeActivity[] }>>(() => {
-    if (selectedPhase !== ALL_PHASES_VIEW) {
-      return visibleActivities.length > 0 ? [{ phase: selectedPhase, activities: visibleActivities }] : [];
+    if (selectedPhases.length === 1) {
+      return visibleActivities.length > 0 ? [{ phase: selectedPhases[0], activities: visibleActivities }] : [];
     }
     const groups: Array<{ phase: string; activities: GradeActivity[] }> = [];
     visibleActivities.forEach(a => {
@@ -1182,22 +1189,22 @@ export const CalificacionesView: React.FC = () => {
       else groups.push({ phase: ph, activities: [a] });
     });
     return groups;
-  }, [visibleActivities, selectedPhase]);
+  }, [visibleActivities, selectedPhases]);
 
-  const rapKey = showAllFichasColumns ? '' : `${selectedFicha}::${selectedPhase}`;
+  const rapKey = showAllFichasColumns ? '' : `${selectedFicha}::${effectiveSinglePhase}`;
 
   const getRapKeyForStudent = (studentGroup: string | undefined) =>
-    showAllFichasColumns && studentGroup ? `${studentGroup}::${selectedPhase}` : rapKey || `${studentGroup || ''}::${selectedPhase}`;
+    showAllFichasColumns && studentGroup ? `${studentGroup}::${effectiveSinglePhase}` : rapKey || `${studentGroup || ''}::${effectiveSinglePhase}`;
 
   const rapColumnsForFicha = useMemo(() => {
-    // In "Todas las fases" view, RAP columns per-phase don't apply
-    if (selectedPhase === ALL_PHASES_VIEW) return [];
-    const staticFaseRaps = FASE_RAPS[selectedPhase]?.map(r => r.rapCode) ?? [];
+    // In "Todas las fases" view or multi-phase view, RAP columns per-phase don't apply
+    if (effectiveSinglePhase === ALL_PHASES_VIEW) return [];
+    const staticFaseRaps = FASE_RAPS[effectiveSinglePhase]?.map(r => r.rapCode) ?? [];
     if (fichas.length === 0 && activitiesForFicha.length === 0) return [];
     if (showAllFichasColumns) {
       const allKeys = new Set<string>();
       fichas.forEach(f => {
-        const key = `${f.code}::${selectedPhase}`;
+        const key = `${f.code}::${effectiveSinglePhase}`;
         const cols = rapColumns[key] || rapColumns[f.code] || staticFaseRaps;
         cols.forEach((c: string) => allKeys.add(c));
       });
@@ -1211,7 +1218,7 @@ export const CalificacionesView: React.FC = () => {
     const existing = rapColumns[rapKey] || rapColumns[selectedFicha];
     if (existing && existing.length > 0) return existing;
     return staticFaseRaps;
-  }, [rapColumns, rapKey, selectedFicha, activitiesForFicha.length, fichas, selectedPhase, showAllFichasColumns]);
+  }, [rapColumns, rapKey, selectedFicha, activitiesForFicha.length, fichas, selectedPhases, showAllFichasColumns]);
 
   const gradeMap = useMemo(() => {
     const map = new Map<string, GradeEntry>();
@@ -1222,14 +1229,14 @@ export const CalificacionesView: React.FC = () => {
   }, [grades]);
 
   /** Key used to look up competencia mapping for current ficha+phase */
-  const evidenceMapKey = showAllFichasColumns ? '' : `${selectedFicha}::${selectedPhase}`;
+  const evidenceMapKey = showAllFichasColumns ? '' : `${selectedFicha}::${effectiveSinglePhase}`;
 
   /** Helper: get the EvCompEntry for an activity (handles all-fichas fallback) */
   const getEvCompEntry = (activity: GradeActivity): EvCompEntry | undefined => {
     const evKey = getActivityCanonicalKey(activity);
     // Try specific ficha+phase key first, then all-fichas key ('')
     return (
-      evidenceCompMap[`${activity.group || selectedFicha}::${activity.phase || selectedPhase}`]?.byEvKey?.[evKey] ??
+      evidenceCompMap[`${activity.group || selectedFicha}::${activity.phase || effectiveSinglePhase}`]?.byEvKey?.[evKey] ??
       evidenceCompMap[evidenceMapKey]?.byEvKey?.[evKey] ??
       evidenceCompMap['']?.byEvKey?.[evKey]
     );
@@ -1239,7 +1246,7 @@ export const CalificacionesView: React.FC = () => {
    *  Returns null when no mapping exists (fall back to single-row header).
    *  Also returns null in "Todas las fases" view (phaseGroups takes Row 1 instead). */
   const compGroups = useMemo<Array<{ compCode: string; compName: string; aaKeys: string; activities: GradeActivity[] }> | null>(() => {
-    if (selectedPhase === ALL_PHASES_VIEW) return null;
+    if (effectiveSinglePhase === ALL_PHASES_VIEW) return null;
     // Collect all mapping sources relevant to the current view.
     // Global seeds (key='') are always included FIRST as lowest-priority base,
     // so every seed activity always has its competencia group even if the
@@ -1254,7 +1261,7 @@ export const CalificacionesView: React.FC = () => {
     if (showAllFichasColumns) {
       // Gather mappings from all fichas for current phase
       fichas.forEach(f => {
-        const k = `${f.code}::${selectedPhase}`;
+        const k = `${f.code}::${effectiveSinglePhase}`;
         if (evidenceCompMap[k]?.byEvKey) mappingSources.push(evidenceCompMap[k].byEvKey);
       });
     }
@@ -1297,11 +1304,11 @@ export const CalificacionesView: React.FC = () => {
     });
 
     return groups.length > 0 ? groups : null;
-  }, [evidenceCompMap, evidenceMapKey, visibleActivities, fichas, selectedPhase, showAllFichasColumns]);
+  }, [evidenceCompMap, evidenceMapKey, visibleActivities, fichas, selectedPhases, showAllFichasColumns]);
 
   /** Phase groups for "Todas las fases" view — groups visibleActivities by their phase, in phase order. */
   const phaseGroups = useMemo<Array<{ phase: string; activities: GradeActivity[] }> | null>(() => {
-    if (selectedPhase !== ALL_PHASES_VIEW) return null;
+    if (effectiveSinglePhase !== ALL_PHASES_VIEW) return null;
     const groups: Array<{ phase: string; activities: GradeActivity[] }> = [];
     let currentPhase: string | null = null;
     visibleActivities.forEach(a => {
@@ -1313,7 +1320,7 @@ export const CalificacionesView: React.FC = () => {
       groups[groups.length - 1].activities.push(a);
     });
     return groups.length > 0 ? groups : null;
-  }, [selectedPhase, visibleActivities]);
+  }, [selectedPhases, visibleActivities]);
 
   /** Códigos de competencia ocultos para la ficha/fase actual */
   const hiddenForFicha = useMemo(() => {
@@ -1403,11 +1410,11 @@ export const CalificacionesView: React.FC = () => {
   const studentsFilteredByFinal = useMemo(() => {
     if (finalFilter === 'all') return studentsForFicha;
     return studentsForFicha.filter(s => {
-      const key = showAllFichasColumns ? `${s.group || ''}::${selectedPhase}` : rapKey || `${s.group || ''}::${selectedPhase}`;
+      const key = showAllFichasColumns ? `${s.group || ''}::${effectiveSinglePhase}` : rapKey || `${s.group || ''}::${effectiveSinglePhase}`;
       const letter = (manualFinals[key] || {})[s.id] ?? '-';
       return finalFilter === 'A' ? letter === 'A' : letter !== 'A';
     });
-  }, [studentsForFicha, finalFilter, manualFinals, rapKey, selectedPhase, showAllFichasColumns]);
+  }, [studentsForFicha, finalFilter, manualFinals, rapKey, selectedPhases, showAllFichasColumns]);
 
   /** Counts how many students from studentsForFicha have letter='A' for each activity (by activity.id). */
   const activityApprovalCounts = useMemo(() => {
@@ -1472,7 +1479,7 @@ export const CalificacionesView: React.FC = () => {
     const phaseKey = getRapKeyForStudent(studentGroup);
 
     // Find which key currently holds this student's juicio value
-    let activeKey = selectedPhase === ALL_PHASES_VIEW
+    let activeKey = effectiveSinglePhase === ALL_PHASES_VIEW
       ? (ficha || phaseKey)   // prefer ficha-only key for new entries in all-phases view
       : phaseKey;
     let currentValue: 'orange' | 'green' | undefined;
@@ -1497,7 +1504,7 @@ export const CalificacionesView: React.FC = () => {
 
   const getJuicioEstado = (studentId: string, studentGroup?: string): '-' | 'orange' | 'green' => {
     // Sin filtro de fase o sin filtro de ficha: no mostrar juicio
-    if (selectedPhase === ALL_PHASES_VIEW || selectedFicha === 'Todas') return '-';
+    if (effectiveSinglePhase === ALL_PHASES_VIEW || selectedFicha === 'Todas') return '-';
 
     const phaseKey = getRapKeyForStudent(studentGroup);
     if (!phaseKey) return '-';
@@ -1659,7 +1666,7 @@ export const CalificacionesView: React.FC = () => {
     // ── Build phase groups ─────────────────────────────────────────────────
     type PhaseGroup = { phase: string; count: number; color: { bg: string; text: string } };
     const phaseGroups: PhaseGroup[] = [];
-    if (selectedPhase === ALL_PHASES_VIEW) {
+    if (effectiveSinglePhase === ALL_PHASES_VIEW) {
       visibleActivities.forEach(a => {
         const ph = a.phase || 'Sin fase';
         const last = phaseGroups[phaseGroups.length - 1];
@@ -1669,7 +1676,7 @@ export const CalificacionesView: React.FC = () => {
       // +1 per phase for TOTAL column
       phaseGroups.forEach(g => { g.count++; });
     } else {
-      phaseGroups.push({ phase: selectedPhase, count: ACT_COUNT, color: PHASE_HEADER_COLORS[selectedPhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
+      phaseGroups.push({ phase: effectiveSinglePhase, count: ACT_COUNT, color: PHASE_HEADER_COLORS[effectiveSinglePhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -1841,7 +1848,7 @@ export const CalificacionesView: React.FC = () => {
     link.href = url;
     link.setAttribute(
       'download',
-      `reporte_calificaciones_${selectedFicha}_${selectedPhase.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`
+      `reporte_calificaciones_${selectedFicha}_${exportPhaseSlug}_${new Date().toISOString().split('T')[0]}.xlsx`
     );
     document.body.appendChild(link);
     link.click();
@@ -1861,7 +1868,7 @@ export const CalificacionesView: React.FC = () => {
     // ── Build phase groups ─────────────────────────────────────────────────
     type PhaseGroup = { phase: string; count: number; color: { bg: string; text: string } };
     const phaseGroups: PhaseGroup[] = [];
-    if (selectedPhase === ALL_PHASES_VIEW) {
+    if (effectiveSinglePhase === ALL_PHASES_VIEW) {
       visibleActivities.forEach(a => {
         const ph = a.phase || 'Sin fase';
         const last = phaseGroups[phaseGroups.length - 1];
@@ -1871,7 +1878,7 @@ export const CalificacionesView: React.FC = () => {
       // +1 per phase for TOTAL column
       phaseGroups.forEach(g => { g.count++; });
     } else {
-      phaseGroups.push({ phase: selectedPhase, count: ACT_COUNT, color: PHASE_HEADER_COLORS[selectedPhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
+      phaseGroups.push({ phase: effectiveSinglePhase, count: ACT_COUNT, color: PHASE_HEADER_COLORS[effectiveSinglePhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
     }
 
     // ── Phase header row (Row 0 of head) ───────────────────────────────────
@@ -1904,7 +1911,7 @@ export const CalificacionesView: React.FC = () => {
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     doc.setFontSize(11);
-    doc.text(`Calificaciones — ${selectedFicha} — ${selectedPhase}`, 40, 26);
+    doc.text(`Calificaciones — ${selectedFicha} — ${exportPhaseTitle}`, 40, 26);
 
     autoTable(doc, {
       head: [phaseHeaderRow, headers],
@@ -1937,7 +1944,7 @@ export const CalificacionesView: React.FC = () => {
     });
 
     doc.save(
-      `reporte_calificaciones_${selectedFicha}_${selectedPhase.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
+      `reporte_calificaciones_${selectedFicha}_${exportPhaseSlug}_${new Date().toISOString().split('T')[0]}.pdf`
     );
   };
 
@@ -1945,7 +1952,7 @@ export const CalificacionesView: React.FC = () => {
   const buildPhaseGroups = () => {
     type PG = { phase: string; count: number; color: { bg: string; text: string } };
     const groups: PG[] = [];
-    if (selectedPhase === ALL_PHASES_VIEW) {
+    if (effectiveSinglePhase === ALL_PHASES_VIEW) {
       visibleActivities.forEach(a => {
         const ph = a.phase || 'Sin fase';
         const last = groups[groups.length - 1];
@@ -1956,7 +1963,7 @@ export const CalificacionesView: React.FC = () => {
       groups.forEach(g => { g.count++; });
     } else {
       const cnt = visibleActivities.length + 1; // +1 for TOTAL column
-      groups.push({ phase: selectedPhase, count: cnt, color: PHASE_HEADER_COLORS[selectedPhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
+      groups.push({ phase: effectiveSinglePhase, count: cnt, color: PHASE_HEADER_COLORS[effectiveSinglePhase] ?? { bg: '#4F46E5', text: '#ffffff' } });
     }
     return groups;
   };
@@ -2047,7 +2054,7 @@ export const CalificacionesView: React.FC = () => {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Calificaciones — ${esc(selectedFicha)} — ${esc(selectedPhase)}</title>
+  <title>Calificaciones — ${esc(selectedFicha)} — ${esc(exportPhaseTitle)}</title>
   <style>
     body{font-family:Arial,sans-serif;font-size:11px;margin:24px;color:#111827}
     h2{color:#374151;font-size:16px;margin-bottom:4px}
@@ -2061,7 +2068,7 @@ export const CalificacionesView: React.FC = () => {
   </style>
 </head>
 <body>
-  <h2>Calificaciones — ${esc(selectedFicha)} — ${esc(selectedPhase)}</h2>
+  <h2>Calificaciones — ${esc(selectedFicha)} — ${esc(exportPhaseTitle)}</h2>
   <p class="meta">Generado: ${dateStr} · ${rows.length} aprendiz(ces)</p>
   <div class="tbl-wrap">
   <table>
@@ -2081,7 +2088,7 @@ export const CalificacionesView: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reporte_calificaciones_${selectedFicha}_${selectedPhase.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.html`;
+    a.download = `reporte_calificaciones_${selectedFicha}_${exportPhaseSlug}_${new Date().toISOString().split('T')[0]}.html`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
@@ -2096,7 +2103,7 @@ export const CalificacionesView: React.FC = () => {
     const escMd = (s: unknown) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
     const lines: string[] = [];
-    lines.push(`# Calificaciones — ${selectedFicha} — ${selectedPhase}`);
+    lines.push(`# Calificaciones — ${selectedFicha} — ${exportPhaseTitle}`);
     lines.push(`\n_Generado: ${new Date().toLocaleDateString('es-CO')} · ${rows.length} aprendiz(ces)_`);
 
     if (phaseGroups.length > 1) {
@@ -2122,7 +2129,7 @@ export const CalificacionesView: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reporte_calificaciones_${selectedFicha}_${selectedPhase.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.md`;
+    a.download = `reporte_calificaciones_${selectedFicha}_${exportPhaseSlug}_${new Date().toISOString().split('T')[0]}.md`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
@@ -2159,7 +2166,7 @@ export const CalificacionesView: React.FC = () => {
         id: generateId(),
         name: activityName.trim(),
         group: selectedFicha,
-        phase: selectedPhase,
+        phase: effectiveSinglePhase,
         detail: editingActivity?.detail || undefined,
         maxScore: 100,
         createdAt: new Date().toISOString(),
@@ -2274,7 +2281,7 @@ export const CalificacionesView: React.FC = () => {
           if (n <= 7) return 'Fase 3: Ejecución';
           return 'Fase 4: Evaluación';
         }
-        return selectedPhase === ALL_PHASES_VIEW ? phases[1] : selectedPhase;
+        return effectiveSinglePhase === ALL_PHASES_VIEW ? phases[1] : effectiveSinglePhase;
       };
 
       // ── Buscar actividades existentes buscando en TODAS las fases ───────────
@@ -2311,7 +2318,7 @@ export const CalificacionesView: React.FC = () => {
 
       // Para calcular el siguiente número de EV sólo miramos la fase detectada
       const activitiesInPhase = activities.filter(
-        a => (a.phase || phases[1]) === (selectedPhase === ALL_PHASES_VIEW ? phases[1] : selectedPhase)
+        a => (a.phase || phases[1]) === (effectiveSinglePhase === ALL_PHASES_VIEW ? phases[1] : effectiveSinglePhase)
       );
       const existingEvNumbers = activitiesInPhase
         .filter(a => !isAllFichas ? (a.group === selectedFicha || a.group === '') : true)
@@ -2543,7 +2550,7 @@ export const CalificacionesView: React.FC = () => {
         const rawName = detail || activity.detail || activity.name;
         const info = parseCompetenciaInfoFromName(rawName);
         if (info) {
-          const staticRap = FASE_RAPS[selectedPhase]?.find(
+          const staticRap = FASE_RAPS[effectiveSinglePhase]?.find(
             r => r.compCode === info.competenciaCode && r.aaKey === info.aaKey.toUpperCase()
           );
           byEvKey[canonicalKey] = {
@@ -2557,7 +2564,7 @@ export const CalificacionesView: React.FC = () => {
       });
 
       if (Object.keys(byEvKey).length > 0) {
-        const compMappingKey = isAllFichas ? '' : `${selectedFicha}::${selectedPhase}`;
+        const compMappingKey = isAllFichas ? '' : `${selectedFicha}::${effectiveSinglePhase}`;
         const existingCompMap = getEvidenceCompMap();
         const existingEntry = existingCompMap[compMappingKey] || { byEvKey: {}, compOrder: [] };
         const mergedByEvKey = { ...existingEntry.byEvKey, ...byEvKey };
@@ -2640,12 +2647,15 @@ export const CalificacionesView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { setShowPhaseFilter(prev => !prev); setShowFichaFilter(false); setCalifEvidencePickerOpen(false); }}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showPhaseFilter ? 'bg-teal-600 border-teal-600 text-white' : selectedPhase !== ALL_PHASES_VIEW ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showPhaseFilter ? 'bg-teal-600 border-teal-600 text-white' : selectedPhases.length > 0 ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               >
                 <Filter className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>Fase</span>
-                {selectedPhase !== ALL_PHASES_VIEW && (
-                  <span className={`text-xs font-semibold max-w-[7rem] truncate ${showPhaseFilter ? 'text-teal-100' : 'text-teal-600'}`}>{selectedPhase.replace(/^Fase \d+:?\s*/, '')}</span>
+                {selectedPhases.length === 1 && (
+                  <span className={`text-xs font-semibold max-w-[7rem] truncate ${showPhaseFilter ? 'text-teal-100' : 'text-teal-600'}`}>{selectedPhases[0].replace(/^Fase \d+:?\s*/, '')}</span>
+                )}
+                {selectedPhases.length > 1 && (
+                  <span className={`text-xs font-semibold ${showPhaseFilter ? 'text-teal-100' : 'text-teal-600'}`}>{selectedPhases.length} fases</span>
                 )}
               </button>
               {showPhaseFilter && (
@@ -2653,16 +2663,29 @@ export const CalificacionesView: React.FC = () => {
                   <div className="fixed inset-0 z-40" onClick={() => setShowPhaseFilter(false)} />
                   <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
                     <button type="button"
-                      onClick={() => { setSelectedPhase(ALL_PHASES_VIEW); setShowPhaseFilter(false); }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedPhase === ALL_PHASES_VIEW ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                      onClick={() => setSelectedPhases([])}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedPhases.length === 0 ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
                     >📋 {ALL_PHASES_VIEW}</button>
                     <div className="border-t border-gray-100 my-1" />
-                    {phases.map(phase => (
-                      <button key={phase} type="button"
-                        onClick={() => { setSelectedPhase(phase); setShowPhaseFilter(false); }}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${selectedPhase === phase ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
-                      >{phase}</button>
-                    ))}
+                    {phases.map(phase => {
+                      const checked = selectedPhases.includes(phase);
+                      return (
+                        <label key={phase}
+                          className={`flex items-center gap-2.5 px-4 py-2 text-sm cursor-pointer hover:bg-teal-50 hover:text-teal-700 transition-colors ${checked ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setSelectedPhases(prev => {
+                              const next = checked ? prev.filter(p => p !== phase) : [...prev, phase];
+                              return next.length === phases.length ? [] : next;
+                            })}
+                            className="w-3.5 h-3.5 rounded accent-teal-600 flex-shrink-0"
+                          />
+                          {phase}
+                        </label>
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -2881,10 +2904,10 @@ export const CalificacionesView: React.FC = () => {
                 </button>
               )}
 
-              {selectedPhase !== ALL_PHASES_VIEW && gradesCountForSelectedPhase > 0 && (
+              {selectedPhases.length === 1 && gradesCountForSelectedPhase > 0 && (
                 <button
-                  onClick={() => setClearPhaseConfirm(selectedPhase)}
-                  title={`Eliminar las ${gradesCountForSelectedPhase} calificaciones de ${selectedPhase}`}
+                  onClick={() => setClearPhaseConfirm(selectedPhases[0])}
+                  title={`Eliminar las ${gradesCountForSelectedPhase} calificaciones de ${selectedPhases[0]}`}
                   className="inline-flex items-center justify-center space-x-1.5 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm"
                 >
                   <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -3894,7 +3917,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
         const { compCode } = compDetailModal;
         const compId = COMPETENCIA_IDS[compCode] || compCode;
         const compName = COMPETENCIA_NAMES[compCode] || compCode;
-        const phaseRaps = (FASE_RAPS[selectedPhase] ?? Object.values(FASE_RAPS).flat())
+        const phaseRaps = (FASE_RAPS[effectiveSinglePhase] ?? Object.values(FASE_RAPS).flat())
           .filter(r => r.compCode === compCode);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={() => setCompDetailModal(null)}>
@@ -3917,7 +3940,7 @@ onClick={() => setCurrentPage(p => Math.min(totalPagesFiltered, p + 1))}
               {phaseRaps.length > 0 && (
                 <div className="overflow-y-auto flex-1 min-h-0">
                   <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2 flex-shrink-0">
-                    Resultados de Aprendizaje — {selectedPhase}
+                    Resultados de Aprendizaje — {exportPhaseTitle}
                   </p>
                   <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 overflow-hidden">
                     {phaseRaps.map(rap => (
