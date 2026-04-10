@@ -91,6 +91,13 @@ const ADDITIVE_MERGE_KEYS = new Set([
   'deleted_grade_activity_ids',
   'planeacion_semanal',
   'cronograma_general',
+  // Debido proceso: union merge so data from multiple devices is preserved
+  'plan_mejoramiento',
+  'pma_details',
+  'debido_proceso',
+  'retiro_voluntario',
+  'cancelacion_details',
+  'retiro_details',
 ]);
 
 /**
@@ -136,6 +143,11 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
     if (key === 'sofia_student_estados') {
       // Record<studentId, string> – cloud wins per key (most recent upload source)
       return { ...localObj, ...cloudObj };
+    }
+
+    if (['plan_mejoramiento', 'pma_details', 'debido_proceso', 'retiro_voluntario', 'cancelacion_details', 'retiro_details'].includes(key)) {
+      // Record<studentId, number|object> – union: cloud fills missing students, local wins on conflict
+      return { ...cloudObj, ...localObj };
     }
   } catch {
     // On any parse/merge error, fall back to local
@@ -311,9 +323,13 @@ const callSaveAppData = (cloudKey: string, value: unknown): void => {
       if (!res.ok) {
         const txt = await res.text();
         console.warn('[AppData] cloud write failed for key:', cloudKey, res.status, txt);
+        window.dispatchEvent(new CustomEvent('asistenciapro-cloud-save', { detail: { key: cloudKey, ok: false } }));
+      } else {
+        window.dispatchEvent(new CustomEvent('asistenciapro-cloud-save', { detail: { key: cloudKey, ok: true } }));
       }
     } catch (e) {
       console.warn('[AppData] cloud write failed for key:', cloudKey, e);
+      window.dispatchEvent(new CustomEvent('asistenciapro-cloud-save', { detail: { key: cloudKey, ok: false } }));
     }
   }, 400);
 };

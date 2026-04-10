@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Filter, Search, ChevronLeft, ChevronRight, Download, X, CheckCircle, XCircle } from 'lucide-react';
 import ExcelJS from 'exceljs';
@@ -400,6 +400,10 @@ export const DebidoProcesoView: React.FC = () => {
   const [filterAnchor, setFilterAnchor] = useState<{ left: number; bottom: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Cloud save feedback toast
+  const [cloudSaveStatus, setCloudSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+  const cloudSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Modals
   const [pmaModalStudent, setPmaModalStudent] = useState<Student | null>(null);
   const [cancelacionModalStudent, setCancelacionModalStudent] = useState<Student | null>(null);
@@ -456,6 +460,21 @@ export const DebidoProcesoView: React.FC = () => {
     loadData();
     window.addEventListener('asistenciapro-storage-update', loadData);
     return () => window.removeEventListener('asistenciapro-storage-update', loadData);
+  }, []);
+
+  useEffect(() => {
+    const TRACKED_KEYS = new Set(['plan_mejoramiento', 'pma_details', 'debido_proceso', 'retiro_voluntario', 'cancelacion_details', 'retiro_details']);
+    const handler = (e: Event) => {
+      const { key, ok } = (e as CustomEvent<{ key: string; ok: boolean }>).detail;
+      if (!TRACKED_KEYS.has(key)) return;
+      setCloudSaveStatus(ok ? 'saved' : 'error');
+      if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
+      if (ok) {
+        cloudSaveTimer.current = setTimeout(() => setCloudSaveStatus('idle'), 3000);
+      }
+    };
+    window.addEventListener('asistenciapro-cloud-save', handler);
+    return () => window.removeEventListener('asistenciapro-cloud-save', handler);
   }, []);
 
   const filteredList = useMemo(() => {
@@ -702,6 +721,24 @@ export const DebidoProcesoView: React.FC = () => {
           Seguimiento del proceso de deserción por aprendiz. Use el stepper para actualizar el estado.
         </p>
       </div>
+
+      {cloudSaveStatus === 'saved' && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm font-medium">
+          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+          Guardado en Supabase correctamente
+        </div>
+      )}
+      {cloudSaveStatus === 'error' && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2 bg-yellow-50 border border-yellow-300 rounded-lg text-yellow-800 text-sm font-medium">
+          <div className="flex items-center gap-2">
+            <XCircle className="w-4 h-4 flex-shrink-0" />
+            Solo guardado localmente — no se pudo sincronizar con Supabase. Verifique que la Edge Function <code className="font-mono bg-yellow-100 px-1 rounded">save-app-data</code> esté desplegada.
+          </div>
+          <button type="button" onClick={() => setCloudSaveStatus('idle')} className="ml-2 text-yellow-600 hover:text-yellow-900">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center gap-4 flex-wrap">
