@@ -578,19 +578,22 @@ export const AsistenciaLmsView: React.FC = () => {
       totalsRow: false,
       style: { theme: 'TableStyleMedium2', showRowStripes: true },
       columns: [
-        { name: 'No.',                 filterButton: true },
-        { name: 'Documento',           filterButton: true },
-        { name: 'Nombres',             filterButton: true },
-        { name: 'Apellidos',           filterButton: true },
-        { name: 'Correo electronico',  filterButton: true },
-        { name: 'Ficha',               filterButton: true },
-        { name: 'Estado',              filterButton: true },
-        { name: 'Ultimo acceso',       filterButton: true },
-        { name: 'Dias sin ingresar',   filterButton: true },
-        { name: 'Pendientes',          filterButton: true },
-        // Evidence columns: use a sanitized unique key (no accents/special chars for table def)
-        ...activityCols.map(([, a], i) => ({ name: `EV_${i + 1}_${(a.phase || '').replace(/\W/g, '').slice(0, 6)}`, filterButton: true })),
-        { name: 'Notificar',           filterButton: true },
+        { name: 'No.',                  filterButton: true },
+        { name: 'Documento',            filterButton: true },
+        { name: 'Nombres',              filterButton: true },
+        { name: 'Apellidos',            filterButton: true },
+        { name: 'Correo electrónico',   filterButton: true },
+        { name: 'Ficha',                filterButton: true },
+        { name: 'Estado',               filterButton: true },
+        { name: 'Último acceso',        filterButton: true },
+        { name: 'Días sin ingresar',    filterButton: true },
+        { name: 'Pendientes',           filterButton: true },
+        // Nombre completo de cada evidencia; si hay duplicados se añade sufijo numérico
+        ...activityCols.map(([colKey], i) => {
+          const seen = activityCols.slice(0, i).filter(([k]) => k === colKey).length;
+          return { name: seen > 0 ? `${colKey} (${seen + 1})` : colKey, filterButton: true };
+        }),
+        { name: 'Notificar',            filterButton: true },
       ],
       rows: tableRows,
     });
