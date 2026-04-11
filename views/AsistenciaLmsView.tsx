@@ -212,7 +212,7 @@ export const AsistenciaLmsView: React.FC = () => {
   const [grades, setGrades] = useState<GradeEntry[]>([]);
 
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
-  const [filterFase, setFilterFase] = useState<string>(ALL_PHASES_LMS);
+  const [filterFase, setFilterFase] = useState<string[]>([]);
   const [filterEvidenceArea, setFilterEvidenceArea] = useState<string>(ALL_EVIDENCE_AREAS);
   const [selectedEvidenceIdList, setSelectedEvidenceIdList] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('Todos');
@@ -279,7 +279,7 @@ export const AsistenciaLmsView: React.FC = () => {
   const evidenceBasePool = useMemo(() => {
     const isAll = filterFicha === 'Todas';
     let pool = gradeActivities.filter(a => a.group === '' || (isAll ? false : a.group === filterFicha));
-    if (filterFase !== ALL_PHASES_LMS) pool = pool.filter(a => a.phase === filterFase);
+    if (filterFase.length > 0) pool = pool.filter(a => filterFase.includes(a.phase ?? ''));
     return [...pool].sort((a, b) =>
       (a.phase || '').localeCompare(b.phase || '', 'es') || a.name.localeCompare(b.name, 'es')
     );
@@ -314,6 +314,12 @@ export const AsistenciaLmsView: React.FC = () => {
     areaFilter: filterEvidenceArea,
     selectedActivityIds: selectedEvidenceIdSet,
   }), [filterFase, filterEvidenceArea, selectedEvidenceIdSet]);
+
+  const toggleFase = (phase: string) => {
+    setFilterFase(prev =>
+      prev.includes(phase) ? prev.filter(p => p !== phase) : [...prev, phase]
+    );
+  };
 
   /** Mapa rápido studentId+activityId → GradeEntry */
   const gradeMap = useMemo(() => {
@@ -504,7 +510,7 @@ export const AsistenciaLmsView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterFicha, filterStatus, filterNovedad, searchTerm, sortOrder, sortDirection]);
+  }, [filterFicha, filterFase, filterStatus, filterNovedad, searchTerm, sortOrder, sortDirection]);
   useEffect(() => {
     setCurrentPage(1);
   }, [showAllStudents]);
@@ -891,21 +897,34 @@ export const AsistenciaLmsView: React.FC = () => {
             <button
               type="button"
               onClick={() => { setShowFaseDropdown(p => !p); setShowFichaDropdown(false); setEvidencePickerOpen(false); }}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showFaseDropdown ? 'bg-teal-600 border-teal-600 text-white' : filterFase !== ALL_PHASES_LMS ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showFaseDropdown ? 'bg-teal-600 border-teal-600 text-white' : filterFase.length > 0 ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
             >
               <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
               <span>Fase</span>
-              {filterFase !== ALL_PHASES_LMS && (
-                <span className={`text-xs font-semibold max-w-[7rem] truncate ${showFaseDropdown ? 'text-teal-100' : 'text-teal-600'}`}>{filterFase.replace(/^Fase\s*\d*:?\s*/i, '')}</span>
+              {filterFase.length > 0 && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${showFaseDropdown ? 'bg-white/20 text-white' : 'bg-teal-500 text-white'}`}>{filterFase.length}</span>
               )}
             </button>
             {showFaseDropdown && (
               <div className="absolute left-0 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
-                {lmsPhaseOptions.map(ph => (
-                  <button key={ph} type="button"
-                    onClick={() => { setFilterFase(ph); setShowFaseDropdown(false); }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${filterFase === ph ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
-                  >{ph === ALL_PHASES_LMS ? ph : ph.replace(/^Fase\s*\d*:?\s*/i, '')}</button>
+                <button
+                  type="button"
+                  onClick={() => setFilterFase([])}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${filterFase.length === 0 ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                >{ALL_PHASES_LMS}</button>
+                <div className="border-t border-gray-100 my-1" />
+                {lmsPhaseOptions.filter(ph => ph !== ALL_PHASES_LMS).map(ph => (
+                  <label key={ph} className="flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-teal-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={filterFase.includes(ph)}
+                      onChange={() => toggleFase(ph)}
+                      className="w-3.5 h-3.5 accent-teal-600 flex-shrink-0"
+                    />
+                    <span className={filterFase.includes(ph) ? 'text-teal-700 font-medium' : 'text-gray-700'}>
+                      {ph.replace(/^Fase\s*\d*:?\s*/i, '')}
+                    </span>
+                  </label>
                 ))}
               </div>
             )}
