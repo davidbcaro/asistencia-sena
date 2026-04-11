@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users, X, BookOpen, ListChecks } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
 import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep, getEstadoStepperTooltip } from '../services/db';
 import {
@@ -516,7 +516,7 @@ export const AsistenciaLmsView: React.FC = () => {
   }, [showAllStudents]);
 
 
-  const generateReport = () => {
+  const generateReport = async () => {
     // Collect all unique activities (by full name) across filtered students, respecting current scope filters
     const activityColMap = new Map<string, GradeActivity>();
     filteredStudents.forEach(student => {
@@ -530,55 +530,77 @@ export const AsistenciaLmsView: React.FC = () => {
       (a.phase || '').localeCompare(b.phase || '', 'es') || a.name.localeCompare(b.name, 'es')
     );
 
-    const rows = filteredStudents.map((student, idx) => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('LMS');
+
+    // Base columns + one per evidence
+    const BASE_COUNT = 10; // No. Documento Nombres Apellidos Correo Ficha Estado ÚltimoAcceso Días Pendientes
+    ws.columns = [
+      { header: 'No.',                  width: 5 },
+      { header: 'Documento',            width: 14 },
+      { header: 'Nombres',              width: 20 },
+      { header: 'Apellidos',            width: 20 },
+      { header: 'Correo electrónico',   width: 30 },
+      { header: 'Ficha',                width: 12 },
+      { header: 'Estado',               width: 14 },
+      { header: 'Último acceso',        width: 22 },
+      { header: 'Días sin ingresar',    width: 9 },
+      { header: 'Pendientes',           width: 12 },
+      ...activityCols.map(([colKey]) => ({ header: colKey, width: 7 })),
+    ];
+
+    // Style header row
+    const headerRow = ws.getRow(1);
+    headerRow.height = 50;
+    headerRow.eachCell((cell, colNum) => {
+      cell.font = { bold: true };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: colNum >= BASE_COUNT - 1 ? 'center' : 'left', // center Días, Pendientes, evidencias
+        wrapText: colNum > BASE_COUNT, // wrap text only for evidence columns
+      };
+    });
+
+    // Data rows
+    filteredStudents.forEach((student, idx) => {
       const lastAccess = lmsLastAccess[student.id];
       const days = lastAccess != null ? daysSince(lastAccess) : null;
       const { count, activities: pendingActivities } = getPendientesForStudent(student);
       const pendingNames = new Set(pendingActivities.map(a => [a.name, a.detail].filter(Boolean).join(' ')));
 
-      const row: Record<string, string | number> = {
-        'No.': idx + 1,
-        'Documento': student.documentNumber || '',
-        'Nombres': student.firstName,
-        'Apellidos': student.lastName,
-        'Correo electrónico': student.email || '',
-        'Ficha': student.group || 'General',
-        'Estado': student.status || 'Formación',
-        'Último acceso': lastAccess || '-',
-        'Días sin ingresar': days != null && days >= 0 ? days : '-',
-        'Pendientes': count > 0 ? count : '-',
-      };
+      const values: (string | number)[] = [
+        idx + 1,
+        student.documentNumber || '',
+        student.firstName,
+        student.lastName,
+        student.email || '',
+        student.group || 'General',
+        student.status || 'Formación',
+        lastAccess || '-',
+        days != null && days >= 0 ? days : '-',
+        count > 0 ? count : '-',
+        ...activityCols.map(([colKey]) => (pendingNames.has(colKey) ? 'x' : '')),
+      ];
 
-      activityCols.forEach(([colKey]) => {
-        row[colKey] = pendingNames.has(colKey) ? 'x' : '';
-      });
+      const row = ws.addRow(values);
 
-      return row;
+      // Center-align Días sin ingresar (col 9), Pendientes (col 10), and all evidence cols
+      for (let c = 9; c <= BASE_COUNT + activityCols.length; c++) {
+        row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' };
+      }
     });
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-
-    // Fixed column widths for the base columns
-    const baseColWidths = [
-      { wch: 5 },  // No.
-      { wch: 14 }, // Documento
-      { wch: 20 }, // Nombres
-      { wch: 20 }, // Apellidos
-      { wch: 30 }, // Correo electrónico
-      { wch: 12 }, // Ficha
-      { wch: 14 }, // Estado
-      { wch: 22 }, // Último acceso
-      { wch: 18 }, // Días sin ingresar
-      { wch: 12 }, // Pendientes
-    ];
-    // ~50px per activity column (1 char ≈ 7px → ~7 wch)
-    const activityColWidths = activityCols.map(() => ({ wch: 7 }));
-    ws['!cols'] = [...baseColWidths, ...activityColWidths];
-
-    const wb = XLSX.utils.book_new();
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
     const fichaName = filterFicha === 'Todas' ? 'todas' : filterFicha;
-    XLSX.utils.book_append_sheet(wb, ws, 'LMS');
-    XLSX.writeFile(wb, `asistencia_lms_${fichaName}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    link.download = `asistencia_lms_${fichaName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const normalizeEmail = (value: unknown): string => {
