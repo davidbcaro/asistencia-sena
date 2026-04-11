@@ -511,49 +511,41 @@ export const AsistenciaLmsView: React.FC = () => {
 
 
   const generateReport = () => {
-    const headers = [
-      'No.',
-      'Documento',
-      'Nombres',
-      'Apellidos',
-      'Correo electrónico',
-      'Ficha',
-      'Estado',
-      'Último acceso',
-      'Días sin ingresar',
-      'Final',
-      'Novedad',
-    ];
     const rows = filteredStudents.map((student, idx) => {
       const lastAccess = lmsLastAccess[student.id];
       const days = lastAccess != null ? daysSince(lastAccess) : null;
-      const final = getFinalForStudent(student);
-      const novedad = getNovedad(student, days, final.letter);
-      return [
-        idx + 1,
-        `"${student.documentNumber || ''}"`,
-        `"${student.firstName}"`,
-        `"${student.lastName}"`,
-        `"${student.email || ''}"`,
-        `"${student.group || 'General'}"`,
-        `"${student.status || 'Formación'}"`,
-        lastAccess || '-',
-        days != null && days >= 0 ? String(days) : '-',
-        final.letter === 'A' ? 'A' : '-',
-        novedad,
-      ];
+      return {
+        'No.': idx + 1,
+        'Documento': student.documentNumber || '',
+        'Nombres': student.firstName,
+        'Apellidos': student.lastName,
+        'Correo electrónico': student.email || '',
+        'Ficha': student.group || 'General',
+        'Estado': student.status || 'Formación',
+        'Último acceso': lastAccess || '-',
+        'Días sin ingresar': days != null && days >= 0 ? days : '-',
+      };
     });
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Column widths
+    ws['!cols'] = [
+      { wch: 5 },  // No.
+      { wch: 14 }, // Documento
+      { wch: 20 }, // Nombres
+      { wch: 20 }, // Apellidos
+      { wch: 30 }, // Correo electrónico
+      { wch: 12 }, // Ficha
+      { wch: 14 }, // Estado
+      { wch: 22 }, // Último acceso
+      { wch: 18 }, // Días sin ingresar
+    ];
+
+    const wb = XLSX.utils.book_new();
     const fichaName = filterFicha === 'Todas' ? 'todas' : filterFicha;
-    link.setAttribute('download', `asistencia_lms_${fichaName}_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    XLSX.utils.book_append_sheet(wb, ws, 'LMS');
+    XLSX.writeFile(wb, `asistencia_lms_${fichaName}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const normalizeEmail = (value: unknown): string => {
