@@ -563,7 +563,7 @@ export const AsistenciaLmsView: React.FC = () => {
         days != null && days >= 0 ? days : '-',
         count > 0 ? count : '-',
         ...activityCols.map(([colKey]) => (pendingNames.has(colKey) ? 'x' : '')),
-        status === 'Formación' ? 'SI' : '',
+        status === 'Formación' && count > 0 ? 'SI' : '',
       ] as (string | number)[];
     });
 
