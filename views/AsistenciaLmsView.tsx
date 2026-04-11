@@ -521,7 +521,7 @@ export const AsistenciaLmsView: React.FC = () => {
       const lastAccess = lmsLastAccess[student.id];
       const days = lastAccess != null ? daysSince(lastAccess) : null;
       const { count, activities } = getPendientesForStudent(student);
-      const pendientesLabel = activities.map(a => getActivityShortLabel(a.name)).join(', ');
+      const pendientesLabel = activities.map(a => [a.name, a.detail].filter(Boolean).join(' ')).join(', ');
       return {
         'No.': idx + 1,
         'Documento': student.documentNumber || '',
