@@ -514,6 +514,8 @@ export const AsistenciaLmsView: React.FC = () => {
     const rows = filteredStudents.map((student, idx) => {
       const lastAccess = lmsLastAccess[student.id];
       const days = lastAccess != null ? daysSince(lastAccess) : null;
+      const { count, activities } = getPendientesForStudent(student);
+      const pendientesLabel = activities.map(a => getActivityShortLabel(a.name)).join(', ');
       return {
         'No.': idx + 1,
         'Documento': student.documentNumber || '',
@@ -524,6 +526,8 @@ export const AsistenciaLmsView: React.FC = () => {
         'Estado': student.status || 'Formación',
         'Último acceso': lastAccess || '-',
         'Días sin ingresar': days != null && days >= 0 ? days : '-',
+        'Pendientes': count > 0 ? count : '-',
+        'Evidencias pendientes': pendientesLabel || '-',
       };
     });
 
@@ -540,6 +544,8 @@ export const AsistenciaLmsView: React.FC = () => {
       { wch: 14 }, // Estado
       { wch: 22 }, // Último acceso
       { wch: 18 }, // Días sin ingresar
+      { wch: 12 }, // Pendientes
+      { wch: 40 }, // Evidencias pendientes
     ];
 
     const wb = XLSX.utils.book_new();
