@@ -578,18 +578,19 @@ export const AsistenciaLmsView: React.FC = () => {
       totalsRow: false,
       style: { theme: 'TableStyleMedium2', showRowStripes: true },
       columns: [
-        { name: 'No.',                filterButton: true },
-        { name: 'Documento',          filterButton: true },
-        { name: 'Nombres',            filterButton: true },
-        { name: 'Apellidos',          filterButton: true },
-        { name: 'Correo electronico', filterButton: true },
-        { name: 'Ficha',              filterButton: true },
-        { name: 'Estado',             filterButton: true },
-        { name: 'Ultimo acceso',      filterButton: true },
-        { name: 'Dias sin ingresar',  filterButton: true },
-        { name: 'Pendientes',         filterButton: true },
-        ...activityCols.map(([colKey], i) => ({ name: `EV_${i + 1}`, filterButton: true })),
-        { name: 'Notificar',          filterButton: true },
+        { name: 'No.',                 filterButton: true },
+        { name: 'Documento',           filterButton: true },
+        { name: 'Nombres',             filterButton: true },
+        { name: 'Apellidos',           filterButton: true },
+        { name: 'Correo electronico',  filterButton: true },
+        { name: 'Ficha',               filterButton: true },
+        { name: 'Estado',              filterButton: true },
+        { name: 'Ultimo acceso',       filterButton: true },
+        { name: 'Dias sin ingresar',   filterButton: true },
+        { name: 'Pendientes',          filterButton: true },
+        // Evidence columns: use a sanitized unique key (no accents/special chars for table def)
+        ...activityCols.map(([, a], i) => ({ name: `EV_${i + 1}_${(a.phase || '').replace(/\W/g, '').slice(0, 6)}`, filterButton: true })),
+        { name: 'Notificar',           filterButton: true },
       ],
       rows: tableRows,
     });
@@ -598,23 +599,15 @@ export const AsistenciaLmsView: React.FC = () => {
     const colWidths = [5, 14, 20, 20, 30, 12, 14, 22, 9, 12, ...activityCols.map(() => 7), 12];
     colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
 
-    // Override header cell text with full names (table columns use simplified keys above)
-    const headerLabels = [
-      'No.', 'Documento', 'Nombres', 'Apellidos', 'Correo electrónico',
-      'Ficha', 'Estado', 'Último acceso', 'Días sin ingresar', 'Pendientes',
-      ...activityCols.map(([colKey]) => colKey),
-      'Notificar',
-    ];
+    // Style header row — only alignment/font, NO cell.value changes to avoid table corruption
     const headerRow = ws.getRow(1);
     headerRow.height = 50;
-    headerLabels.forEach((label, i) => {
-      const cell = headerRow.getCell(i + 1);
-      cell.value = label;
+    headerRow.eachCell((cell, colNum) => {
       cell.font = { bold: true };
       cell.alignment = {
         vertical: 'middle',
-        horizontal: centerCols.has(i + 1) ? 'center' : 'left',
-        wrapText: (i + 1) === 9 || (i + 1) > FIXED_COLS, // Días sin ingresar + evidencias + Notificar
+        horizontal: centerCols.has(colNum) ? 'center' : 'left',
+        wrapText: colNum === 9 || colNum > FIXED_COLS, // Días sin ingresar + evidencias + Notificar
       };
     });
 
