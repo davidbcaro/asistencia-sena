@@ -530,75 +530,101 @@ export const AsistenciaLmsView: React.FC = () => {
       (a.phase || '').localeCompare(b.phase || '', 'es') || a.name.localeCompare(b.name, 'es')
     );
 
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('LMS');
+    // Col indices (1-based):
+    // 1=No. 2=Documento 3=Nombres 4=Apellidos 5=Correo 6=Ficha 7=Estado 8=ÚltimoAcceso 9=Días 10=Pendientes
+    // 11..10+N = Evidencias   11+N = Notificar
+    const FIXED_COLS = 10;
+    const N = activityCols.length;
+    const NOTIFICAR_COL = FIXED_COLS + N + 1;
 
-    // Base columns + one per evidence
-    const BASE_COUNT = 10; // No. Documento Nombres Apellidos Correo Ficha Estado ÚltimoAcceso Días Pendientes
-    ws.columns = [
-      { header: 'No.',                  width: 5 },
-      { header: 'Documento',            width: 14 },
-      { header: 'Nombres',              width: 20 },
-      { header: 'Apellidos',            width: 20 },
-      { header: 'Correo electrónico',   width: 30 },
-      { header: 'Ficha',                width: 12 },
-      { header: 'Estado',               width: 14 },
-      { header: 'Último acceso',        width: 22 },
-      { header: 'Días sin ingresar',    width: 9 },
-      { header: 'Pendientes',           width: 12 },
-      ...activityCols.map(([colKey]) => ({ header: colKey, width: 7 })),
-    ];
+    // Columns centered in header and data
+    const centerCols = new Set([1, 2, 6, 9, 10, NOTIFICAR_COL]);
+    for (let c = FIXED_COLS + 1; c <= FIXED_COLS + N; c++) centerCols.add(c);
 
-    // Style header row
-    const headerRow = ws.getRow(1);
-    headerRow.height = 50;
-    headerRow.eachCell((cell, colNum) => {
-      cell.font = { bold: true };
-      // Cols: 1=No. 2=Documento 3=Nombres 4=Apellidos 5=Correo 6=Ficha 7=Estado 8=ÚltimoAcceso 9=Días 10=Pendientes 11+=Evidencias
-      const centerCols = [1, 2, 6, 9, 10]; // No., Documento, Ficha, Días, Pendientes
-      cell.alignment = {
-        vertical: 'middle',
-        horizontal: (centerCols.includes(colNum) || colNum > BASE_COUNT) ? 'center' : 'left',
-        wrapText: colNum === 9 || colNum > BASE_COUNT, // Días sin ingresar + evidencias
-      };
-    });
-
-    // Data rows
-    filteredStudents.forEach((student, idx) => {
+    // Build table rows
+    const tableRows = filteredStudents.map((student, idx) => {
       const lastAccess = lmsLastAccess[student.id];
       const days = lastAccess != null ? daysSince(lastAccess) : null;
       const { count, activities: pendingActivities } = getPendientesForStudent(student);
       const pendingNames = new Set(pendingActivities.map(a => [a.name, a.detail].filter(Boolean).join(' ')));
-
-      // Documento y Ficha como número cuando sea posible
+      const status = student.status || 'Formación';
       const docNum = Number(student.documentNumber);
       const fichaNum = Number(student.group);
 
-      const values: (string | number)[] = [
+      return [
         idx + 1,
         !isNaN(docNum) && student.documentNumber ? docNum : (student.documentNumber || ''),
         student.firstName,
         student.lastName,
         student.email || '',
         !isNaN(fichaNum) && student.group ? fichaNum : (student.group || 'General'),
-        student.status || 'Formación',
+        status,
         lastAccess || '-',
         days != null && days >= 0 ? days : '-',
         count > 0 ? count : '-',
         ...activityCols.map(([colKey]) => (pendingNames.has(colKey) ? 'x' : '')),
-      ];
+        status === 'Formación' ? 'SI' : '',
+      ] as (string | number)[];
+    });
 
-      const row = ws.addRow(values);
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('LMS');
 
-      // Center-align No. (1), Documento (2), Ficha (6), Días (9), Pendientes (10) y evidencias
-      const centerDataCols = [1, 2, 6, 9, 10];
-      centerDataCols.forEach(c => {
+    // Add as Excel Table (recognized by PowerAutomate)
+    ws.addTable({
+      name: 'TablaLMS',
+      ref: 'A1',
+      headerRow: true,
+      totalsRow: false,
+      style: { theme: 'TableStyleMedium2', showRowStripes: true },
+      columns: [
+        { name: 'No.',                filterButton: true },
+        { name: 'Documento',          filterButton: true },
+        { name: 'Nombres',            filterButton: true },
+        { name: 'Apellidos',          filterButton: true },
+        { name: 'Correo electronico', filterButton: true },
+        { name: 'Ficha',              filterButton: true },
+        { name: 'Estado',             filterButton: true },
+        { name: 'Ultimo acceso',      filterButton: true },
+        { name: 'Dias sin ingresar',  filterButton: true },
+        { name: 'Pendientes',         filterButton: true },
+        ...activityCols.map(([colKey], i) => ({ name: `EV_${i + 1}`, filterButton: true })),
+        { name: 'Notificar',          filterButton: true },
+      ],
+      rows: tableRows,
+    });
+
+    // Set column widths
+    const colWidths = [5, 14, 20, 20, 30, 12, 14, 22, 9, 12, ...activityCols.map(() => 7), 12];
+    colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+
+    // Override header cell text with full names (table columns use simplified keys above)
+    const headerLabels = [
+      'No.', 'Documento', 'Nombres', 'Apellidos', 'Correo electrónico',
+      'Ficha', 'Estado', 'Último acceso', 'Días sin ingresar', 'Pendientes',
+      ...activityCols.map(([colKey]) => colKey),
+      'Notificar',
+    ];
+    const headerRow = ws.getRow(1);
+    headerRow.height = 50;
+    headerLabels.forEach((label, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = label;
+      cell.font = { bold: true };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: centerCols.has(i + 1) ? 'center' : 'left',
+        wrapText: (i + 1) === 9 || (i + 1) > FIXED_COLS, // Días sin ingresar + evidencias + Notificar
+      };
+    });
+
+    // Style data rows
+    for (let r = 0; r < tableRows.length; r++) {
+      const row = ws.getRow(r + 2);
+      centerCols.forEach(c => {
         row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' };
       });
-      for (let c = BASE_COUNT + 1; c <= BASE_COUNT + activityCols.length; c++) {
-        row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' };
-      }
-    });
+    }
 
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
