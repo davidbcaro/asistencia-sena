@@ -517,12 +517,26 @@ export const AsistenciaLmsView: React.FC = () => {
 
 
   const generateReport = () => {
+    // Collect all unique activities (by full name) across filtered students, respecting current scope filters
+    const activityColMap = new Map<string, GradeActivity>();
+    filteredStudents.forEach(student => {
+      const scoped = filterActsForPendingEvidence(getStudentActivities(student), pendingScope);
+      scoped.forEach(a => {
+        const colKey = [a.name, a.detail].filter(Boolean).join(' ');
+        if (!activityColMap.has(colKey)) activityColMap.set(colKey, a);
+      });
+    });
+    const activityCols = [...activityColMap.entries()].sort(([, a], [, b]) =>
+      (a.phase || '').localeCompare(b.phase || '', 'es') || a.name.localeCompare(b.name, 'es')
+    );
+
     const rows = filteredStudents.map((student, idx) => {
       const lastAccess = lmsLastAccess[student.id];
       const days = lastAccess != null ? daysSince(lastAccess) : null;
-      const { count, activities } = getPendientesForStudent(student);
-      const pendientesLabel = activities.map(a => [a.name, a.detail].filter(Boolean).join(' ')).join(', ');
-      return {
+      const { count, activities: pendingActivities } = getPendientesForStudent(student);
+      const pendingNames = new Set(pendingActivities.map(a => [a.name, a.detail].filter(Boolean).join(' ')));
+
+      const row: Record<string, string | number> = {
         'No.': idx + 1,
         'Documento': student.documentNumber || '',
         'Nombres': student.firstName,
@@ -533,14 +547,19 @@ export const AsistenciaLmsView: React.FC = () => {
         'Último acceso': lastAccess || '-',
         'Días sin ingresar': days != null && days >= 0 ? days : '-',
         'Pendientes': count > 0 ? count : '-',
-        'Evidencias pendientes': pendientesLabel || '-',
       };
+
+      activityCols.forEach(([colKey]) => {
+        row[colKey] = pendingNames.has(colKey) ? 'x' : '';
+      });
+
+      return row;
     });
 
     const ws = XLSX.utils.json_to_sheet(rows);
 
-    // Column widths
-    ws['!cols'] = [
+    // Fixed column widths for the base columns
+    const baseColWidths = [
       { wch: 5 },  // No.
       { wch: 14 }, // Documento
       { wch: 20 }, // Nombres
@@ -551,8 +570,10 @@ export const AsistenciaLmsView: React.FC = () => {
       { wch: 22 }, // Último acceso
       { wch: 18 }, // Días sin ingresar
       { wch: 12 }, // Pendientes
-      { wch: 40 }, // Evidencias pendientes
     ];
+    // ~50px per activity column (1 char ≈ 7px → ~7 wch)
+    const activityColWidths = activityCols.map(() => ({ wch: 7 }));
+    ws['!cols'] = [...baseColWidths, ...activityColWidths];
 
     const wb = XLSX.utils.book_new();
     const fichaName = filterFicha === 'Todas' ? 'todas' : filterFicha;
