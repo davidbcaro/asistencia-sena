@@ -554,10 +554,12 @@ export const AsistenciaLmsView: React.FC = () => {
     headerRow.height = 50;
     headerRow.eachCell((cell, colNum) => {
       cell.font = { bold: true };
+      // Cols: 1=No. 2=Documento 3=Nombres 4=Apellidos 5=Correo 6=Ficha 7=Estado 8=ÚltimoAcceso 9=Días 10=Pendientes 11+=Evidencias
+      const centerCols = [1, 2, 6, 9, 10]; // No., Documento, Ficha, Días, Pendientes
       cell.alignment = {
         vertical: 'middle',
-        horizontal: colNum >= BASE_COUNT - 1 ? 'center' : 'left', // center Días, Pendientes, evidencias
-        wrapText: colNum > BASE_COUNT, // wrap text only for evidence columns
+        horizontal: (centerCols.includes(colNum) || colNum > BASE_COUNT) ? 'center' : 'left',
+        wrapText: colNum === 9 || colNum > BASE_COUNT, // Días sin ingresar + evidencias
       };
     });
 
@@ -568,13 +570,17 @@ export const AsistenciaLmsView: React.FC = () => {
       const { count, activities: pendingActivities } = getPendientesForStudent(student);
       const pendingNames = new Set(pendingActivities.map(a => [a.name, a.detail].filter(Boolean).join(' ')));
 
+      // Documento y Ficha como número cuando sea posible
+      const docNum = Number(student.documentNumber);
+      const fichaNum = Number(student.group);
+
       const values: (string | number)[] = [
         idx + 1,
-        student.documentNumber || '',
+        !isNaN(docNum) && student.documentNumber ? docNum : (student.documentNumber || ''),
         student.firstName,
         student.lastName,
         student.email || '',
-        student.group || 'General',
+        !isNaN(fichaNum) && student.group ? fichaNum : (student.group || 'General'),
         student.status || 'Formación',
         lastAccess || '-',
         days != null && days >= 0 ? days : '-',
@@ -584,8 +590,12 @@ export const AsistenciaLmsView: React.FC = () => {
 
       const row = ws.addRow(values);
 
-      // Center-align Días sin ingresar (col 9), Pendientes (col 10), and all evidence cols
-      for (let c = 9; c <= BASE_COUNT + activityCols.length; c++) {
+      // Center-align No. (1), Documento (2), Ficha (6), Días (9), Pendientes (10) y evidencias
+      const centerDataCols = [1, 2, 6, 9, 10];
+      centerDataCols.forEach(c => {
+        row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      for (let c = BASE_COUNT + 1; c <= BASE_COUNT + activityCols.length; c++) {
         row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' };
       }
     });
