@@ -548,6 +548,17 @@ export const CalificacionesView: React.FC = () => {
   const [showHiddenActivities, setShowHiddenActivities] = useState(true);
   const [uploadError, setUploadError] = useState<string>('');
   const [uploadInfo, setUploadInfo] = useState<string>('');
+  const [lastUpload, setLastUpload] = useState<string>(
+    () => localStorage.getItem('asistenciapro_grades_last_upload') || ''
+  );
+
+  const saveUploadTimestamp = () => {
+    const now = new Date();
+    const label = now.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      + ' ' + now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    localStorage.setItem('asistenciapro_grades_last_upload', label);
+    setLastUpload(label);
+  };
   const [editingCell, setEditingCell] = useState<{ studentId: string; activityId: string } | null>(null);
   const [editingScore, setEditingScore] = useState<string>('');
   const [rapNotes, setRapNotes] = useState<Record<string, Record<string, string>>>({});
@@ -2580,6 +2591,7 @@ export const CalificacionesView: React.FC = () => {
         infoParts.push(`Sin coincidencia: ${unmatched.length} filas.`);
       }
       setUploadInfo(infoParts.join(' '));
+      saveUploadTimestamp();
       loadData();
     } catch (error) {
       setUploadError('No se pudo procesar el archivo. Verifica el formato del Excel.');
@@ -2876,22 +2888,29 @@ export const CalificacionesView: React.FC = () => {
               </button>
 
 
-              <label className="cursor-pointer inline-flex items-center justify-center space-x-1.5 bg-gray-900 hover:bg-black text-white px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm">
-                <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span>Cargar</span>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleFileUpload(file);
-                      e.currentTarget.value = '';
-                    }
-                  }}
-                />
-              </label>
+              <div className="inline-flex flex-col items-end gap-0.5">
+                <label className="cursor-pointer inline-flex items-center justify-center space-x-1.5 bg-gray-900 hover:bg-black text-white px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm">
+                  <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Cargar</span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleFileUpload(file);
+                        e.currentTarget.value = '';
+                      }
+                    }}
+                  />
+                </label>
+                {lastUpload && (
+                  <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                    Actualizado el {lastUpload}
+                  </span>
+                )}
+              </div>
 
               {hiddenActivityIds.size > 0 && (
                 <button

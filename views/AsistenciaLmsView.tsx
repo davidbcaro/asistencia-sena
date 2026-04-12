@@ -233,6 +233,17 @@ export const AsistenciaLmsView: React.FC = () => {
   const ITEMS_PER_PAGE = 15;
 
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [lastUpload, setLastUpload] = useState<string>(
+    () => localStorage.getItem('asistenciapro_lms_last_upload') || ''
+  );
+
+  const saveUploadTimestamp = () => {
+    const now = new Date();
+    const label = now.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      + ' ' + now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    localStorage.setItem('asistenciapro_lms_last_upload', label);
+    setLastUpload(label);
+  };
 
   const [cancelacionMap, setCancelacionMap] = useState<Record<string, number>>({});
   const [retiroMap, setRetiroMap] = useState<Record<string, number>>({});
@@ -842,6 +853,7 @@ export const AsistenciaLmsView: React.FC = () => {
         if (noDate > 0) parts.push(`sin fecha: ${noDate}`);
         if (skipped > 0) parts.push(`sin match: ${skipped}`);
         setUploadSuccess(parts.join(' · ') + '.');
+        saveUploadTimestamp();
       } catch (err) {
         console.error(err);
         setUploadSuccess('Error al leer el Excel. Revisa que el archivo sea válido.');
@@ -915,6 +927,7 @@ export const AsistenciaLmsView: React.FC = () => {
       if (noDate > 0) parts2.push(`sin fecha: ${noDate}`);
       if (skipped > 0) parts2.push(`sin match: ${skipped}`);
       setUploadSuccess(parts2.join(' · ') + '.');
+      saveUploadTimestamp();
     };
     reader.readAsText(file, 'UTF-8');
   };
@@ -1138,6 +1151,11 @@ export const AsistenciaLmsView: React.FC = () => {
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv,.txt" className="hidden" onChange={handleFileUpload} />
           </label>
         </div>
+        {lastUpload && (
+          <p className="text-xs text-gray-400 text-right pr-1">
+            Actualizado el {lastUpload}
+          </p>
+        )}
       </div>
 
       {uploadSuccess && (
