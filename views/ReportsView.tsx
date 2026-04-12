@@ -331,10 +331,9 @@ export const ReportsView: React.FC = () => {
     [baseSessionStats, selectedFicha]
   );
 
-  // Gráficas y KPIs: solo aprendices en Formación o Plan de mejoramiento (excluir Cancelado, Retiro voluntario, Deserción)
-  const excludedStatuses = ['Cancelado', 'Retiro Voluntario', 'Deserción'];
+  // Gráficas y KPIs: solo aprendices en estado Formación
   const sessionsByFichaCharts = useMemo(() => {
-    const activos = baseSessionStats.filter(s => !excludedStatuses.includes(s.status || ''));
+    const activos = baseSessionStats.filter(s => (s.status || 'Formación') === 'Formación');
     return selectedFicha === 'Todas'
       ? activos
       : activos.filter(s => s.group === selectedFicha);
@@ -434,9 +433,9 @@ export const ReportsView: React.FC = () => {
     [lmsStatsFull, selectedFicha]
   );
 
-  // Gráficas y KPIs: solo Formación / Plan de mejoramiento (excluir Cancelado, Retiro voluntario, Deserción)
+  // Gráficas y KPIs: solo aprendices en estado Formación
   const lmsByFichaCharts = useMemo(() => {
-    const activos = lmsStatsFull.filter(s => !excludedStatuses.includes(s.status || ''));
+    const activos = lmsStatsFull.filter(s => (s.status || 'Formación') === 'Formación');
     return selectedFicha === 'Todas'
       ? activos
       : activos.filter(s => s.group === selectedFicha);
@@ -632,9 +631,9 @@ export const ReportsView: React.FC = () => {
     [evidenciasStatsFull, selectedFicha]
   );
 
-  // Gráficas y KPIs: solo Formación / Plan de mejoramiento (excluir Cancelado, Retiro voluntario, Deserción)
+  // Gráficas y KPIs: solo aprendices en estado Formación
   const evidenciasByFichaCharts = useMemo(() => {
-    const activos = evidenciasStatsFull.filter(s => !excludedStatuses.includes(s.status || ''));
+    const activos = evidenciasStatsFull.filter(s => (s.status || 'Formación') === 'Formación');
     return selectedFicha === 'Todas'
       ? activos
       : activos.filter(s => s.group === selectedFicha);
@@ -876,7 +875,7 @@ export const ReportsView: React.FC = () => {
               label="En riesgo (≥3 fallas)"
               value={sessionKpis.atRisk}
               valueColor="text-orange-500"
-              sub={`de ${sessionsByFichaCharts.length} aprendices (Formación / P. mejoramiento)`}
+              sub={`de ${sessionsByFichaCharts.length} aprendices en Formación`}
             />
             <KpiCard
               label="Clases registradas"
@@ -1074,7 +1073,7 @@ export const ReportsView: React.FC = () => {
               label="Acceso reciente (≤7d)"
               value={lmsKpis.active}
               valueColor="text-green-600"
-              sub={`de ${lmsByFichaCharts.length} aprendices (Formación / P. mejoramiento)`}
+              sub={`de ${lmsByFichaCharts.length} aprendices en Formación`}
             />
             <KpiCard
               label="Moderados (8–20d)"
@@ -1387,7 +1386,7 @@ export const ReportsView: React.FC = () => {
               label="Al día (0 pendientes)"
               value={evidenciasKpis.alDia}
               valueColor="text-green-600"
-              sub={`de ${evidenciasByFichaCharts.length} aprendices (Formación / P. mejoramiento)`}
+              sub={`de ${evidenciasByFichaCharts.length} aprendices en Formación`}
             />
             <KpiCard
               label="Con pendientes"
