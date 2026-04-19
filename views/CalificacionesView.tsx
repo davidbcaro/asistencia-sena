@@ -216,7 +216,7 @@ const FASE_EVIDENCES: Record<string, CronogramaEvidence[]> = {
   'Fase Inducción': [
     { code: 'GI1-240201530-AA1-EV01', compCode: '240201530', aaKey: 'AA1', description: 'Evidencia de producto: Infografía. Contextualización Senología.' },
     { code: 'GI1-240201530-AA2-EV01', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (1).' },
-    { code: 'GI1-240201530-AA2-EV03', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (3).', sofiaAliases: ['AA3-EV01'] },
+    { code: 'GI1-240201530-AA2-EV02', compCode: '240201530', aaKey: 'AA2', description: 'Evidencia de conocimiento: Cuestionario. Alternativas de etapa productiva (2).' },
   ],
   'Fase 1: Análisis': [
     { code: 'GA1-220501014-AA1-EV01', compCode: '220501014', aaKey: 'AA1', description: 'Evidencia de conocimiento: Cuestionario sobre técnicas de levantamiento de información, plan de seguridad y continuidad del servicio.' },
@@ -883,7 +883,7 @@ export const CalificacionesView: React.FC = () => {
 
     // Codes that were incorrectly seeded and must be removed
     const OBSOLETE_SEED_IDS = new Set([
-      'seed-GI1-240201530-AA2-EV02',
+      'seed-GI1-240201530-AA2-EV03',
       'seed-GI1-240201530-AA3-EV01',
       'seed-GI1-PM-EV01',
       'seed-GA1-240201530-AA2-EV01',
