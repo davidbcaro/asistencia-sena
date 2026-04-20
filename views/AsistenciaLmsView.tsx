@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users, X, BookOpen, ListChecks } from 'lucide-react';
 import ExcelJS from 'exceljs';
+import * as XLSX from 'xlsx';
 import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
 import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep, getEstadoStepperTooltip } from '../services/db';
 import {
