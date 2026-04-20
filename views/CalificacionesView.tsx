@@ -1403,7 +1403,7 @@ export const CalificacionesView: React.FC = () => {
         return;
       }
       sum += grade.score;
-      if (grade.letter !== 'A') pending += 1; // reprobadas también cuentan como pendientes
+      if (grade.score < PASSING_SCORE) pending += 1;
     });
 
     const delivered = totalActivities - undelivered;
@@ -1417,7 +1417,8 @@ export const CalificacionesView: React.FC = () => {
             .get(getActivityPhaseScopedKey(activity))
             ?.get('') ?? activity)
         : activity;
-      return gradeMap.get(`${studentId}-${resolvedActivity.id}`)?.letter === 'A';
+      const g = gradeMap.get(`${studentId}-${resolvedActivity.id}`);
+      return !!g && g.score >= PASSING_SCORE;
     });
     const letter: 'A' | 'D' = allApproved ? 'A' : 'D';
     return { pending, score: avg, letter };
@@ -1594,7 +1595,7 @@ export const CalificacionesView: React.FC = () => {
           : activity;
         const grade = gradeMap.get(`${studentId}-${resolvedActivity.id}`);
         if (!grade) return { activity, grade: null as null, reason: 'missing' as const };
-        if (grade.letter !== 'A') return { activity, grade, reason: 'failed' as const };
+        if (grade.score < PASSING_SCORE) return { activity, grade, reason: 'failed' as const };
         return null;
       })
       .filter((x): x is { activity: GradeActivity; grade: GradeEntry | null; reason: 'missing' | 'failed' } => x !== null);
