@@ -689,10 +689,13 @@ export const PlaneacionSemanalView: React.FC = () => {
     const result: Array<{ weekIdx: number; span: 1 | 2 }> = [];
     const consumed = new Set<number>();
     const durations = planeacion.cardDurations ?? {};
+    const tvAssign = planeacion.transversalAssignments ?? {};
     for (let w = 0; w < effectiveTotalWeeks; w++) {
       if (consumed.has(w)) continue;
       const labels   = planeacion.transversalCells[`${rowKey}::${w}`] ?? [];
-      const assigned = isTecnica ? activities.filter(a => planeacion.tecnicaAssignments[a.id] === w) : [];
+      const assigned = isTecnica
+        ? activities.filter(a => planeacion.tecnicaAssignments[a.id] === w)
+        : activities.filter(a => tvAssign[a.id]?.rowKey === rowKey && tvAssign[a.id]?.weekIdx === w);
       const hasSpan2 = w + 1 < effectiveTotalWeeks && (
         labels.some(lbl => (durations[`lbl::${rowKey}::${lbl}`] ?? 1) === 2) ||
         assigned.some(a  => (durations[`act::${a.id}`]          ?? 1) === 2)
