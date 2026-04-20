@@ -612,8 +612,8 @@ export const CalificacionesView: React.FC = () => {
     'Fase 4: Evaluación',
   ];
   const [selectedPhases, setSelectedPhases] = useState<string[]>([]);
-  /** Área de competencia (Técnica, TIC's, …) para acotar columnas de evidencias */
-  const [califEvidenceAreaFilter, setCalifEvidenceAreaFilter] = useState<string>(ALL_EVIDENCE_AREAS);
+  /** Áreas de competencia seleccionadas (vacío = todas) */
+  const [califEvidenceAreaFilters, setCalifEvidenceAreaFilters] = useState<string[]>([]);
   /** Tipo de evidencia: 'Todos' | 'Conocimiento' | 'Producto' | 'Desempeño' */
   const [califEvidenceTipoFilter, setCalifEvidenceTipoFilter] = useState<string>('Todos');
   /** Vacío = todas las evidencias del contexto (área + ficha/fase); si no, solo ids listados */
@@ -1019,7 +1019,7 @@ export const CalificacionesView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedFicha, selectedPhases, searchTerm, finalFilter, filterStatus, sortOrder, sortDirection, califEvidenceAreaFilter]);
+  }, [selectedFicha, selectedPhases, searchTerm, finalFilter, filterStatus, sortOrder, sortDirection, califEvidenceAreaFilters]);
 
   useEffect(() => {
     if (!showFinalFilter) return;
@@ -1146,10 +1146,10 @@ export const CalificacionesView: React.FC = () => {
   const califEvidencePickerPool = useMemo(
     () =>
       activitiesAfterSystemExclusions.filter((a) =>
-        activityMatchesEvidenceArea(a, califEvidenceAreaFilter) &&
+        (califEvidenceAreaFilters.length === 0 || califEvidenceAreaFilters.some((ar) => activityMatchesEvidenceArea(a, ar))) &&
         (califEvidenceTipoFilter === 'Todos' || getEvidenceTipo(a) === califEvidenceTipoFilter)
       ),
-    [activitiesAfterSystemExclusions, califEvidenceAreaFilter, califEvidenceTipoFilter]
+    [activitiesAfterSystemExclusions, califEvidenceAreaFilters, califEvidenceTipoFilter]
   );
 
   const califSelectedEvidenceIdSet = useMemo(
@@ -1158,10 +1158,9 @@ export const CalificacionesView: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!califEvAreaOptions.includes(califEvidenceAreaFilter)) {
-      setCalifEvidenceAreaFilter(ALL_EVIDENCE_AREAS);
-    }
-  }, [califEvAreaOptions, califEvidenceAreaFilter]);
+    const validAreas = new Set(califEvAreaOptions.filter((a) => a !== ALL_EVIDENCE_AREAS));
+    setCalifEvidenceAreaFilters((prev) => prev.filter((a) => validAreas.has(a)));
+  }, [califEvAreaOptions]);
 
   useEffect(() => {
     const valid = new Set(califEvidencePickerPool.map((a) => a.id));
@@ -1173,7 +1172,9 @@ export const CalificacionesView: React.FC = () => {
     if (!showHiddenActivities) {
       list = list.filter((a) => !hiddenActivityIds.has(a.id));
     }
-    list = list.filter((a) => activityMatchesEvidenceArea(a, califEvidenceAreaFilter));
+    if (califEvidenceAreaFilters.length > 0) {
+      list = list.filter((a) => califEvidenceAreaFilters.some((ar) => activityMatchesEvidenceArea(a, ar)));
+    }
     if (califEvidenceTipoFilter !== 'Todos') {
       list = list.filter((a) => getEvidenceTipo(a) === califEvidenceTipoFilter);
     }
@@ -1185,7 +1186,7 @@ export const CalificacionesView: React.FC = () => {
     activitiesAfterSystemExclusions,
     hiddenActivityIds,
     showHiddenActivities,
-    califEvidenceAreaFilter,
+    califEvidenceAreaFilters,
     califEvidenceTipoFilter,
     califSelectedEvidenceIdList,
     califSelectedEvidenceIdSet,
@@ -2715,7 +2716,7 @@ export const CalificacionesView: React.FC = () => {
                     className={`flex items-center gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border text-xs sm:text-sm font-medium whitespace-nowrap transition-colors shadow-sm ${
                       califEvidencePickerOpen
                         ? 'bg-teal-600 border-teal-600 text-white'
-                        : (califEvidenceTipoFilter !== 'Todos' || califEvidenceAreaFilter !== ALL_EVIDENCE_AREAS || califSelectedEvidenceIdList.length > 0)
+                        : (califEvidenceTipoFilter !== 'Todos' || califEvidenceAreaFilters.length > 0 || califSelectedEvidenceIdList.length > 0)
                           ? 'bg-teal-50 border-teal-400 text-teal-700'
                           : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
@@ -2723,7 +2724,7 @@ export const CalificacionesView: React.FC = () => {
                     <ListChecks className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>Evidencias</span>
                     {/* Badge de filtros activos */}
-                    {(califEvidenceTipoFilter !== 'Todos' || califEvidenceAreaFilter !== ALL_EVIDENCE_AREAS || califSelectedEvidenceIdList.length > 0) && (
+                    {(califEvidenceTipoFilter !== 'Todos' || califEvidenceAreaFilters.length > 0 || califSelectedEvidenceIdList.length > 0) && (
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${califEvidencePickerOpen ? 'bg-white/20 text-white' : 'bg-teal-500 text-white'}`}>
                         {visibleActivities.length}/{califEvidencePickerPool.length}
                       </span>
@@ -2764,27 +2765,47 @@ export const CalificacionesView: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Área */}
+                          {/* Área — multi-select con checkboxes */}
                           <div>
-                            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Área</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {califEvAreaOptions.map((ar) => {
-                                const active = califEvidenceAreaFilter === ar;
-                                return (
-                                  <button
-                                    key={ar}
-                                    type="button"
-                                    onClick={() => { setCalifEvidenceAreaFilter(ar); setCalifSelectedEvidenceIdList([]); setCalifEvidenceSearch(''); }}
-                                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
-                                      active
-                                        ? 'bg-teal-600 text-white border-teal-600'
-                                        : 'bg-transparent text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
-                                    }`}
-                                  >
-                                    {ar === ALL_EVIDENCE_AREAS ? 'Todas' : ar}
-                                  </button>
-                                );
-                              })}
+                            <div className="flex items-center justify-between mb-1.5">
+                              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Área</p>
+                              {califEvidenceAreaFilters.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setCalifEvidenceAreaFilters([]); setCalifSelectedEvidenceIdList([]); setCalifEvidenceSearch(''); }}
+                                  className="text-[11px] text-teal-600 hover:text-teal-800 font-medium"
+                                >
+                                  Todas
+                                </button>
+                              )}
+                            </div>
+                            <div className="rounded-lg border border-gray-100 bg-gray-50 divide-y divide-gray-100">
+                              {califEvAreaOptions
+                                .filter((ar) => ar !== ALL_EVIDENCE_AREAS)
+                                .map((ar) => {
+                                  const checked = califEvidenceAreaFilters.includes(ar);
+                                  return (
+                                    <label
+                                      key={ar}
+                                      className={`flex items-center gap-2.5 px-3 py-1.5 cursor-pointer transition-colors hover:bg-white ${checked ? 'bg-teal-50' : ''}`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => {
+                                          setCalifEvidenceAreaFilters((prev) => {
+                                            const next = checked ? prev.filter((x) => x !== ar) : [...prev, ar];
+                                            return next;
+                                          });
+                                          setCalifSelectedEvidenceIdList([]);
+                                          setCalifEvidenceSearch('');
+                                        }}
+                                        className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 flex-shrink-0"
+                                      />
+                                      <span className={`text-[11px] font-semibold ${checked ? 'text-teal-700' : 'text-gray-600'}`}>{ar}</span>
+                                    </label>
+                                  );
+                                })}
                             </div>
                           </div>
 
@@ -2882,10 +2903,10 @@ export const CalificacionesView: React.FC = () => {
                           </div>
 
                           {/* Reset */}
-                          {(califEvidenceTipoFilter !== 'Todos' || califEvidenceAreaFilter !== ALL_EVIDENCE_AREAS || califSelectedEvidenceIdList.length > 0) && (
+                          {(califEvidenceTipoFilter !== 'Todos' || califEvidenceAreaFilters.length > 0 || califSelectedEvidenceIdList.length > 0) && (
                             <button
                               type="button"
-                              onClick={() => { setCalifEvidenceTipoFilter('Todos'); setCalifEvidenceAreaFilter(ALL_EVIDENCE_AREAS); setCalifSelectedEvidenceIdList([]); setCalifEvidenceSearch(''); }}
+                              onClick={() => { setCalifEvidenceTipoFilter('Todos'); setCalifEvidenceAreaFilters([]); setCalifSelectedEvidenceIdList([]); setCalifEvidenceSearch(''); }}
                               className="w-full text-center text-xs text-gray-400 hover:text-red-500 py-1 transition-colors"
                             >
                               Limpiar filtros
