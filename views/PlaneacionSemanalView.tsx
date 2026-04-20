@@ -352,8 +352,16 @@ export const PlaneacionSemanalView: React.FC = () => {
     const all = getGradeActivities();
     // Incluir seeds globales (group === '') + actividades propias del ficha; deduplicar por nombre+grupo
     const filtered = f ? all.filter(a => a.group === f.code || a.group === '') : [];
+    // Excluir evidencias obsoletas que ya no deben aparecer en Inducción
+    const OBSOLETE_INDUCTION_CODES = /GI1-240201530-AA2-EV03|AA3-EV01/i;
+    const OBSOLETE_INDUCTION_TEXT = /alternativas\s+de\s+etapa\s+productiva\s*\(\s*3\s*\)/i;
+    const withoutObsolete = filtered.filter(a => {
+      if (a.id === 'seed-GI1-240201530-AA2-EV03') return false;
+      if (a.phase === 'Fase Inducción' && (OBSOLETE_INDUCTION_CODES.test(a.name) || OBSOLETE_INDUCTION_TEXT.test(a.detail ?? ''))) return false;
+      return true;
+    });
     const seen = new Set<string>();
-    const deduped = filtered.filter(a => {
+    const deduped = withoutObsolete.filter(a => {
       const key = `${a.name.trim().toLowerCase()}::${a.group}`;
       if (seen.has(key)) return false;
       seen.add(key);
