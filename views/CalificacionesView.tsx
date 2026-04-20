@@ -619,6 +619,7 @@ export const CalificacionesView: React.FC = () => {
   /** Vacío = todas las evidencias del contexto (área + ficha/fase); si no, solo ids listados */
   const [califSelectedEvidenceIdList, setCalifSelectedEvidenceIdList] = useState<string[]>([]);
   const [califEvidencePickerOpen, setCalifEvidencePickerOpen] = useState(false);
+  const [califEvidenceSearch, setCalifEvidenceSearch] = useState('');
 
   // Derived: '' or all phases → ALL_PHASES_VIEW; single selection → that phase string
   const effectiveSinglePhase = selectedPhases.length === 1 ? selectedPhases[0] : ALL_PHASES_VIEW;
@@ -836,7 +837,10 @@ export const CalificacionesView: React.FC = () => {
   }, [showPhaseFilter]);
 
   useEffect(() => {
-    if (!califEvidencePickerOpen) return;
+    if (!califEvidencePickerOpen) {
+      setCalifEvidenceSearch('');
+      return;
+    }
     const handleClickOutside = (event: MouseEvent) => {
       if (evidenceFilterRef.current && !evidenceFilterRef.current.contains(event.target as Node)) {
         setCalifEvidencePickerOpen(false);
@@ -2729,7 +2733,7 @@ export const CalificacionesView: React.FC = () => {
                   {califEvidencePickerOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setCalifEvidencePickerOpen(false)} />
-                      <div className="absolute left-0 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden">
+                      <div className="absolute left-0 mt-2 w-[480px] rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden">
                         {/* Header */}
                         <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
                           <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Filtrar evidencias</p>
@@ -2763,15 +2767,25 @@ export const CalificacionesView: React.FC = () => {
                           {/* Área */}
                           <div>
                             <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Área</p>
-                            <select
-                              className="w-full pl-2.5 pr-8 py-1.5 border border-gray-200 rounded-lg text-xs bg-white font-medium text-gray-700 focus:ring-2 focus:ring-teal-500 outline-none"
-                              value={califEvidenceAreaFilter}
-                              onChange={(e) => { setCalifEvidenceAreaFilter(e.target.value); setCalifSelectedEvidenceIdList([]); }}
-                            >
-                              {califEvAreaOptions.map((ar) => (
-                                <option key={ar} value={ar}>{ar === ALL_EVIDENCE_AREAS ? 'Todas las áreas' : ar}</option>
-                              ))}
-                            </select>
+                            <div className="flex flex-wrap gap-1.5">
+                              {califEvAreaOptions.map((ar) => {
+                                const active = califEvidenceAreaFilter === ar;
+                                return (
+                                  <button
+                                    key={ar}
+                                    type="button"
+                                    onClick={() => { setCalifEvidenceAreaFilter(ar); setCalifSelectedEvidenceIdList([]); setCalifEvidenceSearch(''); }}
+                                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                                      active
+                                        ? 'bg-teal-600 text-white border-teal-600'
+                                        : 'bg-transparent text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
+                                    }`}
+                                  >
+                                    {ar === ALL_EVIDENCE_AREAS ? 'Todas' : ar}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
 
                           {/* Evidencias individuales */}
@@ -2788,11 +2802,40 @@ export const CalificacionesView: React.FC = () => {
                                 </button>
                               )}
                             </div>
+                            {/* Búsqueda de evidencias */}
+                            <div className="relative mb-1.5">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                              <input
+                                type="text"
+                                placeholder="Buscar evidencia…"
+                                value={califEvidenceSearch}
+                                onChange={(e) => setCalifEvidenceSearch(e.target.value)}
+                                className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white text-gray-700 focus:ring-2 focus:ring-teal-500 outline-none"
+                              />
+                              {califEvidenceSearch && (
+                                <button
+                                  type="button"
+                                  onClick={() => setCalifEvidenceSearch('')}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                             <div className="max-h-52 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 divide-y divide-gray-100">
-                              {califEvidencePickerPool.length === 0 ? (
-                                <p className="text-xs text-gray-400 py-4 text-center">Sin evidencias en este contexto.</p>
-                              ) : (
-                                califEvidencePickerPool.map((a) => {
+                              {(() => {
+                                const searchLower = califEvidenceSearch.toLowerCase();
+                                const filtered = califEvidenceSearch
+                                  ? califEvidencePickerPool.filter((a) => {
+                                      const label = shortEvidenceLabel(a.name).toLowerCase();
+                                      const detail = (a.detail || a.name).toLowerCase();
+                                      return label.includes(searchLower) || detail.includes(searchLower);
+                                    })
+                                  : califEvidencePickerPool;
+                                if (filtered.length === 0) {
+                                  return <p className="text-xs text-gray-400 py-4 text-center">{califEvidenceSearch ? 'Sin resultados.' : 'Sin evidencias en este contexto.'}</p>;
+                                }
+                                return filtered.map((a) => {
                                   const implicitAll = califSelectedEvidenceIdList.length === 0;
                                   const checked = implicitAll || califSelectedEvidenceIdList.includes(a.id);
                                   const tipoKey = getEvidenceTipo(a);
@@ -2833,8 +2876,8 @@ export const CalificacionesView: React.FC = () => {
                                       </span>
                                     </label>
                                   );
-                                })
-                              )}
+                                });
+                              })()}
                             </div>
                           </div>
 
@@ -2842,7 +2885,7 @@ export const CalificacionesView: React.FC = () => {
                           {(califEvidenceTipoFilter !== 'Todos' || califEvidenceAreaFilter !== ALL_EVIDENCE_AREAS || califSelectedEvidenceIdList.length > 0) && (
                             <button
                               type="button"
-                              onClick={() => { setCalifEvidenceTipoFilter('Todos'); setCalifEvidenceAreaFilter(ALL_EVIDENCE_AREAS); setCalifSelectedEvidenceIdList([]); }}
+                              onClick={() => { setCalifEvidenceTipoFilter('Todos'); setCalifEvidenceAreaFilter(ALL_EVIDENCE_AREAS); setCalifSelectedEvidenceIdList([]); setCalifEvidenceSearch(''); }}
                               className="w-full text-center text-xs text-gray-400 hover:text-red-500 py-1 transition-colors"
                             >
                               Limpiar filtros
