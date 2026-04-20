@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, Eye, EyeOff, GripVertical, X } from 'lucide-react';
-import { GradeActivity, PlaneacionSemanalFichaData } from '../types';
+import { ArrowLeft, Check, Copy, Download, Eye, EyeOff, GripVertical, X } from 'lucide-react';
+import { Ficha, GradeActivity, PlaneacionSemanalFichaData } from '../types';
 import { deleteGradeActivity, getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
 
 // ─── Phase structure (matches PLANEACION SEMANAL GRD.xlsx exactly) ──────────
@@ -314,6 +314,12 @@ export const PlaneacionSemanalView: React.FC = () => {
   const [openDurationCard,  setOpenDurationCard]  = useState<string | null>(null);
   const [datePickerWeek,    setDatePickerWeek]    = useState<number | null>(null);
   const [editingPhase,      setEditingPhase]      = useState<string | null>(null);
+
+  // ── Copiar planeación a otras fichas ──────────────────────────────────────
+  const [copyModalOpen,   setCopyModalOpen]   = useState(false);
+  const [copyTargetIds,   setCopyTargetIds]   = useState<Set<string>>(new Set());
+  const [copyAllFichas,   setCopyAllFichas]   = useState<Ficha[]>([]);
+  const [copyStatus,      setCopyStatus]      = useState<'idle' | 'saving' | 'done'>('idle');
   const editInputRef    = useRef<HTMLInputElement>(null);
   const dateInputRef    = useRef<HTMLInputElement>(null);
   const datePopoverRef  = useRef<HTMLDivElement>(null);
@@ -457,6 +463,48 @@ export const PlaneacionSemanalView: React.FC = () => {
     all[fichaId ?? ''] = stamped;
     savePlaneacionSemanal(all);
   }, [fichaId]);
+
+  // ── Abrir modal de copia ────────────────────────────────────────────────
+  const openCopyModal = useCallback(() => {
+    // Cargar todas las fichas excepto la actual
+    const all = getFichas();
+    const others = all.filter(f => f.id !== fichaId);
+    setCopyAllFichas(others);
+    setCopyTargetIds(new Set());
+    setCopyStatus('idle');
+    setCopyModalOpen(true);
+  }, [fichaId]);
+
+  const toggleCopyTarget = useCallback((id: string) => {
+    setCopyTargetIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleCopyAll = useCallback(() => {
+    setCopyTargetIds(prev =>
+      prev.size === copyAllFichas.length
+        ? new Set()
+        : new Set(copyAllFichas.map(f => f.id)),
+    );
+  }, [copyAllFichas]);
+
+  // ── Ejecutar copia ──────────────────────────────────────────────────────
+  const handleCopyPlaneacion = useCallback(() => {
+    if (copyTargetIds.size === 0 || !fichaId) return;
+    setCopyStatus('saving');
+    const allPlan = getPlaneacionSemanal();
+    const now = new Date().toISOString();
+    // Snapshot profundo de la planeación actual (se reutiliza para cada destino)
+    const snapshot: PlaneacionSemanalFichaData = JSON.parse(JSON.stringify(planeacion));
+    copyTargetIds.forEach(targetId => {
+      allPlan[targetId] = { ...JSON.parse(JSON.stringify(snapshot)), updatedAt: now };
+    });
+    savePlaneacionSemanal(allPlan);
+    setCopyStatus('done');
+  }, [copyTargetIds, fichaId, planeacion]);
 
   // ── Derived ─────────────────────────────────────────────────────────────
   const unassigned = useMemo(
@@ -935,6 +983,14 @@ export const PlaneacionSemanalView: React.FC = () => {
           </p>
         </div>
         <button
+          onClick={openCopyModal}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors shadow-sm"
+          title="Copiar esta planeación a otras fichas"
+        >
+          <Copy className="w-3.5 h-3.5" />
+          Copiar a otras fichas
+        </button>
+        <button
           onClick={exportToExcel}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium transition-colors shadow-sm"
           title="Exportar planeación a Excel"
@@ -1300,6 +1356,145 @@ export const PlaneacionSemanalView: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* ── Modal: Copiar planeación a otras fichas ── */}
+      {copyModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => { if (copyStatus !== 'saving') setCopyModalOpen(false); }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between px-5 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                  <Copy className="w-4 h-4 text-blue-600" />
+                  Copiar planeación
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Desde ficha <strong>{ficha.code}</strong> hacia las fichas seleccionadas.
+                </p>
+              </div>
+              <button
+                onClick={() => setCopyModalOpen(false)}
+                disabled={copyStatus === 'saving'}
+                className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 disabled:opacity-40"
+                title="Cerrar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {copyStatus === 'done' ? (
+              <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 text-center">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-3">
+                  <Check className="w-6 h-6 text-green-600" />
+                </div>
+                <p className="text-sm font-semibold text-gray-900">
+                  Planeación copiada a {copyTargetIds.size} ficha{copyTargetIds.size === 1 ? '' : 's'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Las asignaciones quedaron en las mismas fechas y semanas.
+                </p>
+                <button
+                  onClick={() => setCopyModalOpen(false)}
+                  className="mt-5 px-4 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white text-xs font-medium"
+                >
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Warning */}
+                <div className="px-5 py-3 bg-amber-50 border-b border-amber-100">
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    <strong>Sobrescribe</strong> la planeación existente de cada ficha destino
+                    con todas las evidencias, etiquetas transversales, fechas y duraciones
+                    de la ficha actual.
+                  </p>
+                </div>
+
+                {/* Fichas list */}
+                <div className="flex-1 overflow-y-auto px-5 py-3">
+                  {copyAllFichas.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-8">
+                      No hay otras fichas disponibles para copiar.
+                    </p>
+                  ) : (
+                    <>
+                      <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer border-b border-gray-100 mb-2 pb-2">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-gray-300"
+                          checked={copyTargetIds.size === copyAllFichas.length && copyAllFichas.length > 0}
+                          onChange={toggleCopyAll}
+                        />
+                        <span className="text-xs font-semibold text-gray-700">
+                          Seleccionar todas ({copyAllFichas.length})
+                        </span>
+                      </label>
+                      <div className="space-y-0.5">
+                        {copyAllFichas.map(f => (
+                          <label
+                            key={f.id}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 rounded border-gray-300"
+                              checked={copyTargetIds.has(f.id)}
+                              onChange={() => toggleCopyTarget(f.id)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-900 truncate">
+                                Ficha {f.code}
+                              </p>
+                              <p className="text-[10px] text-gray-500 truncate">{f.program}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-gray-200 bg-gray-50">
+                  <span className="text-[11px] text-gray-500">
+                    {copyTargetIds.size} seleccionada{copyTargetIds.size === 1 ? '' : 's'}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCopyModalOpen(false)}
+                      disabled={copyStatus === 'saving'}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-40"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleCopyPlaneacion}
+                      disabled={copyTargetIds.size === 0 || copyStatus === 'saving'}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {copyStatus === 'saving' ? (
+                        <>Copiando…</>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          Copiar a {copyTargetIds.size || 0} ficha{copyTargetIds.size === 1 ? '' : 's'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
