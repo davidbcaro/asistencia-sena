@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Filter, Search, ChevronLeft, ChevronRight, Download, X, CheckCircle, XCircle } from 'lucide-react';
+import { Filter, Search, ChevronLeft, ChevronRight, Download, X, CheckCircle, XCircle, ChevronDown, Copy, ListChecks } from 'lucide-react';
 import ExcelJS from 'exceljs';
-import { Student, Ficha } from '../types';
+import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
 import {
   getStudents, getFichas,
   getDebidoProcesoState, saveDebidoProcesoStep,
@@ -13,7 +13,72 @@ import {
   getRetiroDetails, saveRetiroDetail, RetiroDetail,
   updateStudent, getEstadoStepperTooltip,
   DEBIDO_PROCESO_STEP_LABELS, RETIRO_VOLUNTARIO_STEP_LABELS, PLAN_MEJORAMIENTO_STEP_LABELS,
+  getLmsLastAccess, getGradeActivities, getGrades,
 } from '../services/db';
+import {
+  ALL_EVIDENCE_AREAS,
+  buildEvidenceAreaOptions,
+  filterActsForPendingEvidence,
+  shortEvidenceLabel,
+  activityMatchesEvidenceArea,
+  type EvidencePendingScope,
+} from '../services/evidenceMeta';
+
+// ─── Email helpers (copied from AlertsView pattern) ─────────────────────────
+
+const DP_TEMPLATES_KEY = 'asistenciapro_email_templates';
+const DP_ALL_PHASES_LABEL = 'Todas las fases';
+const DP_PASSING_SCORE = 70;
+
+interface DpEmailTemplate { id: string; name: string; subject: string; body: string; }
+
+function dpLoadEmailTemplates(): DpEmailTemplate[] {
+  try {
+    const raw = localStorage.getItem(DP_TEMPLATES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as DpEmailTemplate[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return [{
+    id: 'default',
+    name: 'Deserción (por defecto)',
+    subject: 'Notificación de Inicio de Proceso de Deserción',
+    body: 'Estimado(a) Aprendiz:<br><br><strong>{estudiante}</strong><br><strong>C.C.</strong> {documento}<br><strong>Ficha:</strong> {grupo}<br><br>',
+  }];
+}
+
+function dpEscapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function dpHtmlToPlainText(html: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent ?? div.innerText ?? '').trim();
+}
+
+function dpBuildEmailHtml(body: string): string {
+  const BASE = 'font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222222;';
+  const styled = body
+    .replace(/<p(?=[^>]*>)/gi, `<p style="margin:0.5em 0;${BASE}"`)
+    .replace(/<ul(?=[^>]*>)/gi, '<ul style="margin:0.5em 0;padding-left:1.5em;"')
+    .replace(/<ol(?=[^>]*>)/gi, '<ol style="margin:0.5em 0;padding-left:1.5em;"')
+    .replace(/<li(?=[^>]*>)/gi, `<li style="margin:0.2em 0;${BASE}"`)
+    .replace(/<blockquote(?=[^>]*>)/gi, '<blockquote style="border-left:3px solid #ccc;margin:0.5em 0;padding-left:1em;color:#555555;"');
+  return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;"><tr><td style="${BASE}word-wrap:break-word;">${styled}</td></tr></table>`;
+}
+
+function dpDaysSince(dateStr: string): number {
+  const d = new Date(dateStr.replace(' ', 'T'));
+  if (isNaN(d.getTime())) return -1;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.floor((today.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const STEPS: { step: number; tooltip: string }[] = [
   { step: 0, tooltip: 'Sin novedad' },
@@ -387,6 +452,23 @@ export const DebidoProcesoView: React.FC = () => {
   const [pmaDetails, setPmaDetails] = useState<Record<string, PmaDetail>>({});
   const [cancelacionDetails, setCancelacionDetails] = useState<Record<string, CancelacionDetail>>({});
   const [retiroDetails, setRetiroDetails] = useState<Record<string, RetiroDetail>>({});
+  // LMS + grades data
+  const [lmsLastAccess, setLmsLastAccess] = useState<Record<string, string>>({});
+  const [gradeActivities, setGradeActivities] = useState<GradeActivity[]>([]);
+  const [grades, setGrades] = useState<GradeEntry[]>([]);
+
+  // Evidence / fase filters
+  const [dpFilterFase, setDpFilterFase] = useState<string[]>([]);
+  const [dpFaseDropdownOpen, setDpFaseDropdownOpen] = useState(false);
+  const dpFaseDropdownRef = useRef<HTMLDivElement>(null);
+  const [dpFilterEvidenceAreas, setDpFilterEvidenceAreas] = useState<string[]>([]);
+  const [dpAreaDropdownOpen, setDpAreaDropdownOpen] = useState(false);
+  const [dpSelectedEvidenceIds, setDpSelectedEvidenceIds] = useState<string[]>([]);
+  const [dpEvidencePickerOpen, setDpEvidencePickerOpen] = useState(false);
+  const dpEvidencePickerRef = useRef<HTMLDivElement>(null);
+
+  const [copyEmailFeedback, setCopyEmailFeedback] = useState<string | null>(null);
+
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterEstado, setFilterEstado] = useState<string>('Todos'); // Cancelación (stateMap)
   const [filterEstadoStudent, setFilterEstadoStudent] = useState<string>('Todos'); // Estado del aprendiz
@@ -454,6 +536,9 @@ export const DebidoProcesoView: React.FC = () => {
     setPmaDetails(getPmaDetails());
     setCancelacionDetails(getCancelacionDetails());
     setRetiroDetails(getRetiroDetails());
+    setLmsLastAccess(getLmsLastAccess());
+    setGradeActivities(getGradeActivities());
+    setGrades(getGrades());
   };
 
   useEffect(() => {
@@ -476,6 +561,163 @@ export const DebidoProcesoView: React.FC = () => {
     window.addEventListener('asistenciapro-cloud-save', handler);
     return () => window.removeEventListener('asistenciapro-cloud-save', handler);
   }, []);
+
+  // ─── Evidence / grade memos ───────────────────────────────────────────────
+
+  const gradeMap = useMemo(() => {
+    const m = new Map<string, GradeEntry>();
+    grades.forEach((g) => m.set(`${g.studentId}-${g.activityId}`, g));
+    return m;
+  }, [grades]);
+
+  const dpPhaseOptions = useMemo(() => {
+    const phases = new Set<string>();
+    gradeActivities.forEach((a) => { if (a.phase) phases.add(a.phase); });
+    return [...phases].sort((a, b) => a.localeCompare(b, 'es'));
+  }, [gradeActivities]);
+
+  const dpEvBasePool = useMemo(() => gradeActivities, [gradeActivities]);
+
+  const dpEvAreaOptions = useMemo(
+    () => buildEvidenceAreaOptions(dpEvBasePool),
+    [dpEvBasePool]
+  );
+
+  const dpEvidencePickerPool = useMemo(() => {
+    let pool = dpEvBasePool;
+    if (dpFilterFase.length > 0) {
+      pool = pool.filter((a) => dpFilterFase.includes(a.phase ?? ''));
+    }
+    if (dpFilterEvidenceAreas.length > 0) {
+      pool = pool.filter((a) => dpFilterEvidenceAreas.some((ar) => activityMatchesEvidenceArea(a, ar)));
+    }
+    return pool;
+  }, [dpEvBasePool, dpFilterFase, dpFilterEvidenceAreas]);
+
+  const dpSelectedEvidenceIdSet = useMemo(
+    () => new Set(dpSelectedEvidenceIds),
+    [dpSelectedEvidenceIds]
+  );
+
+  const dpPendingScope = useMemo<EvidencePendingScope>(() => ({
+    phaseFilter: dpFilterFase,
+    allPhasesLabel: DP_ALL_PHASES_LABEL,
+    areaFilter: dpFilterEvidenceAreas,
+    selectedActivityIds: dpSelectedEvidenceIdSet,
+  }), [dpFilterFase, dpFilterEvidenceAreas, dpSelectedEvidenceIdSet]);
+
+  const getDpPendingCount = (student: Student): number => {
+    const group = student.group || '';
+    const fichaSpecific = gradeActivities.filter((a) => a.group === group);
+    const fichaActs = fichaSpecific.length > 0 ? fichaSpecific : gradeActivities.filter((a) => a.group === '');
+    const acts = filterActsForPendingEvidence(fichaActs, dpPendingScope);
+    let count = 0;
+    acts.forEach((a) => {
+      const g = gradeMap.get(`${student.id}-${a.id}`);
+      if (!g || g.score < DP_PASSING_SCORE) count++;
+    });
+    return count;
+  };
+
+  const getDpPendingList = (student: Student): GradeActivity[] => {
+    const group = student.group || '';
+    const fichaSpecific = gradeActivities.filter((a) => a.group === group);
+    const fichaActs = fichaSpecific.length > 0 ? fichaSpecific : gradeActivities.filter((a) => a.group === '');
+    const acts = filterActsForPendingEvidence(fichaActs, dpPendingScope);
+    return acts.filter((a) => {
+      const g = gradeMap.get(`${student.id}-${a.id}`);
+      return !g || g.score < DP_PASSING_SCORE;
+    });
+  };
+
+  const getDpDaysSince = (student: Student): number | null => {
+    const last = lmsLastAccess[student.id];
+    if (!last) return null;
+    const d = dpDaysSince(last);
+    return d >= 0 ? d : null;
+  };
+
+  const copyEmailForStudent = async (student: Student) => {
+    const ficha = fichas.find((f) => f.code === (student.group || ''));
+    const days = getDpDaysSince(student);
+    const daysStr = days !== null ? String(days) : 'N/D';
+    const lastAccessStr = lmsLastAccess[student.id]
+      ? new Date(lmsLastAccess[student.id].replace(' ', 'T')).toLocaleDateString('es-CO')
+      : 'N/D';
+    const today = new Date().toLocaleDateString('es-CO');
+    const pendingActs = getDpPendingList(student);
+    const evidenciasHtml = pendingActs.length > 0
+      ? '<ul>' + pendingActs.map((a) => `<li>${dpEscapeHtml(shortEvidenceLabel(a.name))}</li>`).join('') + '</ul>'
+      : 'Sin evidencias pendientes';
+    const evidenciasPlain = pendingActs.length > 0
+      ? pendingActs.map((a) => `• ${shortEvidenceLabel(a.name)}`).join('\n')
+      : 'Sin evidencias pendientes';
+
+    const templates = dpLoadEmailTemplates();
+    const tpl = templates[0];
+    const substituteHtml = (body: string) =>
+      body
+        .replace(/\{estudiante\}/g, dpEscapeHtml(`${student.firstName} ${student.lastName}`))
+        .replace(/\{documento\}/g, dpEscapeHtml(student.documentNumber || ''))
+        .replace(/\{programa\}/g, dpEscapeHtml(ficha?.program || student.group || ''))
+        .replace(/\{grupo\}/g, dpEscapeHtml(student.group || ''))
+        .replace(/\{dias_sin_ingresar\}/g, daysStr)
+        .replace(/\{fecha\}/g, today)
+        .replace(/\{fecha_ultimo_ingreso\}/g, lastAccessStr)
+        .replace(/\{evidencias\}/g, evidenciasHtml)
+        .replace(/\{novedad\}/g, dpEscapeHtml(days !== null && days >= 20 ? 'Riesgo de deserción' : 'Plan de mejoramiento'));
+
+    const substitutePlain = (body: string) =>
+      dpHtmlToPlainText(body
+        .replace(/\{estudiante\}/g, `${student.firstName} ${student.lastName}`)
+        .replace(/\{documento\}/g, student.documentNumber || '')
+        .replace(/\{programa\}/g, ficha?.program || student.group || '')
+        .replace(/\{grupo\}/g, student.group || '')
+        .replace(/\{dias_sin_ingresar\}/g, daysStr)
+        .replace(/\{fecha\}/g, today)
+        .replace(/\{fecha_ultimo_ingreso\}/g, lastAccessStr)
+        .replace(/\{evidencias\}/g, evidenciasPlain)
+        .replace(/\{novedad\}/g, days !== null && days >= 20 ? 'Riesgo de deserción' : 'Plan de mejoramiento')
+      );
+
+    try {
+      const htmlBody = substituteHtml(tpl.body);
+      const fullHtml = dpBuildEmailHtml(htmlBody);
+      const plainBody = substitutePlain(tpl.body);
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([fullHtml], { type: 'text/html' }),
+          'text/plain': new Blob([plainBody], { type: 'text/plain' }),
+        }),
+      ]);
+      setCopyEmailFeedback(student.id);
+      setTimeout(() => setCopyEmailFeedback(null), 2000);
+    } catch {
+      try {
+        const plainBody = substitutePlain(tpl.body);
+        await navigator.clipboard.writeText(plainBody);
+        setCopyEmailFeedback(student.id);
+        setTimeout(() => setCopyEmailFeedback(null), 2000);
+      } catch {}
+    }
+  };
+
+  // click-outside for evidence picker and fase dropdown
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dpEvidencePickerOpen && dpEvidencePickerRef.current && !dpEvidencePickerRef.current.contains(e.target as Node)) {
+        setDpEvidencePickerOpen(false);
+        setDpAreaDropdownOpen(false);
+      }
+      if (dpFaseDropdownOpen && dpFaseDropdownRef.current && !dpFaseDropdownRef.current.contains(e.target as Node)) {
+        setDpFaseDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [dpEvidencePickerOpen, dpFaseDropdownOpen]);
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   const filteredList = useMemo(() => {
     let list = [...students];
@@ -755,6 +997,105 @@ export const DebidoProcesoView: React.FC = () => {
           <div className="text-sm text-gray-500">
             <strong className="text-gray-900">{filteredList.length}</strong> aprendices
           </div>
+
+          {/* Fase filter */}
+          <div className="relative" ref={dpFaseDropdownRef}>
+            <button
+              type="button"
+              onClick={() => { setDpFaseDropdownOpen((o) => !o); setDpEvidencePickerOpen(false); }}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${dpFilterFase.length > 0 ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:border-teal-400'}`}
+            >
+              Fase
+              {dpFilterFase.length > 0 && <span className="bg-teal-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">{dpFilterFase.length}</span>}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dpFaseDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {dpFaseDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[13rem] py-1">
+                <button type="button" onClick={() => setDpFilterFase([])}
+                  className={`w-full text-left px-3 py-2 text-sm ${dpFilterFase.length === 0 ? 'text-teal-700 font-medium bg-teal-50' : 'text-gray-700 hover:bg-gray-50'}`}>
+                  Todas las fases
+                </button>
+                {dpPhaseOptions.map((phase) => (
+                  <label key={phase} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" checked={dpFilterFase.includes(phase)}
+                      onChange={(e) => setDpFilterFase(e.target.checked ? [...dpFilterFase, phase] : dpFilterFase.filter((p) => p !== phase))}
+                      className="accent-teal-600" />
+                    <span className="truncate">{phase}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Evidencias picker */}
+          <div className="relative" ref={dpEvidencePickerRef}>
+            <button
+              type="button"
+              onClick={() => { setDpEvidencePickerOpen((o) => !o); setDpFaseDropdownOpen(false); }}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${(dpFilterEvidenceAreas.length > 0 || dpSelectedEvidenceIds.length > 0) ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:border-teal-400'}`}
+            >
+              <ListChecks className="w-4 h-4" />
+              Evidencias
+              {dpSelectedEvidenceIds.length > 0 && <span className="bg-teal-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">{dpSelectedEvidenceIds.length}</span>}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dpEvidencePickerOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {dpEvidencePickerOpen && (
+              <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-72 overflow-visible">
+                {/* Area sub-filter */}
+                <div className="px-3 pt-3 pb-2 border-b border-gray-100">
+                  <div className="relative">
+                    <button type="button"
+                      onClick={() => setDpAreaDropdownOpen((o) => !o)}
+                      className={`w-full inline-flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${dpFilterEvidenceAreas.length > 0 ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-white border-gray-300 text-gray-600 hover:border-teal-400'}`}
+                    >
+                      <span>{dpFilterEvidenceAreas.length === 0 ? 'Todas las áreas' : `${dpFilterEvidenceAreas.length} área(s)`}</span>
+                      <ChevronDown className={`w-3 h-3 flex-shrink-0 transition-transform ${dpAreaDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {dpAreaDropdownOpen && (
+                      <div className="absolute left-0 top-full mt-1 z-[60] bg-white border border-gray-200 rounded-lg shadow-xl min-w-full py-1 max-h-48 overflow-y-auto">
+                        <button type="button" onClick={() => setDpFilterEvidenceAreas([])}
+                          className={`w-full text-left px-3 py-2 text-xs ${dpFilterEvidenceAreas.length === 0 ? 'text-teal-700 font-medium bg-teal-50' : 'text-gray-700 hover:bg-gray-50'}`}>
+                          Todas las áreas
+                        </button>
+                        {dpEvAreaOptions.filter((a) => a !== ALL_EVIDENCE_AREAS).map((area) => (
+                          <label key={area} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" checked={dpFilterEvidenceAreas.includes(area)}
+                              onChange={(e) => setDpFilterEvidenceAreas(e.target.checked ? [...dpFilterEvidenceAreas, area] : dpFilterEvidenceAreas.filter((a) => a !== area))}
+                              className="accent-teal-600" />
+                            {area}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Evidence list */}
+                <div className="max-h-56 overflow-y-auto px-2 py-2 space-y-0.5">
+                  {dpEvidencePickerPool.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-4">Sin evidencias</p>
+                  ) : (
+                    <>
+                      {dpSelectedEvidenceIds.length > 0 && (
+                        <button type="button" onClick={() => setDpSelectedEvidenceIds([])}
+                          className="w-full text-left px-2 py-1 text-xs text-teal-600 hover:text-teal-700 font-medium">
+                          Limpiar selección ({dpSelectedEvidenceIds.length})
+                        </button>
+                      )}
+                      {dpEvidencePickerPool.map((act) => (
+                        <label key={act.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
+                          <input type="checkbox" checked={dpSelectedEvidenceIdSet.has(act.id)}
+                            onChange={(e) => setDpSelectedEvidenceIds(e.target.checked ? [...dpSelectedEvidenceIds, act.id] : dpSelectedEvidenceIds.filter((id) => id !== act.id))}
+                            className="accent-teal-600 flex-shrink-0" />
+                          <span className="text-xs text-gray-700 truncate" title={act.name}>{shortEvidenceLabel(act.name)}</span>
+                        </label>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={exportToExcel}
@@ -816,6 +1157,8 @@ export const DebidoProcesoView: React.FC = () => {
                     </button>
                   </div>
                 </th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Días sin ingresar</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Pendientes</th>
                 <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap min-w-[120px]">
                   <div className="inline-flex items-center gap-1">
                     <button type="button" onClick={(e) => openFilter(e, setShowFilterCancelacion)} className="inline-flex items-center gap-1 hover:text-teal-700 text-left">
@@ -843,6 +1186,7 @@ export const DebidoProcesoView: React.FC = () => {
                     </button>
                   </div>
                 </th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Correo</th>
               </tr>
             </thead>
             <tbody>
@@ -885,6 +1229,34 @@ export const DebidoProcesoView: React.FC = () => {
                         <option value="Deserción">Deserción</option>
                       </select>
                     </td>
+                    {/* Días sin ingresar */}
+                    {(() => {
+                      const days = getDpDaysSince(student);
+                      return (
+                        <td className="px-4 py-4 text-center tabular-nums">
+                          {days === null ? (
+                            <span className="text-gray-400 text-xs">—</span>
+                          ) : (
+                            <span className={`text-xs font-semibold ${days >= 20 ? 'text-red-600' : days >= 10 ? 'text-orange-500' : 'text-gray-700'}`}>
+                              {days}
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })()}
+                    {/* Pendientes */}
+                    {(() => {
+                      const count = getDpPendingCount(student);
+                      return (
+                        <td className="px-4 py-4 text-center tabular-nums">
+                          {count === 0 ? (
+                            <span className="text-xs text-green-600 font-semibold">0</span>
+                          ) : (
+                            <span className="text-xs font-semibold text-red-600">{count}</span>
+                          )}
+                        </td>
+                      );
+                    })()}
                     <td className="px-4 py-4">
                       <DebidoProcesoStepper
                         currentStep={stateMap[student.id] ?? 0}
@@ -923,6 +1295,26 @@ export const DebidoProcesoView: React.FC = () => {
                           </span>
                         )}
                       </div>
+                    </td>
+                    {/* Correo copy button */}
+                    <td className="px-4 py-4 text-center">
+                      <button
+                        type="button"
+                        onClick={() => copyEmailForStudent(student)}
+                        title="Copiar correo al portapapeles"
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                          copyEmailFeedback === student.id
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'
+                        }`}
+                      >
+                        {copyEmailFeedback === student.id ? (
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                        {copyEmailFeedback === student.id ? 'Copiado' : 'Copiar'}
+                      </button>
                     </td>
                   </tr>
                 );
