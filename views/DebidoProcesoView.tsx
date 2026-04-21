@@ -648,12 +648,16 @@ export const DebidoProcesoView: React.FC = () => {
       : 'N/D';
     const today = new Date().toLocaleDateString('es-CO');
     const pendingActs = getDpPendingList(student);
-    const evidenciasHtml = pendingActs.length > 0
-      ? '<ul>' + pendingActs.map((a) => `<li>${dpEscapeHtml(shortEvidenceLabel(a.name))}</li>`).join('') + '</ul>'
-      : 'Sin evidencias pendientes';
-    const evidenciasPlain = pendingActs.length > 0
-      ? pendingActs.map((a) => `• ${shortEvidenceLabel(a.name)}`).join('\n')
-      : 'Sin evidencias pendientes';
+    const evDesc = (a: GradeActivity) =>
+      (a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').replace(/\s+/g, ' ').trim();
+    const evidenciasHtml = pendingActs.length === 0
+      ? '<p>Ninguna evidencia pendiente según los filtros aplicados.</p>'
+      : `<ul style="margin:0.5em 0;padding-left:1.25em;">${pendingActs.map((a) =>
+          `<li style="margin:0.2em 0;"><strong>${dpEscapeHtml(shortEvidenceLabel(a.name))}</strong> — ${dpEscapeHtml(evDesc(a))}</li>`
+        ).join('')}</ul>`;
+    const evidenciasPlain = pendingActs.length === 0
+      ? 'Ninguna evidencia pendiente según los filtros aplicados.'
+      : pendingActs.map((a) => `• ${shortEvidenceLabel(a.name)}: ${evDesc(a)}`).join('\n');
 
     const templates = dpLoadEmailTemplates();
     const tpl = templates[0];
@@ -1137,11 +1141,19 @@ export const DebidoProcesoView: React.FC = () => {
                           </button>
                         )}
                         {dpEvidencePickerPool.map((act) => (
-                          <label key={act.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
+                          <label key={act.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
                             <input type="checkbox" checked={dpSelectedEvidenceIdSet.has(act.id)}
                               onChange={(e) => setDpSelectedEvidenceIds(e.target.checked ? [...dpSelectedEvidenceIds, act.id] : dpSelectedEvidenceIds.filter((id) => id !== act.id))}
-                              className="accent-teal-600 flex-shrink-0" />
-                            <span className="text-xs text-gray-700 truncate" title={act.name}>{shortEvidenceLabel(act.name)}</span>
+                              className="accent-teal-600 flex-shrink-0 mt-0.5" />
+                            <span className="flex-1 min-w-0">
+                              <span className="font-mono text-[11px] font-semibold text-teal-700 block">{shortEvidenceLabel(act.name)}</span>
+                              {(act.detail || act.name) && (
+                                <span className="block text-[11px] text-gray-400 truncate leading-tight mt-0.5"
+                                  title={(act.detail || act.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '')}>
+                                  {(act.detail || act.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '')}
+                                </span>
+                              )}
+                            </span>
                           </label>
                         ))}
                       </>
