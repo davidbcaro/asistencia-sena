@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users, X, BookOpen, ListChecks } from 'lucide-react';
+import { Filter, ChevronLeft, ChevronRight, Search, FileDown, Upload, Users, X, BookOpen, ListChecks, ChevronDown } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
 import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
@@ -214,7 +214,8 @@ export const AsistenciaLmsView: React.FC = () => {
 
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterFase, setFilterFase] = useState<string[]>([]);
-  const [filterEvidenceArea, setFilterEvidenceArea] = useState<string>(ALL_EVIDENCE_AREAS);
+  const [filterEvidenceAreas, setFilterEvidenceAreas] = useState<string[]>([]);
+  const [areaDropdownOpen, setAreaDropdownOpen] = useState(false);
   const [selectedEvidenceIdList, setSelectedEvidenceIdList] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('Todos');
   const [filterNovedad, setFilterNovedad] = useState<string>('Todos');
@@ -272,7 +273,7 @@ export const AsistenciaLmsView: React.FC = () => {
     const handler = (e: MouseEvent) => {
       if (fichaDropdownRef.current && !fichaDropdownRef.current.contains(e.target as Node)) setShowFichaDropdown(false);
       if (faseDropdownRef.current && !faseDropdownRef.current.contains(e.target as Node)) setShowFaseDropdown(false);
-      if (evidencePickerRef.current && !evidencePickerRef.current.contains(e.target as Node)) setEvidencePickerOpen(false);
+      if (evidencePickerRef.current && !evidencePickerRef.current.contains(e.target as Node)) { setEvidencePickerOpen(false); setAreaDropdownOpen(false); }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -300,8 +301,10 @@ export const AsistenciaLmsView: React.FC = () => {
   const lmsEvAreaOptions = useMemo(() => buildEvidenceAreaOptions(evidenceBasePool), [evidenceBasePool]);
 
   const evidencePickerPool = useMemo(
-    () => evidenceBasePool.filter(a => activityMatchesEvidenceArea(a, filterEvidenceArea)),
-    [evidenceBasePool, filterEvidenceArea]
+    () => filterEvidenceAreas.length === 0
+      ? evidenceBasePool
+      : evidenceBasePool.filter(a => filterEvidenceAreas.some(ar => activityMatchesEvidenceArea(a, ar))),
+    [evidenceBasePool, filterEvidenceAreas]
   );
 
   const selectedEvidenceIdSet = useMemo(
@@ -309,10 +312,11 @@ export const AsistenciaLmsView: React.FC = () => {
     [selectedEvidenceIdList]
   );
 
-  // Reset area filter if it's no longer available
+  // Remove any selected areas that are no longer available
   useEffect(() => {
-    if (!lmsEvAreaOptions.includes(filterEvidenceArea)) setFilterEvidenceArea(ALL_EVIDENCE_AREAS);
-  }, [lmsEvAreaOptions, filterEvidenceArea]);
+    const validAreas = new Set(lmsEvAreaOptions.filter(a => a !== ALL_EVIDENCE_AREAS));
+    setFilterEvidenceAreas(prev => prev.filter(a => validAreas.has(a)));
+  }, [lmsEvAreaOptions]);
 
   // Reset selected evidences when pool changes
   useEffect(() => {
@@ -323,9 +327,9 @@ export const AsistenciaLmsView: React.FC = () => {
   const pendingScope = useMemo<EvidencePendingScope>(() => ({
     phaseFilter: filterFase,
     allPhasesLabel: ALL_PHASES_LMS,
-    areaFilter: filterEvidenceArea,
+    areaFilter: filterEvidenceAreas,
     selectedActivityIds: selectedEvidenceIdSet,
-  }), [filterFase, filterEvidenceArea, selectedEvidenceIdSet]);
+  }), [filterFase, filterEvidenceAreas, selectedEvidenceIdSet]);
 
   const toggleFase = (phase: string) => {
     setFilterFase(prev =>
@@ -1023,35 +1027,65 @@ export const AsistenciaLmsView: React.FC = () => {
           <div className="relative" ref={evidencePickerRef}>
             <button
               type="button"
-              onClick={() => { setEvidencePickerOpen(p => !p); setShowFichaDropdown(false); setShowFaseDropdown(false); }}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${evidencePickerOpen ? 'bg-teal-600 border-teal-600 text-white' : (filterEvidenceArea !== ALL_EVIDENCE_AREAS || selectedEvidenceIdList.length > 0) ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              onClick={() => { setEvidencePickerOpen(p => !p); setShowFichaDropdown(false); setShowFaseDropdown(false); setAreaDropdownOpen(false); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${evidencePickerOpen ? 'bg-teal-600 border-teal-600 text-white' : (filterEvidenceAreas.length > 0 || selectedEvidenceIdList.length > 0) ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
             >
               <ListChecks className="w-3.5 h-3.5 flex-shrink-0" />
               <span>Evidencias</span>
-              {(filterEvidenceArea !== ALL_EVIDENCE_AREAS || selectedEvidenceIdList.length > 0) && (
+              {(filterEvidenceAreas.length > 0 || selectedEvidenceIdList.length > 0) && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${evidencePickerOpen ? 'bg-white/20 text-white' : 'bg-teal-500 text-white'}`}>
                   {selectedEvidenceIdList.length > 0 ? `${selectedEvidenceIdList.length}/${evidencePickerPool.length}` : evidencePickerPool.length}
                 </span>
               )}
             </button>
             {evidencePickerOpen && (
-              <div className="absolute left-0 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+              <div className="absolute left-0 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-visible">
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 rounded-t-xl">
                   <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Filtrar evidencias para Pendientes</p>
                 </div>
                 <div className="p-3 space-y-3">
-                  {/* Área */}
+                  {/* Área — dropdown multi-select */}
                   <div>
-                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Área</p>
-                    <select
-                      className="w-full pl-2.5 pr-8 py-1.5 border border-gray-200 rounded-lg text-xs bg-white font-medium text-gray-700 focus:ring-2 focus:ring-teal-500 outline-none"
-                      value={filterEvidenceArea}
-                      onChange={e => { setFilterEvidenceArea(e.target.value); setSelectedEvidenceIdList([]); }}
-                    >
-                      {lmsEvAreaOptions.map(ar => (
-                        <option key={ar} value={ar}>{ar === ALL_EVIDENCE_AREAS ? 'Todas las áreas' : ar}</option>
-                      ))}
-                    </select>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Área</p>
+                      {filterEvidenceAreas.length > 0 && (
+                        <button type="button" onClick={() => { setFilterEvidenceAreas([]); setSelectedEvidenceIdList([]); }}
+                          className="text-[11px] text-teal-600 hover:text-teal-800 font-medium">Todas</button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setAreaDropdownOpen(p => !p)}
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white hover:border-teal-300 transition-colors"
+                      >
+                        <span className={filterEvidenceAreas.length > 0 ? 'font-semibold text-teal-700' : 'text-gray-500'}>
+                          {filterEvidenceAreas.length === 0 ? 'Todas las áreas' : filterEvidenceAreas.length === 1 ? filterEvidenceAreas[0] : `${filterEvidenceAreas.length} áreas`}
+                        </span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${areaDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {areaDropdownOpen && (
+                        <div className="absolute left-0 top-full mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg z-[60] overflow-hidden">
+                          {lmsEvAreaOptions.filter(ar => ar !== ALL_EVIDENCE_AREAS).map(ar => {
+                            const checked = filterEvidenceAreas.includes(ar);
+                            return (
+                              <label key={ar} className={`flex items-center gap-2.5 px-3 py-1.5 cursor-pointer hover:bg-gray-50 transition-colors ${checked ? 'bg-teal-50' : ''}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setFilterEvidenceAreas(prev => checked ? prev.filter(x => x !== ar) : [...prev, ar]);
+                                    setSelectedEvidenceIdList([]);
+                                  }}
+                                  className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 flex-shrink-0"
+                                />
+                                <span className={`text-[11px] font-semibold ${checked ? 'text-teal-700' : 'text-gray-600'}`}>{ar}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   {/* Evidencias individuales */}
                   <div>
@@ -1097,9 +1131,9 @@ export const AsistenciaLmsView: React.FC = () => {
                       }
                     </div>
                   </div>
-                  {(filterEvidenceArea !== ALL_EVIDENCE_AREAS || selectedEvidenceIdList.length > 0) && (
+                  {(filterEvidenceAreas.length > 0 || selectedEvidenceIdList.length > 0) && (
                     <button type="button"
-                      onClick={() => { setFilterEvidenceArea(ALL_EVIDENCE_AREAS); setSelectedEvidenceIdList([]); }}
+                      onClick={() => { setFilterEvidenceAreas([]); setSelectedEvidenceIdList([]); setAreaDropdownOpen(false); }}
                       className="w-full text-center text-xs text-gray-400 hover:text-red-500 py-1 transition-colors">
                       Limpiar filtros
                     </button>

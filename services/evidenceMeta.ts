@@ -87,7 +87,8 @@ export function buildEvidenceAreaOptions(pool: GradeActivity[]): string[] {
 export type EvidencePendingScope = {
   phaseFilter: string | string[];
   allPhasesLabel: string;
-  areaFilter: string;
+  /** string = single area or ALL_EVIDENCE_AREAS sentinel; string[] = multi-select (empty = all) */
+  areaFilter: string | string[];
   /** vacío = todas las evidencias del contexto; si no, solo estos ids */
   selectedActivityIds: Set<string>;
 };
@@ -106,7 +107,13 @@ export function filterActsForPendingEvidence(
       ? fichaActs
       : fichaActs.filter((a) => a.phase === scope.phaseFilter);
   }
-  acts = acts.filter((a) => activityMatchesEvidenceArea(a, scope.areaFilter));
+  if (Array.isArray(scope.areaFilter)) {
+    if (scope.areaFilter.length > 0) {
+      acts = acts.filter((a) => (scope.areaFilter as string[]).some((ar) => activityMatchesEvidenceArea(a, ar)));
+    }
+  } else {
+    acts = acts.filter((a) => activityMatchesEvidenceArea(a, scope.areaFilter as string));
+  }
   if (scope.selectedActivityIds.size > 0) {
     acts = acts.filter((a) => scope.selectedActivityIds.has(a.id));
   }

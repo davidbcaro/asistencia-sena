@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FileDown, FileSpreadsheet, Filter, Pencil, Plus, Trash2, Upload, X, Search, ListChecks } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronLeft, ChevronRight, Eye, EyeOff, FileDown, FileSpreadsheet, Filter, Pencil, Plus, Trash2, Upload, X, Search, ListChecks } from 'lucide-react';
 import { Ficha, GradeActivity, GradeEntry, Student } from '../types';
 import {
   addGradeActivity,
@@ -614,6 +614,7 @@ export const CalificacionesView: React.FC = () => {
   const [selectedPhases, setSelectedPhases] = useState<string[]>([]);
   /** Áreas de competencia seleccionadas (vacío = todas) */
   const [califEvidenceAreaFilters, setCalifEvidenceAreaFilters] = useState<string[]>([]);
+  const [califAreaDropdownOpen, setCalifAreaDropdownOpen] = useState(false);
   /** Tipo de evidencia: 'Todos' | 'Conocimiento' | 'Producto' | 'Desempeño' */
   const [califEvidenceTipoFilter, setCalifEvidenceTipoFilter] = useState<string>('Todos');
   /** Vacío = todas las evidencias del contexto (área + ficha/fase); si no, solo ids listados */
@@ -839,6 +840,7 @@ export const CalificacionesView: React.FC = () => {
   useEffect(() => {
     if (!califEvidencePickerOpen) {
       setCalifEvidenceSearch('');
+      setCalifAreaDropdownOpen(false);
       return;
     }
     const handleClickOutside = (event: MouseEvent) => {
@@ -2735,7 +2737,7 @@ export const CalificacionesView: React.FC = () => {
                   {califEvidencePickerOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setCalifEvidencePickerOpen(false)} />
-                      <div className="absolute left-0 mt-2 w-[480px] rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-hidden">
+                      <div className="absolute left-0 mt-2 w-[480px] rounded-xl border border-gray-200 bg-white shadow-xl z-50 overflow-visible">
                         {/* Header */}
                         <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
                           <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Filtrar evidencias</p>
@@ -2766,7 +2768,7 @@ export const CalificacionesView: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Área — multi-select con checkboxes */}
+                          {/* Área — dropdown multi-select */}
                           <div>
                             <div className="flex items-center justify-between mb-1.5">
                               <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Área</p>
@@ -2780,33 +2782,50 @@ export const CalificacionesView: React.FC = () => {
                                 </button>
                               )}
                             </div>
-                            <div className="rounded-lg border border-gray-100 bg-gray-50 divide-y divide-gray-100">
-                              {califEvAreaOptions
-                                .filter((ar) => ar !== ALL_EVIDENCE_AREAS)
-                                .map((ar) => {
-                                  const checked = califEvidenceAreaFilters.includes(ar);
-                                  return (
-                                    <label
-                                      key={ar}
-                                      className={`flex items-center gap-2.5 px-3 py-1.5 cursor-pointer transition-colors hover:bg-white ${checked ? 'bg-teal-50' : ''}`}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        onChange={() => {
-                                          setCalifEvidenceAreaFilters((prev) => {
-                                            const next = checked ? prev.filter((x) => x !== ar) : [...prev, ar];
-                                            return next;
-                                          });
-                                          setCalifSelectedEvidenceIdList([]);
-                                          setCalifEvidenceSearch('');
-                                        }}
-                                        className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 flex-shrink-0"
-                                      />
-                                      <span className={`text-[11px] font-semibold ${checked ? 'text-teal-700' : 'text-gray-600'}`}>{ar}</span>
-                                    </label>
-                                  );
-                                })}
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setCalifAreaDropdownOpen((p) => !p)}
+                                className="w-full flex items-center justify-between px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white hover:border-teal-300 transition-colors"
+                              >
+                                <span className={califEvidenceAreaFilters.length > 0 ? 'font-semibold text-teal-700' : 'text-gray-500'}>
+                                  {califEvidenceAreaFilters.length === 0
+                                    ? 'Todas las áreas'
+                                    : califEvidenceAreaFilters.length === 1
+                                    ? califEvidenceAreaFilters[0]
+                                    : `${califEvidenceAreaFilters.length} áreas`}
+                                </span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${califAreaDropdownOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                              {califAreaDropdownOpen && (
+                                <div className="absolute left-0 top-full mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg z-[60] overflow-hidden">
+                                  {califEvAreaOptions
+                                    .filter((ar) => ar !== ALL_EVIDENCE_AREAS)
+                                    .map((ar) => {
+                                      const checked = califEvidenceAreaFilters.includes(ar);
+                                      return (
+                                        <label
+                                          key={ar}
+                                          className={`flex items-center gap-2.5 px-3 py-1.5 cursor-pointer hover:bg-gray-50 transition-colors ${checked ? 'bg-teal-50' : ''}`}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => {
+                                              setCalifEvidenceAreaFilters((prev) =>
+                                                checked ? prev.filter((x) => x !== ar) : [...prev, ar]
+                                              );
+                                              setCalifSelectedEvidenceIdList([]);
+                                              setCalifEvidenceSearch('');
+                                            }}
+                                            className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 flex-shrink-0"
+                                          />
+                                          <span className={`text-[11px] font-semibold ${checked ? 'text-teal-700' : 'text-gray-600'}`}>{ar}</span>
+                                        </label>
+                                      );
+                                    })}
+                                </div>
+                              )}
                             </div>
                           </div>
 
