@@ -461,6 +461,8 @@ export const DebidoProcesoView: React.FC = () => {
   const [dpFilterFase, setDpFilterFase] = useState<string[]>([]);
   const [dpFaseDropdownOpen, setDpFaseDropdownOpen] = useState(false);
   const dpFaseDropdownRef = useRef<HTMLDivElement>(null);
+  const [showDpFichaFilter, setShowDpFichaFilter] = useState(false);
+  const dpFichaFilterRef = useRef<HTMLDivElement>(null);
   const [dpFilterEvidenceAreas, setDpFilterEvidenceAreas] = useState<string[]>([]);
   const [dpAreaDropdownOpen, setDpAreaDropdownOpen] = useState(false);
   const [dpSelectedEvidenceIds, setDpSelectedEvidenceIds] = useState<string[]>([]);
@@ -998,101 +1000,155 @@ export const DebidoProcesoView: React.FC = () => {
             <strong className="text-gray-900">{filteredList.length}</strong> aprendices
           </div>
 
-          {/* Fase filter */}
-          <div className="relative" ref={dpFaseDropdownRef}>
+          <div className="hidden sm:block w-px h-6 bg-gray-200" />
+
+          {/* Filtro Ficha */}
+          <div className="relative" ref={dpFichaFilterRef}>
             <button
               type="button"
-              onClick={() => { setDpFaseDropdownOpen((o) => !o); setDpEvidencePickerOpen(false); }}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${dpFilterFase.length > 0 ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:border-teal-400'}`}
+              onClick={() => { setShowDpFichaFilter((o) => !o); setDpFaseDropdownOpen(false); setDpEvidencePickerOpen(false); closeAllFilters(); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${showDpFichaFilter ? 'bg-teal-600 border-teal-600 text-white' : filterFicha !== 'Todas' ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
             >
-              Fase
-              {dpFilterFase.length > 0 && <span className="bg-teal-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">{dpFilterFase.length}</span>}
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dpFaseDropdownOpen ? 'rotate-180' : ''}`} />
+              <Filter className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>Ficha</span>
+              {filterFicha !== 'Todas' && (
+                <span className={`text-xs font-semibold max-w-[6rem] truncate ${showDpFichaFilter ? 'text-teal-100' : 'text-teal-600'}`}>{filterFicha}</span>
+              )}
             </button>
-            {dpFaseDropdownOpen && (
-              <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[13rem] py-1">
-                <button type="button" onClick={() => setDpFilterFase([])}
-                  className={`w-full text-left px-3 py-2 text-sm ${dpFilterFase.length === 0 ? 'text-teal-700 font-medium bg-teal-50' : 'text-gray-700 hover:bg-gray-50'}`}>
-                  Todas las fases
-                </button>
-                {dpPhaseOptions.map((phase) => (
-                  <label key={phase} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <input type="checkbox" checked={dpFilterFase.includes(phase)}
-                      onChange={(e) => setDpFilterFase(e.target.checked ? [...dpFilterFase, phase] : dpFilterFase.filter((p) => p !== phase))}
-                      className="accent-teal-600" />
-                    <span className="truncate">{phase}</span>
-                  </label>
-                ))}
-              </div>
+            {showDpFichaFilter && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowDpFichaFilter(false)} />
+                <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                  {[{ code: 'Todas', label: 'Todas las fichas' }, ...fichas.map((f) => ({ code: f.code, label: `${f.code} — ${f.program || f.code}` }))].map((opt) => (
+                    <button key={opt.code} type="button"
+                      onClick={() => { setFilterFicha(opt.code); setShowDpFichaFilter(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${filterFicha === opt.code ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
-          {/* Evidencias picker */}
+          {/* Filtro Fase */}
+          <div className="relative" ref={dpFaseDropdownRef}>
+            <button
+              type="button"
+              onClick={() => { setDpFaseDropdownOpen((o) => !o); setDpEvidencePickerOpen(false); closeAllFilters(); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${dpFaseDropdownOpen ? 'bg-teal-600 border-teal-600 text-white' : dpFilterFase.length > 0 ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+            >
+              <Filter className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>Fase</span>
+              {dpFilterFase.length === 1 && (
+                <span className={`text-xs font-semibold max-w-[7rem] truncate ${dpFaseDropdownOpen ? 'text-teal-100' : 'text-teal-600'}`}>{dpFilterFase[0].replace(/^Fase \d+:?\s*/, '')}</span>
+              )}
+              {dpFilterFase.length > 1 && (
+                <span className={`text-xs font-semibold ${dpFaseDropdownOpen ? 'text-teal-100' : 'text-teal-600'}`}>{dpFilterFase.length} fases</span>
+              )}
+            </button>
+            {dpFaseDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setDpFaseDropdownOpen(false)} />
+                <div className="absolute left-0 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-72 overflow-y-auto">
+                  <button type="button" onClick={() => setDpFilterFase([])}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 hover:text-teal-700 transition-colors ${dpFilterFase.length === 0 ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}>
+                    📋 Todas las fases
+                  </button>
+                  <div className="border-t border-gray-100 my-1" />
+                  {dpPhaseOptions.map((phase) => {
+                    const checked = dpFilterFase.includes(phase);
+                    return (
+                      <label key={phase} className={`flex items-center gap-2.5 px-4 py-2 text-sm cursor-pointer hover:bg-teal-50 hover:text-teal-700 transition-colors ${checked ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}>
+                        <input type="checkbox" checked={checked}
+                          onChange={() => setDpFilterFase((prev) => checked ? prev.filter((p) => p !== phase) : [...prev, phase])}
+                          className="w-3.5 h-3.5 rounded accent-teal-600 flex-shrink-0" />
+                        {phase}
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Filtro Evidencias */}
           <div className="relative" ref={dpEvidencePickerRef}>
             <button
               type="button"
-              onClick={() => { setDpEvidencePickerOpen((o) => !o); setDpFaseDropdownOpen(false); }}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${(dpFilterEvidenceAreas.length > 0 || dpSelectedEvidenceIds.length > 0) ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-white border-gray-300 text-gray-700 hover:border-teal-400'}`}
+              onClick={() => { setDpEvidencePickerOpen((o) => !o); setDpFaseDropdownOpen(false); closeAllFilters(); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shadow-sm whitespace-nowrap ${
+                dpEvidencePickerOpen
+                  ? 'bg-teal-600 border-teal-600 text-white'
+                  : (dpFilterEvidenceAreas.length > 0 || dpSelectedEvidenceIds.length > 0)
+                    ? 'bg-teal-50 border-teal-300 text-teal-700'
+                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
             >
-              <ListChecks className="w-4 h-4" />
-              Evidencias
-              {dpSelectedEvidenceIds.length > 0 && <span className="bg-teal-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">{dpSelectedEvidenceIds.length}</span>}
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${dpEvidencePickerOpen ? 'rotate-180' : ''}`} />
+              <ListChecks className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>Evidencias</span>
+              {(dpFilterEvidenceAreas.length > 0 || dpSelectedEvidenceIds.length > 0) && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${dpEvidencePickerOpen ? 'bg-white/20 text-white' : 'bg-teal-500 text-white'}`}>
+                  {dpSelectedEvidenceIds.length > 0 ? dpSelectedEvidenceIds.length : dpEvidencePickerPool.length}
+                </span>
+              )}
             </button>
             {dpEvidencePickerOpen && (
-              <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-72 overflow-visible">
-                {/* Area sub-filter */}
-                <div className="px-3 pt-3 pb-2 border-b border-gray-100">
-                  <div className="relative">
-                    <button type="button"
-                      onClick={() => setDpAreaDropdownOpen((o) => !o)}
-                      className={`w-full inline-flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${dpFilterEvidenceAreas.length > 0 ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-white border-gray-300 text-gray-600 hover:border-teal-400'}`}
-                    >
-                      <span>{dpFilterEvidenceAreas.length === 0 ? 'Todas las áreas' : `${dpFilterEvidenceAreas.length} área(s)`}</span>
-                      <ChevronDown className={`w-3 h-3 flex-shrink-0 transition-transform ${dpAreaDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {dpAreaDropdownOpen && (
-                      <div className="absolute left-0 top-full mt-1 z-[60] bg-white border border-gray-200 rounded-lg shadow-xl min-w-full py-1 max-h-48 overflow-y-auto">
-                        <button type="button" onClick={() => setDpFilterEvidenceAreas([])}
-                          className={`w-full text-left px-3 py-2 text-xs ${dpFilterEvidenceAreas.length === 0 ? 'text-teal-700 font-medium bg-teal-50' : 'text-gray-700 hover:bg-gray-50'}`}>
-                          Todas las áreas
-                        </button>
-                        {dpEvAreaOptions.filter((a) => a !== ALL_EVIDENCE_AREAS).map((area) => (
-                          <label key={area} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 cursor-pointer">
-                            <input type="checkbox" checked={dpFilterEvidenceAreas.includes(area)}
-                              onChange={(e) => setDpFilterEvidenceAreas(e.target.checked ? [...dpFilterEvidenceAreas, area] : dpFilterEvidenceAreas.filter((a) => a !== area))}
-                              className="accent-teal-600" />
-                            {area}
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => { setDpEvidencePickerOpen(false); setDpAreaDropdownOpen(false); }} />
+                <div className="absolute left-0 mt-2 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-72 overflow-visible">
+                  {/* Area sub-filter */}
+                  <div className="px-3 pt-3 pb-2 border-b border-gray-100">
+                    <div className="relative">
+                      <button type="button"
+                        onClick={(e) => { e.stopPropagation(); setDpAreaDropdownOpen((o) => !o); }}
+                        className={`w-full inline-flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${dpFilterEvidenceAreas.length > 0 ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-white border-gray-300 text-gray-600 hover:border-teal-400'}`}
+                      >
+                        <span>{dpFilterEvidenceAreas.length === 0 ? 'Todas las áreas' : `${dpFilterEvidenceAreas.length} área(s)`}</span>
+                        <ChevronDown className={`w-3 h-3 flex-shrink-0 transition-transform ${dpAreaDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {dpAreaDropdownOpen && (
+                        <div className="absolute left-0 top-full mt-1 z-[60] bg-white border border-gray-200 rounded-lg shadow-xl min-w-full py-1 max-h-48 overflow-y-auto">
+                          <button type="button" onClick={() => setDpFilterEvidenceAreas([])}
+                            className={`w-full text-left px-3 py-2 text-xs ${dpFilterEvidenceAreas.length === 0 ? 'text-teal-700 font-medium bg-teal-50' : 'text-gray-700 hover:bg-gray-50'}`}>
+                            Todas las áreas
+                          </button>
+                          {dpEvAreaOptions.filter((a) => a !== ALL_EVIDENCE_AREAS).map((area) => (
+                            <label key={area} className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 cursor-pointer">
+                              <input type="checkbox" checked={dpFilterEvidenceAreas.includes(area)}
+                                onChange={(e) => setDpFilterEvidenceAreas(e.target.checked ? [...dpFilterEvidenceAreas, area] : dpFilterEvidenceAreas.filter((a) => a !== area))}
+                                className="accent-teal-600" />
+                              {area}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Evidence list */}
+                  <div className="max-h-56 overflow-y-auto px-2 py-2 space-y-0.5">
+                    {dpEvidencePickerPool.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-4">Sin evidencias</p>
+                    ) : (
+                      <>
+                        {dpSelectedEvidenceIds.length > 0 && (
+                          <button type="button" onClick={() => setDpSelectedEvidenceIds([])}
+                            className="w-full text-left px-2 py-1 text-xs text-teal-600 hover:text-teal-700 font-medium">
+                            Limpiar selección ({dpSelectedEvidenceIds.length})
+                          </button>
+                        )}
+                        {dpEvidencePickerPool.map((act) => (
+                          <label key={act.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" checked={dpSelectedEvidenceIdSet.has(act.id)}
+                              onChange={(e) => setDpSelectedEvidenceIds(e.target.checked ? [...dpSelectedEvidenceIds, act.id] : dpSelectedEvidenceIds.filter((id) => id !== act.id))}
+                              className="accent-teal-600 flex-shrink-0" />
+                            <span className="text-xs text-gray-700 truncate" title={act.name}>{shortEvidenceLabel(act.name)}</span>
                           </label>
                         ))}
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>
-                {/* Evidence list */}
-                <div className="max-h-56 overflow-y-auto px-2 py-2 space-y-0.5">
-                  {dpEvidencePickerPool.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-4">Sin evidencias</p>
-                  ) : (
-                    <>
-                      {dpSelectedEvidenceIds.length > 0 && (
-                        <button type="button" onClick={() => setDpSelectedEvidenceIds([])}
-                          className="w-full text-left px-2 py-1 text-xs text-teal-600 hover:text-teal-700 font-medium">
-                          Limpiar selección ({dpSelectedEvidenceIds.length})
-                        </button>
-                      )}
-                      {dpEvidencePickerPool.map((act) => (
-                        <label key={act.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
-                          <input type="checkbox" checked={dpSelectedEvidenceIdSet.has(act.id)}
-                            onChange={(e) => setDpSelectedEvidenceIds(e.target.checked ? [...dpSelectedEvidenceIds, act.id] : dpSelectedEvidenceIds.filter((id) => id !== act.id))}
-                            className="accent-teal-600 flex-shrink-0" />
-                          <span className="text-xs text-gray-700 truncate" title={act.name}>{shortEvidenceLabel(act.name)}</span>
-                        </label>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </div>
+              </>
             )}
           </div>
 
