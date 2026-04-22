@@ -809,16 +809,24 @@ export const PlaneacionSemanalView: React.FC = () => {
       return lum > 0.23 ? 'FF1F2937' : 'FFFFFFFF'; // dark text on light bg, white on dark
     };
 
-    const WEEK_OFFSET = 2; // col 1 = label, cols 2..N = weeks
+    const WEEK_OFFSET = 2; // col 1 = label, cols 2..N = weeks + guías
     const durations = planeacion.cardDurations ?? {};
     const hidden = new Set(planeacion.hiddenCards ?? []);
 
-    // Replicate planRow span logic to know which weeks are merged
-    const buildSpans = (rowKey: string, isTecnica: boolean) => {
-      const consumedW = new Set<number>();
+    // weekIdx or vIdx → Excel column number (1-based)
+    const colFor = new Map<number, number>();
+    orderedCols.forEach((col, i) => {
+      colFor.set(col.type === 'week' ? col.idx : col.g.vIdx, i + WEEK_OFFSET);
+    });
+
+    // Span plan that includes guía columns (mirrors planRow logic)
+    const buildSpans = (rowKey: string, isTecnica: boolean): Array<{ weekIdx: number; span: 1 | 2 }> => {
+      const consumed = new Set<number>();
       const cells: Array<{ weekIdx: number; span: 1 | 2 }> = [];
-      for (const w of weeks) {
-        if (consumedW.has(w)) continue;
+      for (const col of orderedCols) {
+        if (col.type === 'guia') { cells.push({ weekIdx: col.g.vIdx, span: 1 }); continue; }
+        const w = col.idx;
+        if (consumed.has(w)) continue;
         const labels = planeacion.transversalCells[`${rowKey}::${w}`] ?? [];
         const assigned = isTecnica
           ? activities.filter(a => planeacion.tecnicaAssignments[a.id] === w)
@@ -828,24 +836,22 @@ export const PlaneacionSemanalView: React.FC = () => {
           assigned.some(a => (durations[`act::${a.id}`] ?? 1) === 2);
         const span: 1 | 2 = hasSpan2 ? 2 : 1;
         cells.push({ weekIdx: w, span });
-        if (span === 2) consumedW.add(w + 1);
+        if (span === 2) consumed.add(w + 1);
       }
       return cells;
     };
 
-    // Parse "DD/MM/YYYY" string → UTC Date for Excel
     const parseDdMmYyyy = (full: string): Date => {
       const [dd, mm, yyyy] = full.split('/').map(Number);
       return new Date(Date.UTC(yyyy, mm - 1, dd));
     };
-    // Column number (1-based) → Excel column letter (A, B, … AA, AB, …)
     const colLetter = (n: number): string => {
       let s = '';
       while (n > 0) { s = String.fromCharCode(64 + ((n - 1) % 26 + 1)) + s; n = Math.floor((n - 1) / 26); }
       return s;
     };
 
-    // ── ROW 1: Phase headers ──────────────────────────────────────────────────
+    // ── ROW 1: Phase headers (span includes guía columns) ─────────────────────
     const r1 = ws.addRow([null]);
     r1.height = 22;
     r1.getCell(1).value = 'Fase / Semana';
@@ -855,69 +861,98 @@ export const PlaneacionSemanalView: React.FC = () => {
     let colCursor = WEEK_OFFSET;
     for (const span of phaseSpans) {
       const startCol = colCursor;
-      const endCol = colCursor + span.count - 1;
-      if (span.count > 1) ws.mergeCells(1, startCol, 1, endCol);
+      const endCol = colCursor + span.colSpan - 1;
+      if (span.colSpan > 1) ws.mergeCells(1, startCol, 1, endCol);
       const cell = r1.getCell(startCol);
       cell.value = span.phase.replace('Fase Inducción', 'Inducción').replace('Fase ', '') + ` (${span.count}s)`;
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(span.color) } };
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      colCursor += span.count;
+      colCursor += span.colSpan;
     }
 
-    // ── ROW 2: Week labels ────────────────────────────────────────────────────
+    // ── ROW 2: Week / Guía labels ─────────────────────────────────────────────
     const r2 = ws.addRow(['Semana']);
     r2.height = 18;
     r2.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
     r2.getCell(1).font = { bold: true, size: 8, color: { argb: 'FF374151' } };
     r2.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    weeks.forEach(w => {
-      const cell = r2.getCell(w + WEEK_OFFSET);
-      const seg = effectiveWeekPhaseMap[w];
-      cell.value = weekLabel(w);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.78) } };
-      cell.font = { bold: true, size: 7, color: { argb: 'FF374151' } };
+    orderedCols.forEach((col, i) => {
+      const excelCol = i + WEEK_OFFSET;
+      const cell = r2.getCell(excelCol);
+      if (col.type === 'guia') {
+        const phaseColor = PHASE_SEGMENTS.find(p => p.phase === col.g.phase)?.color ?? '#6b7280';
+        cell.value = col.g.name;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(phaseColor, 0.78) } };
+        cell.font = { bold: true, size: 7, color: { argb: toARGB(phaseColor) } };
+      } else {
+        const seg = effectiveWeekPhaseMap[col.idx];
+        cell.value = weekLabel(col.idx);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.78) } };
+        cell.font = { bold: true, size: 7, color: { argb: 'FF374151' } };
+      }
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
     });
 
-    // ── ROW 3: Start dates ────────────────────────────────────────────────────
+    // ── ROW 3: Start dates (guía columns show "—") ───────────────────────────
     const r3dates = ws.addRow(['Fecha inicio']);
     r3dates.height = 18;
     r3dates.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
     r3dates.getCell(1).font = { bold: true, size: 8, color: { argb: 'FF374151' } };
     r3dates.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     const overrides = planeacion.weekDateOverrides ?? {};
-    weeks.forEach((w, i) => {
-      const col = w + WEEK_OFFSET;
-      const cell = r3dates.getCell(col);
-      const seg = effectiveWeekPhaseMap[w];
-      // First week or explicit override → fixed date; otherwise formula =PREV_START+7
-      if (i === 0 || overrides[w]) {
-        cell.value = parseDdMmYyyy(weekDates.starts[w]);
+    let prevWeekExcelCol: number | null = null;
+    let weekSeqIdx = 0;
+    orderedCols.forEach((col, i) => {
+      const excelCol = i + WEEK_OFFSET;
+      const cell = r3dates.getCell(excelCol);
+      if (col.type === 'guia') {
+        const phaseColor = PHASE_SEGMENTS.find(p => p.phase === col.g.phase)?.color ?? '#6b7280';
+        cell.value = '—';
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(phaseColor, 0.78) } };
+        cell.font = { size: 7, color: { argb: 'FF9CA3AF' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else {
-        cell.value = { formula: `=${colLetter(col - 1)}3+7` };
+        const w = col.idx;
+        const seg = effectiveWeekPhaseMap[w];
+        if (weekSeqIdx === 0 || overrides[w]) {
+          cell.value = parseDdMmYyyy(weekDates.starts[w]);
+        } else {
+          cell.value = { formula: `=${colLetter(prevWeekExcelCol!)}3+7` };
+        }
+        cell.numFmt = 'DD/MM/YYYY';
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.78) } };
+        cell.font = { size: 7, color: { argb: 'FF374151' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        prevWeekExcelCol = excelCol;
+        weekSeqIdx++;
       }
-      cell.numFmt = 'DD/MM/YYYY';
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.78) } };
-      cell.font = { size: 7, color: { argb: 'FF374151' } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
     });
 
-    // ── ROW 4: End dates (start + 6) ─────────────────────────────────────────
+    // ── ROW 4: End dates (guía columns show "—") ─────────────────────────────
     const r4dates = ws.addRow(['Fecha fin']);
     r4dates.height = 18;
     r4dates.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
     r4dates.getCell(1).font = { bold: true, size: 8, color: { argb: 'FF374151' } };
     r4dates.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-    weeks.forEach(w => {
-      const col = w + WEEK_OFFSET;
-      const cell = r4dates.getCell(col);
-      const seg = effectiveWeekPhaseMap[w];
-      cell.value = { formula: `=${colLetter(col)}3+6` };
-      cell.numFmt = 'DD/MM/YYYY';
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.85) } };
-      cell.font = { size: 7, color: { argb: 'FF374151' } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    orderedCols.forEach((col, i) => {
+      const excelCol = i + WEEK_OFFSET;
+      const cell = r4dates.getCell(excelCol);
+      if (col.type === 'guia') {
+        const phaseColor = PHASE_SEGMENTS.find(p => p.phase === col.g.phase)?.color ?? '#6b7280';
+        cell.value = '—';
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(phaseColor, 0.85) } };
+        cell.font = { size: 7, color: { argb: 'FF9CA3AF' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      } else {
+        const w = col.idx;
+        const seg = effectiveWeekPhaseMap[w];
+        cell.value = { formula: `=${colLetter(excelCol)}3+6` };
+        cell.numFmt = 'DD/MM/YYYY';
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(seg?.color ?? '#E5E7EB', 0.85) } };
+        cell.font = { size: 7, color: { argb: 'FF374151' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      }
     });
 
     // ── ROW 5: Técnica ────────────────────────────────────────────────────────
@@ -928,8 +963,8 @@ export const PlaneacionSemanalView: React.FC = () => {
     r3.getCell(1).font = { bold: true, size: 9, color: { argb: contrastARGB(TECNICA_COLOR) } };
     r3.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
     for (const { weekIdx: w, span } of buildSpans('Técnica', true)) {
-      const startCol = w + WEEK_OFFSET;
-      if (span === 2 && w + 1 < effectiveTotalWeeks) ws.mergeCells(5, startCol, 5, startCol + 1);
+      const startCol = colFor.get(w)!;
+      if (span === 2 && colFor.has(w + 1)) ws.mergeCells(5, startCol, 5, colFor.get(w + 1)!);
       const assigned = activities.filter(a => planeacion.tecnicaAssignments[a.id] === w);
       const textLabels = (planeacion.transversalCells[`Técnica::${w}`] ?? []).filter(lbl => !hidden.has(`lbl::Técnica::${lbl}`));
       const allContent = [
@@ -939,27 +974,29 @@ export const PlaneacionSemanalView: React.FC = () => {
       const cell = r3.getCell(startCol);
       if (allContent.length > 0) {
         cell.value = allContent.join('\n');
-        const { color } = assigned.length > 0 ? getActivityAreaStyle(assigned[0].name) : { color: TECNICA_COLOR };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(color) } };
-        cell.font = { bold: true, color: { argb: contrastARGB(color) }, size: 8 };
+        const isGuia = w >= 2000;
+        const fillColor = isGuia ? (guiaColorMap.get(w) ?? TECNICA_COLOR) : (assigned.length > 0 ? getActivityAreaStyle(assigned[0].name).color : TECNICA_COLOR);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(fillColor) } };
+        cell.font = { bold: true, color: { argb: contrastARGB(fillColor) }, size: 8 };
+      } else if (w >= 2000) {
+        const phaseColor = guiaColorMap.get(w);
+        if (phaseColor) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(phaseColor, 0.85) } };
       }
-      // Empty cells: no fill — leave white
       cell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
     }
 
-    // ── ROWS 4+: Transversal rows ─────────────────────────────────────────────
+    // ── ROWS 6+: Transversal rows ─────────────────────────────────────────────
     for (const row of TRANSVERSAL_ROWS) {
       const exRow = ws.addRow([null]);
       exRow.height = 28;
       const rowNum = exRow.number;
-      // Label cell: full color with proper contrast text
       exRow.getCell(1).value = row.label;
       exRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(row.color) } };
       exRow.getCell(1).font = { bold: true, color: { argb: contrastARGB(row.color) }, size: 9 };
       exRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
       for (const { weekIdx: w, span } of buildSpans(row.key, false)) {
-        const startCol = w + WEEK_OFFSET;
-        if (span === 2 && w + 1 < effectiveTotalWeeks) ws.mergeCells(rowNum, startCol, rowNum, startCol + 1);
+        const startCol = colFor.get(w)!;
+        if (span === 2 && colFor.has(w + 1)) ws.mergeCells(rowNum, startCol, rowNum, colFor.get(w + 1)!);
         const assignedToRow = activities.filter(a => (planeacion.transversalAssignments ?? {})[a.id]?.rowKey === row.key && (planeacion.transversalAssignments ?? {})[a.id]?.weekIdx === w && !hidden.has(`act::${a.id}`));
         const labels = (planeacion.transversalCells[`${row.key}::${w}`] ?? []).filter(lbl => !hidden.has(`lbl::${row.key}::${lbl}`));
         const allContent = [
@@ -971,15 +1008,17 @@ export const PlaneacionSemanalView: React.FC = () => {
           cell.value = allContent.join('\n');
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: toARGB(row.color) } };
           cell.font = { size: 8, color: { argb: contrastARGB(row.color) } };
+        } else if (w >= 2000) {
+          const phaseColor = guiaColorMap.get(w);
+          if (phaseColor) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lighten(phaseColor, 0.85) } };
         }
-        // Empty cells: no fill — leave white
         cell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
       }
     }
 
     // ── Column widths ─────────────────────────────────────────────────────────
     ws.getColumn(1).width = 24;
-    weeks.forEach((_, idx) => { ws.getColumn(idx + WEEK_OFFSET).width = 10; });
+    orderedCols.forEach((_, idx) => { ws.getColumn(idx + WEEK_OFFSET).width = 10; });
 
     // ── Borders ───────────────────────────────────────────────────────────────
     ws.eachRow(row => {
@@ -1007,7 +1046,7 @@ export const PlaneacionSemanalView: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [ficha, weeks, phaseSpans, effectiveWeekPhaseMap, effectiveTotalWeeks, activities, planeacion, weekLabel, weekDates]);
+  }, [ficha, orderedCols, phaseSpans, effectiveWeekPhaseMap, effectiveTotalWeeks, activities, planeacion, weekLabel, weekDates, guiaColorMap]);
 
   // ── Guía column management ────────────────────────────────────────────────
   const addGuiaColumn = (name: string, posStr: string) => {
