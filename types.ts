@@ -87,6 +87,14 @@ export interface GradeEntry {
   updatedAt: string;
 }
 
+export interface GuiaColumn {
+  id: string;               // unique ID e.g. "guia_1700000000"
+  name: string;             // display name e.g. "Guía 1"
+  vIdx: number;             // virtual index ≥ 2000, assigned at creation, never changes
+  insertAfterWeekIdx: number; // real weekIdx after which this column appears (-1 = before first)
+  phase: string;            // phase name for color inheritance
+}
+
 export interface PlaneacionSemanalFichaData {
   /** GradeActivity.id → 0-based global weekIndex (0 = W1 … 95 = W96). Absent = sin asignar. */
   tecnicaAssignments: Record<string, number>;
@@ -103,6 +111,10 @@ export interface PlaneacionSemanalFichaData {
   weekDateOverrides: Record<number, string>;
   /** phaseName → custom week count (overrides PHASE_SEGMENTS default) */
   phaseWeekCounts: Record<string, number>;
+  /** Guía columns inserted between real week columns */
+  guiaColumns?: GuiaColumn[];
+  /** Next virtual index to assign (starts at 2000, increments by 1 each time) */
+  guiaVIdxCounter?: number;
   /** ISO timestamp of the last save — used to resolve conflicts across devices (newer wins) */
   updatedAt?: string;
 }

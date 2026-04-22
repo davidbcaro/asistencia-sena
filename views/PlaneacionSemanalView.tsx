@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, Copy, Download, Eye, EyeOff, GripVertical, X } from 'lucide-react';
-import { Ficha, GradeActivity, PlaneacionSemanalFichaData } from '../types';
+import { Ficha, GradeActivity, GuiaColumn, PlaneacionSemanalFichaData } from '../types';
 import { deleteGradeActivity, getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
 
 // ─── Phase structure (matches PLANEACION SEMANAL GRD.xlsx exactly) ──────────
@@ -19,6 +19,8 @@ const TOTAL_WEEKS = PHASE_SEGMENTS.reduce((s, p) => s + p.count, 0); // 106
 // Pre-build weekIndex → phase segment
 const WEEK_PHASE_MAP: typeof PHASE_SEGMENTS[number][] = [];
 for (const seg of PHASE_SEGMENTS) for (let i = 0; i < seg.count; i++) WEEK_PHASE_MAP.push(seg);
+
+type ColDesc = { type: 'week'; idx: number } | { type: 'guia'; g: GuiaColumn };
 
 // Week dates: base 29/09/2025.
 // All arithmetic uses UTC milliseconds (86 400 000 ms/day exactly) so DST
@@ -315,6 +317,11 @@ export const PlaneacionSemanalView: React.FC = () => {
   const [datePickerWeek,    setDatePickerWeek]    = useState<number | null>(null);
   const [editingPhase,      setEditingPhase]      = useState<string | null>(null);
 
+  // ── Columnas Guía ─────────────────────────────────────────────────────────
+  const [showAddGuia,  setShowAddGuia]  = useState(false);
+  const [addGuiaName,  setAddGuiaName]  = useState('Guía 1');
+  const [addGuiaAfter, setAddGuiaAfter] = useState<number>(-1);
+
   // ── Copiar planeación a otras fichas ──────────────────────────────────────
   const [copyModalOpen,   setCopyModalOpen]   = useState(false);
   const [copyTargetIds,   setCopyTargetIds]   = useState<Set<string>>(new Set());
@@ -342,6 +349,22 @@ export const PlaneacionSemanalView: React.FC = () => {
     for (const seg of effectiveSegments) for (let i = 0; i < seg.count; i++) map.push(seg);
     return map;
   }, [effectiveSegments]);
+
+  // ── Ordered columns: interleaves real weeks with Guía columns ───────────────
+  const orderedCols = useMemo((): ColDesc[] => {
+    const result: ColDesc[] = [];
+    const guias = planeacion.guiaColumns ?? [];
+    guias.filter(g => g.insertAfterWeekIdx === -1)
+         .sort((a, b) => a.vIdx - b.vIdx)
+         .forEach(g => result.push({ type: 'guia', g }));
+    for (let w = 0; w < effectiveTotalWeeks; w++) {
+      result.push({ type: 'week', idx: w });
+      guias.filter(g => g.insertAfterWeekIdx === w)
+           .sort((a, b) => a.vIdx - b.vIdx)
+           .forEach(g => result.push({ type: 'guia', g }));
+    }
+    return result;
+  }, [effectiveTotalWeeks, planeacion.guiaColumns]);
 
   // ── Computed week dates (recalculate whenever overrides or phase counts change) ─
   const weekDates = useMemo(
@@ -690,7 +713,12 @@ export const PlaneacionSemanalView: React.FC = () => {
     const consumed = new Set<number>();
     const durations = planeacion.cardDurations ?? {};
     const tvAssign = planeacion.transversalAssignments ?? {};
-    for (let w = 0; w < effectiveTotalWeeks; w++) {
+    for (const col of orderedCols) {
+      if (col.type === 'guia') {
+        result.push({ weekIdx: col.g.vIdx, span: 1 });
+        continue;
+      }
+      const w = col.idx;
       if (consumed.has(w)) continue;
       const labels   = planeacion.transversalCells[`${rowKey}::${w}`] ?? [];
       const assigned = isTecnica
@@ -705,7 +733,7 @@ export const PlaneacionSemanalView: React.FC = () => {
       if (span === 2) consumed.add(w + 1);
     }
     return result;
-  }, [planeacion, activities, effectiveTotalWeeks]);
+  }, [planeacion, activities, effectiveTotalWeeks, orderedCols]);
 
   // ── Derived geometry (based on effective segments) ───────────────────────
   const weeks = useMemo(
@@ -713,13 +741,16 @@ export const PlaneacionSemanalView: React.FC = () => {
     [effectiveTotalWeeks],
   );
   const phaseSpans = useMemo(() => {
+    const guias = planeacion.guiaColumns ?? [];
     let idx = 0;
     return effectiveSegments.map(seg => {
-      const span = { ...seg, start: idx };
-      idx += seg.count;
+      const guiaCount = guias.filter(g => g.phase === seg.phase).length;
+      const colSpan = seg.count + guiaCount;
+      const span = { ...seg, start: idx, colSpan };
+      idx += colSpan;
       return span;
     });
-  }, [effectiveSegments]);
+  }, [effectiveSegments, planeacion.guiaColumns]);
 
   // Week label within its phase: S1, S2, …
   const weekLabel = useCallback((w: number): string => {
@@ -967,6 +998,42 @@ export const PlaneacionSemanalView: React.FC = () => {
     URL.revokeObjectURL(url);
   }, [ficha, weeks, phaseSpans, effectiveWeekPhaseMap, effectiveTotalWeeks, activities, planeacion, weekLabel, weekDates]);
 
+  // ── Guía column management ────────────────────────────────────────────────
+  const addGuiaColumn = (name: string, insertAfterWeekIdx: number) => {
+    const vIdx = planeacion.guiaVIdxCounter ?? 2000;
+    const phase = insertAfterWeekIdx === -1
+      ? effectiveSegments[0].phase
+      : (effectiveWeekPhaseMap[insertAfterWeekIdx]?.phase ?? effectiveSegments[0].phase);
+    const newGuia: GuiaColumn = { id: `guia_${Date.now()}`, name, vIdx, insertAfterWeekIdx, phase };
+    persist({
+      ...planeacion,
+      guiaColumns: [...(planeacion.guiaColumns ?? []), newGuia],
+      guiaVIdxCounter: vIdx + 1,
+    });
+    setShowAddGuia(false);
+    setAddGuiaName('Guía 1');
+    setAddGuiaAfter(-1);
+  };
+
+  const deleteGuiaColumn = (guiaId: string) => {
+    const guia = (planeacion.guiaColumns ?? []).find(g => g.id === guiaId);
+    if (!guia) return;
+    const vIdx = guia.vIdx;
+    const tecnica = { ...planeacion.tecnicaAssignments };
+    Object.keys(tecnica).forEach(k => { if (tecnica[k] === vIdx) delete tecnica[k]; });
+    const tvAssign = { ...(planeacion.transversalAssignments ?? {}) };
+    Object.keys(tvAssign).forEach(k => { if (tvAssign[k].weekIdx === vIdx) delete tvAssign[k]; });
+    const cells = { ...planeacion.transversalCells };
+    Object.keys(cells).forEach(k => { if (k.endsWith(`::${vIdx}`)) delete cells[k]; });
+    persist({
+      ...planeacion,
+      guiaColumns: (planeacion.guiaColumns ?? []).filter(g => g.id !== guiaId),
+      tecnicaAssignments: tecnica,
+      transversalAssignments: tvAssign,
+      transversalCells: cells,
+    });
+  };
+
   if (!ficha) return <div className="flex items-center justify-center h-64 text-gray-400">Cargando…</div>;
 
   return (
@@ -985,6 +1052,13 @@ export const PlaneacionSemanalView: React.FC = () => {
             {ficha.program} · {effectiveTotalWeeks} semanas · {activities.length} evidencia(s) técnica(s)
           </p>
         </div>
+        <button
+          onClick={() => { setAddGuiaName(`Guía ${(planeacion.guiaColumns ?? []).length + 1}`); setShowAddGuia(true); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium transition-colors shadow-sm"
+          title="Insertar columna Guía"
+        >
+          + Guía
+        </button>
         <button
           onClick={openCopyModal}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors shadow-sm"
@@ -1055,10 +1129,10 @@ export const PlaneacionSemanalView: React.FC = () => {
         {/* ── Grid ── */}
         <div className="flex-1 overflow-auto" onClick={() => { setOpenDurationCard(null); if (dateInputRef.current !== document.activeElement) setDatePickerWeek(null); }}>
           <table className="border-collapse text-xs select-none"
-            style={{ minWidth: CELL_W * effectiveTotalWeeks + LABEL_W }}>
+            style={{ minWidth: CELL_W * orderedCols.length + LABEL_W }}>
             <colgroup>
               <col style={{ width: LABEL_W, minWidth: LABEL_W }} />
-              {weeks.map(w => <col key={w} style={{ width: CELL_W, minWidth: CELL_W }} />)}
+              {orderedCols.map(col => <col key={col.type === 'week' ? col.idx : col.g.id} style={{ width: CELL_W, minWidth: CELL_W }} />)}
             </colgroup>
 
             <thead>
@@ -1073,7 +1147,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                   const defaultCount  = PHASE_SEGMENTS.find(s => s.phase === span.phase)?.count ?? span.count;
                   const hasOverride   = (planeacion.phaseWeekCounts ?? {})[span.phase] !== undefined;
                   return (
-                    <th key={span.phase} colSpan={span.count}
+                    <th key={span.phase} colSpan={span.colSpan}
                       className="border-b border-r border-gray-400 text-center font-bold text-[11px] tracking-wide relative cursor-pointer select-none"
                       style={{ backgroundColor: span.color, color: span.text, height: PHASE_H }}
                       onClick={e => { e.stopPropagation(); setEditingPhase(isEditingThis ? null : span.phase); }}
@@ -1137,7 +1211,26 @@ export const PlaneacionSemanalView: React.FC = () => {
                   style={{ height: DATE_H + 18 }}>
                   Fecha semanal
                 </th>
-                {weeks.map(w => {
+                {orderedCols.map(col => {
+                  if (col.type === 'guia') {
+                    const { g } = col;
+                    const phaseColor = PHASE_SEGMENTS.find(p => p.phase === g.phase)?.color ?? '#6b7280';
+                    return (
+                      <th key={g.id} className="border-b border-r border-gray-200 text-center px-1 relative group"
+                        style={{ backgroundColor: phaseColor + '14' }}>
+                        <div className="flex flex-col items-center leading-none gap-1 py-1">
+                          <span className="font-bold text-[11px]" style={{ color: phaseColor }}>{g.name.toUpperCase()}</span>
+                          <span className="text-[9px] text-gray-400">—</span>
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); if (window.confirm(`¿Eliminar columna "${g.name}"? Se perderán las asignaciones en esta columna.`)) deleteGuiaColumn(g.id); }}
+                          className="absolute top-0.5 right-0.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full bg-red-100 text-red-500 hover:bg-red-200 text-[10px] leading-none"
+                          title={`Eliminar ${g.name}`}
+                        >×</button>
+                      </th>
+                    );
+                  }
+                  const w = col.idx;
                   const seg      = effectiveWeekPhaseMap[w];
                   const hasOverride = !!(planeacion.weekDateOverrides ?? {})[w];
                   const isOpen   = datePickerWeek === w;
@@ -1359,6 +1452,65 @@ export const PlaneacionSemanalView: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* ── Modal: Nueva columna Guía ── */}
+      {showAddGuia && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowAddGuia(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h3 className="text-base font-bold text-gray-900">Nueva columna Guía</h3>
+              <button onClick={() => setShowAddGuia(false)} className="p-1 rounded hover:bg-gray-100 text-gray-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-600">Nombre</label>
+                <input
+                  type="text"
+                  className="text-sm border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-amber-500"
+                  value={addGuiaName}
+                  onChange={e => setAddGuiaName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-600">Insertar después de</label>
+                <select
+                  className="text-sm border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-amber-500 bg-white"
+                  value={addGuiaAfter}
+                  onChange={e => setAddGuiaAfter(Number(e.target.value))}
+                >
+                  <option value={-1}>— Antes de S1 (inicio) —</option>
+                  {effectiveSegments.map((seg, segIdx) => {
+                    const startW = effectiveSegments.slice(0, segIdx).reduce((s, p) => s + p.count, 0);
+                    return (
+                      <optgroup key={seg.phase} label={seg.phase.replace('Fase ', '')}>
+                        {Array.from({ length: seg.count }, (_, i) => startW + i).map(w => (
+                          <option key={w} value={w}>Después de {weekLabel(w)}</option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+              <button
+                onClick={() => setShowAddGuia(false)}
+                className="px-4 py-1.5 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-200"
+              >Cancelar</button>
+              <button
+                onClick={() => addGuiaName.trim() && addGuiaColumn(addGuiaName.trim(), addGuiaAfter)}
+                disabled={!addGuiaName.trim()}
+                className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium disabled:opacity-40"
+              >Crear</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal: Copiar planeación a otras fichas ── */}
       {copyModalOpen && (
