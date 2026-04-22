@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Filter, Search, ChevronLeft, ChevronRight, Download, X, CheckCircle, XCircle, ChevronDown, Copy, ListChecks } from 'lucide-react';
+import { Filter, Search, ChevronLeft, ChevronRight, Download, X, CheckCircle, XCircle, ChevronDown, Copy, ListChecks, Send, RefreshCw } from 'lucide-react';
 import ExcelJS from 'exceljs';
-import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
+import emailjs from '@emailjs/browser';
+import { Student, Ficha, GradeActivity, GradeEntry, EmailSettings } from '../types';
 import {
   getStudents, getFichas,
   getDebidoProcesoState, saveDebidoProcesoStep,
@@ -14,6 +15,7 @@ import {
   updateStudent, getEstadoStepperTooltip,
   DEBIDO_PROCESO_STEP_LABELS, RETIRO_VOLUNTARIO_STEP_LABELS, PLAN_MEJORAMIENTO_STEP_LABELS,
   getLmsLastAccess, getGradeActivities, getGrades,
+  getEmailSettings,
 } from '../services/db';
 import {
   ALL_EVIDENCE_AREAS,
@@ -443,6 +445,8 @@ const RetiroModal: React.FC<RetiroModalProps> = ({ student, currentStep, detail,
 
 // ─── Main View ───────────────────────────────────────────────────────────────
 
+interface BulkItem { student: Student; status: 'pending' | 'sending' | 'sent' | 'error'; }
+
 export const DebidoProcesoView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [fichas, setFichas] = useState<Ficha[]>([]);
@@ -471,6 +475,19 @@ export const DebidoProcesoView: React.FC = () => {
 
   const [copyEmailFeedback, setCopyEmailFeedback] = useState<string | null>(null);
   const [copyEvEmailFeedback, setCopyEvEmailFeedback] = useState<string | null>(null);
+
+  // Selección múltiple
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Config email (comparte localStorage con AlertsView)
+  const [emailConfig, setEmailConfig] = useState<EmailSettings>({
+    teacherName: '', teacherEmail: '', serviceId: '', templateId: '', publicKey: '',
+  });
+
+  // Modal envío masivo
+  const [bulkSendMode, setBulkSendMode] = useState<'desercion' | 'evidencias' | null>(null);
+  const [bulkItems, setBulkItems] = useState<BulkItem[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterEstado, setFilterEstado] = useState<string>('Todos'); // Cancelación (stateMap)
@@ -546,9 +563,14 @@ export const DebidoProcesoView: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    setEmailConfig(getEmailSettings());
     window.addEventListener('asistenciapro-storage-update', loadData);
     return () => window.removeEventListener('asistenciapro-storage-update', loadData);
   }, []);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [filterFicha, filterEstado, filterEstadoStudent, filterRetiro, filterPma, searchTerm]);
 
   useEffect(() => {
     const TRACKED_KEYS = new Set(['plan_mejoramiento', 'pma_details', 'debido_proceso', 'retiro_voluntario', 'cancelacion_details', 'retiro_details']);
@@ -639,6 +661,120 @@ export const DebidoProcesoView: React.FC = () => {
     const d = dpDaysSince(last);
     return d >= 0 ? d : null;
   };
+
+  // ─── Bulk email helpers ───────────────────────────────────────────────────
+
+  const buildEmailContent = (student: Student, mode: 'desercion' | 'evidencias'): { subject: string; body: string; email: string; fullName: string } => {
+    const ficha = fichas.find((f) => f.code === (student.group || ''));
+    const days = getDpDaysSince(student);
+    const daysStr = days !== null ? String(days) : 'N/D';
+    const lastAccessStr = lmsLastAccess[student.id]
+      ? new Date(lmsLastAccess[student.id].replace(' ', 'T')).toLocaleDateString('es-CO')
+      : 'N/D';
+    const today = new Date().toLocaleDateString('es-CO');
+    const fullName = `${student.firstName} ${student.lastName}`;
+    const programName = ficha?.cronogramaProgramName || ficha?.program || student.group || 'N/A';
+    const pendingActs = getDpPendingList(student);
+    const evDesc = (a: GradeActivity) =>
+      (a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').replace(/\s+/g, ' ').trim();
+    const evidenciasHtml = pendingActs.length === 0
+      ? '<p>Ninguna evidencia pendiente según los filtros aplicados.</p>'
+      : `<ul style="margin:0.5em 0;padding-left:1.25em;">${pendingActs.map((a) =>
+          `<li style="margin:0.2em 0;"><strong>${dpEscapeHtml(shortEvidenceLabel(a.name))}</strong> — ${dpEscapeHtml(evDesc(a))}</li>`
+        ).join('')}</ul>`;
+    const novedad = days !== null && days >= 20 ? 'Riesgo de deserción' : 'Plan de mejoramiento';
+
+    if (mode === 'desercion') {
+      const templates = dpLoadEmailTemplates();
+      const tpl = templates[0];
+      const substituteHtml = (body: string) =>
+        body
+          .replace(/\{estudiante\}/g, dpEscapeHtml(fullName))
+          .replace(/\{documento\}/g, dpEscapeHtml(student.documentNumber || ''))
+          .replace(/\{programa\}/g, dpEscapeHtml(programName))
+          .replace(/\{grupo\}/g, dpEscapeHtml(student.group || ''))
+          .replace(/\{dias_sin_ingresar\}/g, daysStr)
+          .replace(/\{fecha\}/g, today)
+          .replace(/\{fecha_ultimo_ingreso\}/g, lastAccessStr)
+          .replace(/\{evidencias\}/g, evidenciasHtml)
+          .replace(/\{novedad\}/g, dpEscapeHtml(novedad));
+      const subject = tpl.subject
+        .replace(/\{estudiante\}/g, fullName)
+        .replace(/\{novedad\}/g, novedad)
+        .replace(/\{grupo\}/g, student.group || '')
+        .replace(/\{documento\}/g, student.documentNumber || '')
+        .replace(/\{programa\}/g, programName)
+        .replace(/\{dias_sin_ingresar\}/g, daysStr)
+        .replace(/\{fecha\}/g, today)
+        .replace(/\{fecha_ultimo_ingreso\}/g, lastAccessStr);
+      const htmlBody = substituteHtml(tpl.body);
+      return { subject, body: dpBuildEmailHtml(htmlBody), email: student.email, fullName };
+    } else {
+      const bodyHtml =
+        `Estimado(a) Aprendiz:<br><br>` +
+        `<strong>${dpEscapeHtml(fullName)}</strong><br>` +
+        `<strong>C.C.</strong> ${dpEscapeHtml(student.documentNumber || '')}<br>` +
+        `<strong>Programa:</strong> ${dpEscapeHtml(programName)}<br>` +
+        `<strong>Ficha:</strong> ${dpEscapeHtml(student.group || '')}<br><br>` +
+        `Reciba un cordial saludo. Le informamos que según la revisión del sistema de gestión académica, ` +
+        `usted presenta las siguientes evidencias pendientes de entrega a la fecha <strong>${dpEscapeHtml(today)}</strong>:<br><br>` +
+        evidenciasHtml +
+        `<br>Le solicitamos realizar la entrega de estas evidencias a la brevedad posible para garantizar la continuidad de su proceso formativo.<br><br>` +
+        `Atentamente,`;
+      return {
+        subject: `Evidencias Pendientes de Entrega — ${fullName}`,
+        body: dpBuildEmailHtml(bodyHtml),
+        email: student.email,
+        fullName,
+      };
+    }
+  };
+
+  const sendEmailInternal = async (toName: string, toEmail: string, subject: string, body: string) => {
+    const { serviceId, templateId, publicKey, teacherName, teacherEmail } = emailConfig;
+    if (!serviceId || !publicKey) {
+      await new Promise((r) => setTimeout(r, 800));
+      return;
+    }
+    await emailjs.send(
+      serviceId,
+      templateId,
+      { to_name: toName, to_email: toEmail, from_name: teacherName || 'Instructor', reply_to: teacherEmail, subject, message: body },
+      publicKey
+    );
+  };
+
+  const openBulkSend = (mode: 'desercion' | 'evidencias') => {
+    const items: BulkItem[] = filteredList
+      .filter((s) => selectedIds.has(s.id))
+      .map((s) => ({ student: s, status: 'pending' as const }));
+    setBulkItems(items);
+    setBulkSendMode(mode);
+  };
+
+  const handleSendBulkItem = async (index: number) => {
+    const item = bulkItems[index];
+    if (item.status === 'sent') return;
+    setBulkItems((prev) => { const n = [...prev]; n[index] = { ...n[index], status: 'sending' }; return n; });
+    try {
+      const { subject, body, email, fullName } = buildEmailContent(item.student, bulkSendMode!);
+      await sendEmailInternal(fullName, email, subject, body);
+      setBulkItems((prev) => { const n = [...prev]; n[index] = { ...n[index], status: 'sent' }; return n; });
+    } catch {
+      setBulkItems((prev) => { const n = [...prev]; n[index] = { ...n[index], status: 'error' }; return n; });
+    }
+  };
+
+  const handleSendAllBulk = async () => {
+    setBulkLoading(true);
+    const pending = bulkItems
+      .map((it, i) => (it.status === 'pending' || it.status === 'error' ? i : -1))
+      .filter((i) => i !== -1);
+    for (const i of pending) await handleSendBulkItem(i);
+    setBulkLoading(false);
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   const copyEmailForStudent = async (student: Student) => {
     const ficha = fichas.find((f) => f.code === (student.group || ''));
@@ -1235,11 +1371,64 @@ export const DebidoProcesoView: React.FC = () => {
         </div>
       </div>
 
+      {/* Barra de acciones de selección */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-teal-50 border border-teal-200 rounded-xl flex-wrap">
+          <span className="text-sm font-semibold text-teal-800">
+            {selectedIds.size} aprendiz{selectedIds.size !== 1 ? 'ces' : ''} seleccionado{selectedIds.size !== 1 ? 's' : ''}
+          </span>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => openBulkSend('desercion')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <Send className="w-3.5 h-3.5" />
+              Correo Deserción ({selectedIds.size})
+            </button>
+            <button
+              type="button"
+              onClick={() => openBulkSend('evidencias')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-colors"
+            >
+              <Send className="w-3.5 h-3.5" />
+              Correo Evidencias ({selectedIds.size})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+              Limpiar selección
+            </button>
+          </div>
+          {!emailConfig.serviceId && (
+            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg ml-auto">
+              ⚠ Sin credenciales EmailJS — configura en &quot;Alertas y Correos&quot;
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-gray-700 font-medium">
+                <th className="px-3 py-4 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 accent-teal-600 cursor-pointer"
+                    checked={filteredList.length > 0 && filteredList.every((s) => selectedIds.has(s.id))}
+                    ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && !filteredList.every((s) => selectedIds.has(s.id)); }}
+                    onChange={() => {
+                      const allSelected = filteredList.every((s) => selectedIds.has(s.id));
+                      setSelectedIds(allSelected ? new Set() : new Set(filteredList.map((s) => s.id)));
+                    }}
+                    title={filteredList.every((s) => selectedIds.has(s.id)) ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                  />
+                </th>
                 <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">No</th>
                 <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Documento</th>
                 <th
@@ -1325,8 +1514,20 @@ export const DebidoProcesoView: React.FC = () => {
                 return (
                   <tr
                     key={student.id}
-                    className="border-b border-gray-100 hover:bg-gray-50/80"
+                    className={`border-b border-gray-100 hover:bg-gray-50/80 ${selectedIds.has(student.id) ? 'bg-teal-50/40' : ''}`}
                   >
+                    <td className="px-3 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-teal-600 cursor-pointer"
+                        checked={selectedIds.has(student.id)}
+                        onChange={() => setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          next.has(student.id) ? next.delete(student.id) : next.add(student.id);
+                          return next;
+                        })}
+                      />
+                    </td>
                     <td className="px-4 py-4 text-gray-500 text-xs tabular-nums text-center">
                       {showAll ? index + 1 : (currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                     </td>
@@ -1584,6 +1785,94 @@ export const DebidoProcesoView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal envío masivo */}
+      {bulkSendMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[80vh]">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h3 className="font-bold text-gray-900 text-base">
+                  {bulkSendMode === 'desercion' ? 'Correo Deserción' : 'Correo Evidencias Pendientes'}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {bulkItems.filter((i) => i.status === 'sent').length} / {bulkItems.length} enviados
+                  {!emailConfig.serviceId && ' · Modo simulación (sin credenciales)'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBulkSendMode(null)}
+                disabled={bulkLoading}
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Lista */}
+            <div className="overflow-y-auto flex-1 divide-y divide-gray-100">
+              {bulkItems.map((item, i) => (
+                <div key={item.student.id} className="flex items-center gap-3 px-5 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {item.student.firstName} {item.student.lastName}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">{item.student.email || '—'}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {item.status === 'sent' && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                        <CheckCircle className="w-3 h-3" /> Enviado
+                      </span>
+                    )}
+                    {item.status === 'error' && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded-full">
+                        <XCircle className="w-3 h-3" /> Error
+                      </span>
+                    )}
+                    {item.status === 'sending' && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Enviando
+                      </span>
+                    )}
+                    {item.status === 'pending' && (
+                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full font-medium">Pendiente</span>
+                    )}
+                    {(item.status === 'pending' || item.status === 'error') && !bulkLoading && (
+                      <button
+                        type="button"
+                        onClick={() => handleSendBulkItem(i)}
+                        className="text-xs text-teal-600 hover:text-teal-800 font-medium"
+                        title="Enviar individualmente"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-gray-200 flex items-center justify-between flex-shrink-0 bg-gray-50 rounded-b-xl">
+              <span className="text-sm text-gray-500">
+                {bulkItems.filter((i) => i.status === 'sent').length} de {bulkItems.length} enviados
+              </span>
+              <button
+                type="button"
+                onClick={handleSendAllBulk}
+                disabled={bulkLoading || bulkItems.every((i) => i.status === 'sent')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                {bulkLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Enviar pendientes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PMA Detail Modal */}
       {pmaModalStudent && (
