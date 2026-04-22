@@ -318,9 +318,10 @@ export const PlaneacionSemanalView: React.FC = () => {
   const [editingPhase,      setEditingPhase]      = useState<string | null>(null);
 
   // ── Columnas Guía ─────────────────────────────────────────────────────────
-  const [showAddGuia,  setShowAddGuia]  = useState(false);
-  const [addGuiaName,  setAddGuiaName]  = useState('Guía 1');
-  const [addGuiaAfter, setAddGuiaAfter] = useState<number>(-1);
+  const [showAddGuia, setShowAddGuia] = useState(false);
+  const [addGuiaName, setAddGuiaName] = useState('Guía 1');
+  // composite "insertAfterWeekIdx::phaseName" — decouples position from phase color
+  const [addGuiaPos,  setAddGuiaPos]  = useState<string>(`-1::${PHASE_SEGMENTS[0].phase}`);
 
   // ── Copiar planeación a otras fichas ──────────────────────────────────────
   const [copyModalOpen,   setCopyModalOpen]   = useState(false);
@@ -999,11 +1000,11 @@ export const PlaneacionSemanalView: React.FC = () => {
   }, [ficha, weeks, phaseSpans, effectiveWeekPhaseMap, effectiveTotalWeeks, activities, planeacion, weekLabel, weekDates]);
 
   // ── Guía column management ────────────────────────────────────────────────
-  const addGuiaColumn = (name: string, insertAfterWeekIdx: number) => {
+  const addGuiaColumn = (name: string, posStr: string) => {
+    const sep = posStr.indexOf('::');
+    const insertAfterWeekIdx = Number(posStr.slice(0, sep));
+    const phase = posStr.slice(sep + 2);
     const vIdx = planeacion.guiaVIdxCounter ?? 2000;
-    const phase = insertAfterWeekIdx === -1
-      ? effectiveSegments[0].phase
-      : (effectiveWeekPhaseMap[insertAfterWeekIdx]?.phase ?? effectiveSegments[0].phase);
     const newGuia: GuiaColumn = { id: `guia_${Date.now()}`, name, vIdx, insertAfterWeekIdx, phase };
     persist({
       ...planeacion,
@@ -1012,7 +1013,7 @@ export const PlaneacionSemanalView: React.FC = () => {
     });
     setShowAddGuia(false);
     setAddGuiaName('Guía 1');
-    setAddGuiaAfter(-1);
+    setAddGuiaPos(`-1::${PHASE_SEGMENTS[0].phase}`);
   };
 
   const deleteGuiaColumn = (guiaId: string) => {
@@ -1477,24 +1478,41 @@ export const PlaneacionSemanalView: React.FC = () => {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-gray-600">Insertar después de</label>
+                <label className="text-xs font-semibold text-gray-600">Posición y fase</label>
                 <select
                   className="text-sm border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-amber-500 bg-white"
-                  value={addGuiaAfter}
-                  onChange={e => setAddGuiaAfter(Number(e.target.value))}
+                  value={addGuiaPos}
+                  onChange={e => setAddGuiaPos(e.target.value)}
                 >
-                  <option value={-1}>— Antes de S1 (inicio) —</option>
                   {effectiveSegments.map((seg, segIdx) => {
                     const startW = effectiveSegments.slice(0, segIdx).reduce((s, p) => s + p.count, 0);
+                    const beforeIdx = startW === 0 ? -1 : startW - 1;
+                    const phaseLabel = seg.phase.replace('Fase Inducción', 'Inducción').replace('Fase ', '');
                     return (
-                      <optgroup key={seg.phase} label={seg.phase.replace('Fase ', '')}>
-                        {Array.from({ length: seg.count }, (_, i) => startW + i).map(w => (
-                          <option key={w} value={w}>Después de {weekLabel(w)}</option>
+                      <optgroup key={seg.phase} label={`── ${phaseLabel} ──`}>
+                        <option value={`${beforeIdx}::${seg.phase}`}>
+                          Al inicio de {phaseLabel} (antes de {weekLabel(startW)})
+                        </option>
+                        {Array.from({ length: seg.count }, (_, i) => startW + i).map((w, i) => (
+                          <option key={w} value={`${w}::${seg.phase}`}>
+                            Después de {weekLabel(w)}{i === seg.count - 1 ? ' — al final de la fase' : ''}
+                          </option>
                         ))}
                       </optgroup>
                     );
                   })}
                 </select>
+                {/* Phase color preview */}
+                {(() => {
+                  const ph = addGuiaPos.slice(addGuiaPos.indexOf('::') + 2);
+                  const seg = PHASE_SEGMENTS.find(s => s.phase === ph);
+                  return seg ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: seg.color }} />
+                      <span className="text-[11px] text-gray-500">Color de fase: <strong style={{ color: seg.color }}>{ph.replace('Fase Inducción', 'Inducción').replace('Fase ', '')}</strong></span>
+                    </div>
+                  ) : null;
+                })()}
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
@@ -1503,7 +1521,7 @@ export const PlaneacionSemanalView: React.FC = () => {
                 className="px-4 py-1.5 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-200"
               >Cancelar</button>
               <button
-                onClick={() => addGuiaName.trim() && addGuiaColumn(addGuiaName.trim(), addGuiaAfter)}
+                onClick={() => addGuiaName.trim() && addGuiaColumn(addGuiaName.trim(), addGuiaPos)}
                 disabled={!addGuiaName.trim()}
                 className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium disabled:opacity-40"
               >Crear</button>
