@@ -766,6 +766,16 @@ export const PlaneacionSemanalView: React.FC = () => {
   const phaseForActivity = (a: GradeActivity) =>
     PHASE_SEGMENTS.find(s => s.phase === a.phase) ?? PHASE_SEGMENTS[1];
 
+  // vIdx → phase hex color (for guía body cell tinting)
+  const guiaColorMap = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const g of planeacion.guiaColumns ?? []) {
+      const color = PHASE_SEGMENTS.find(p => p.phase === g.phase)?.color;
+      if (color) map.set(g.vIdx, color);
+    }
+    return map;
+  }, [planeacion.guiaColumns]);
+
   // ── Excel Export ─────────────────────────────────────────────────────────────
   const exportToExcel = useCallback(async () => {
     const { default: ExcelJS } = await import('exceljs');
@@ -1299,12 +1309,13 @@ export const PlaneacionSemanalView: React.FC = () => {
                   const isOver = dragOverCell === ck;
                   const assigned   = activities.filter(a => planeacion.tecnicaAssignments[a.id] === w);
                   const textLabels = getLabels('Técnica', w);
+                  const guiaColor  = guiaColorMap.get(w);
                   return (
                     <td key={w} colSpan={span}
                       className="border-b border-r border-gray-200 align-top p-1 cursor-pointer transition-colors"
                       style={{
                         minHeight: 60,
-                        backgroundColor: isOver ? TECNICA_COLOR + '44' : hoveredRow === 'Técnica' ? TECNICA_COLOR + '20' : 'white',
+                        backgroundColor: isOver ? TECNICA_COLOR + '44' : hoveredRow === 'Técnica' ? TECNICA_COLOR + '20' : guiaColor ? guiaColor + '14' : 'white',
                         outline: isOver ? `2px dashed ${TECNICA_COLOR}` : undefined,
                         outlineOffset: -2,
                       }}
@@ -1376,16 +1387,17 @@ export const PlaneacionSemanalView: React.FC = () => {
                     {row.label}
                   </td>
                   {planRow(row.key, false).map(({ weekIdx: w, span }) => {
-                    const ck     = cellKey(row.key, w);
-                    const labels = getLabels(row.key, w);
-                    const isOver = dragOverCell === ck;
-                    const isEdit = editingCell === ck;
+                    const ck       = cellKey(row.key, w);
+                    const labels   = getLabels(row.key, w);
+                    const isOver   = dragOverCell === ck;
+                    const isEdit   = editingCell === ck;
+                    const guiaColor = guiaColorMap.get(w);
                     return (
                       <td key={w} colSpan={span}
                         className="border-b border-r border-gray-200 align-top p-1 cursor-pointer transition-colors"
                         style={{
                           minHeight: 60,
-                          backgroundColor: isOver ? row.color + '44' : hoveredRow === row.key ? row.color + '20' : 'white',
+                          backgroundColor: isOver ? row.color + '44' : hoveredRow === row.key ? row.color + '20' : guiaColor ? guiaColor + '14' : 'white',
                           outline: isOver ? `2px dashed ${row.color}` : undefined,
                           outlineOffset: -2,
                         }}
