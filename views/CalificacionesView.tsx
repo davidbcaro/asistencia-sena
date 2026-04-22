@@ -664,11 +664,6 @@ export const CalificacionesView: React.FC = () => {
   }, [selectedFicha]);
 
   const loadData = () => {
-    const HIDDEN_RESET_FLAG = 'asistenciapro_calificaciones_show_all_evidence_v1';
-    if (!localStorage.getItem(HIDDEN_RESET_FLAG)) {
-      saveHiddenGradeActivityIds([]);
-      localStorage.setItem(HIDDEN_RESET_FLAG, '1');
-    }
     const loadedStudents = getStudents();
     const loadedFichas = getFichas();
     const loadedActivities = getGradeActivities();
@@ -687,7 +682,6 @@ export const CalificacionesView: React.FC = () => {
     setManualPhaseTotals(getManualPhaseTotals());
     setEvidenceCompMap(getEvidenceCompMap());
     setLmsLastAccess(getLmsLastAccess());
-    setHiddenActivityIds(new Set(getHiddenGradeActivityIds()));
     if (loadedFichas.length > 0 && selectedFichaRef.current === '') {
       setSelectedFicha('Todas');
     }
@@ -2972,8 +2966,11 @@ export const CalificacionesView: React.FC = () => {
               </button>
 
 
-              <div className="inline-flex flex-col items-end gap-0.5">
-                <label className="cursor-pointer inline-flex items-center justify-center space-x-1.5 bg-gray-900 hover:bg-black text-white px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm">
+              <div className="inline-flex items-center gap-2">
+                <label
+                  className="cursor-pointer inline-flex items-center justify-center space-x-1.5 bg-gray-900 hover:bg-black text-white px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors shadow-sm text-xs sm:text-sm"
+                  title={lastUpload ? `Actualizado el ${lastUpload}` : 'Cargar calificaciones desde Excel'}
+                >
                   <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span>Cargar</span>
                   <input
@@ -2990,8 +2987,8 @@ export const CalificacionesView: React.FC = () => {
                   />
                 </label>
                 {lastUpload && (
-                  <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                    Actualizado el {lastUpload}
+                  <span className="text-[10px] text-gray-400 whitespace-nowrap hidden lg:inline">
+                    {lastUpload}
                   </span>
                 )}
               </div>

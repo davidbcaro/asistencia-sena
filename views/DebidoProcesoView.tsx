@@ -470,6 +470,7 @@ export const DebidoProcesoView: React.FC = () => {
   const dpEvidencePickerRef = useRef<HTMLDivElement>(null);
 
   const [copyEmailFeedback, setCopyEmailFeedback] = useState<string | null>(null);
+  const [copyEvEmailFeedback, setCopyEvEmailFeedback] = useState<string | null>(null);
 
   const [filterFicha, setFilterFicha] = useState<string>('Todas');
   const [filterEstado, setFilterEstado] = useState<string>('Todos'); // Cancelación (stateMap)
@@ -704,6 +705,65 @@ export const DebidoProcesoView: React.FC = () => {
         await navigator.clipboard.writeText(plainBody);
         setCopyEmailFeedback(student.id);
         setTimeout(() => setCopyEmailFeedback(null), 2000);
+      } catch {}
+    }
+  };
+
+  const copyEvidenceEmailForStudent = async (student: Student) => {
+    const ficha = fichas.find((f) => f.code === (student.group || ''));
+    const today = new Date().toLocaleDateString('es-CO');
+    const pendingActs = getDpPendingList(student);
+    const evDesc = (a: GradeActivity) =>
+      (a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').replace(/\s+/g, ' ').trim();
+    const evidenciasHtml = pendingActs.length === 0
+      ? '<p>Ninguna evidencia pendiente según los filtros aplicados.</p>'
+      : `<ul style="margin:0.5em 0;padding-left:1.25em;">${pendingActs.map((a) =>
+          `<li style="margin:0.2em 0;"><strong>${dpEscapeHtml(shortEvidenceLabel(a.name))}</strong> — ${dpEscapeHtml(evDesc(a))}</li>`
+        ).join('')}</ul>`;
+    const evidenciasPlain = pendingActs.length === 0
+      ? 'Ninguna evidencia pendiente según los filtros aplicados.'
+      : pendingActs.map((a) => `• ${shortEvidenceLabel(a.name)}: ${evDesc(a)}`).join('\n');
+
+    const fullName = `${student.firstName} ${student.lastName}`;
+    const programName = ficha?.cronogramaProgramName || ficha?.program || student.group || 'N/A';
+
+    const bodyHtml =
+      `Estimado(a) Aprendiz:<br><br>` +
+      `<strong>${dpEscapeHtml(fullName)}</strong><br>` +
+      `<strong>C.C.</strong> ${dpEscapeHtml(student.documentNumber || '')}<br>` +
+      `<strong>Programa:</strong> ${dpEscapeHtml(programName)}<br>` +
+      `<strong>Ficha:</strong> ${dpEscapeHtml(student.group || '')}<br><br>` +
+      `Reciba un cordial saludo. Le informamos que según la revisión del sistema de gestión académica, ` +
+      `usted presenta las siguientes evidencias pendientes de entrega a la fecha <strong>${dpEscapeHtml(today)}</strong>:<br><br>` +
+      evidenciasHtml +
+      `<br>Le solicitamos realizar la entrega de estas evidencias a la brevedad posible para garantizar la continuidad de su proceso formativo.<br><br>` +
+      `Atentamente,`;
+
+    const bodyPlain =
+      `Estimado(a) Aprendiz:\n\n` +
+      `${fullName}\nC.C. ${student.documentNumber || ''}\nPrograma: ${programName}\nFicha: ${student.group || ''}\n\n` +
+      `Reciba un cordial saludo. Le informamos que según la revisión del sistema de gestión académica, ` +
+      `usted presenta las siguientes evidencias pendientes de entrega a la fecha ${today}:\n\n` +
+      evidenciasPlain +
+      `\n\nLe solicitamos realizar la entrega de estas evidencias a la brevedad posible para garantizar la continuidad de su proceso formativo.\n\nAtentamente,`;
+
+    const subjectText = `Evidencias Pendientes de Entrega — ${fullName}`;
+
+    try {
+      const fullHtml = dpBuildEmailHtml(bodyHtml);
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([fullHtml], { type: 'text/html' }),
+          'text/plain': new Blob([`Asunto: ${subjectText}\n\n${bodyPlain}`], { type: 'text/plain' }),
+        }),
+      ]);
+      setCopyEvEmailFeedback(student.id);
+      setTimeout(() => setCopyEvEmailFeedback(null), 2000);
+    } catch {
+      try {
+        await navigator.clipboard.writeText(`Asunto: ${subjectText}\n\n${bodyPlain}`);
+        setCopyEvEmailFeedback(student.id);
+        setTimeout(() => setCopyEvEmailFeedback(null), 2000);
       } catch {}
     }
   };
@@ -1254,7 +1314,8 @@ export const DebidoProcesoView: React.FC = () => {
                     </button>
                   </div>
                 </th>
-                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Correo</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Correo Deserción</th>
+                <th className="px-4 py-4 font-semibold text-gray-600 text-sm whitespace-nowrap">Correo Evidencias Pendientes</th>
               </tr>
             </thead>
             <tbody>
@@ -1364,12 +1425,12 @@ export const DebidoProcesoView: React.FC = () => {
                         )}
                       </div>
                     </td>
-                    {/* Correo copy button */}
+                    {/* Correo Deserción copy button */}
                     <td className="px-4 py-4 text-center">
                       <button
                         type="button"
                         onClick={() => copyEmailForStudent(student)}
-                        title="Copiar correo al portapapeles"
+                        title="Copiar correo de deserción al portapapeles"
                         className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
                           copyEmailFeedback === student.id
                             ? 'bg-green-100 text-green-700'
@@ -1382,6 +1443,26 @@ export const DebidoProcesoView: React.FC = () => {
                           <Copy className="w-3.5 h-3.5" />
                         )}
                         {copyEmailFeedback === student.id ? 'Copiado' : 'Copiar'}
+                      </button>
+                    </td>
+                    {/* Correo Evidencias Pendientes copy button */}
+                    <td className="px-4 py-4 text-center">
+                      <button
+                        type="button"
+                        onClick={() => copyEvidenceEmailForStudent(student)}
+                        title="Copiar correo de evidencias pendientes al portapapeles"
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                          copyEvEmailFeedback === student.id
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700'
+                        }`}
+                      >
+                        {copyEvEmailFeedback === student.id ? (
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                        {copyEvEmailFeedback === student.id ? 'Copiado' : 'Copiar'}
                       </button>
                     </td>
                   </tr>
