@@ -2898,7 +2898,17 @@ export const CalificacionesView: React.FC = () => {
                                       />
                                       <span className="flex-1 min-w-0">
                                         <span className="flex items-center gap-1.5">
-                                          <span className="font-mono text-[11px] font-semibold text-teal-700">{shortEvidenceLabel(a.name)}</span>
+                                          {(() => {
+                                            const shortLabel = shortEvidenceLabel(a.name);
+                                            const prefixMatch = a.name.match(/^(.*?)(?=AA\d+-EV)/i);
+                                            const prefix = prefixMatch ? prefixMatch[1].replace(/-$/, '') : '';
+                                            return (
+                                              <>
+                                                {prefix && <span className="font-mono text-[10px] text-gray-400">{prefix}</span>}
+                                                <span className="font-mono text-[11px] font-semibold text-teal-700">{shortLabel}</span>
+                                              </>
+                                            );
+                                          })()}
                                           {tipoOpt?.bg && (
                                             <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold leading-none" style={{ backgroundColor: tipoOpt.bg, color: tipoOpt.text ?? '#000' }}>{tipoKey}</span>
                                           )}

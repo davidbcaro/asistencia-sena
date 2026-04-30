@@ -203,6 +203,13 @@ function daysSince(dateStr: string): number {
   return Math.floor(diff / (24 * 60 * 60 * 1000));
 }
 
+function getLmsDaysInactive(): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem('asistenciapro_lms_days_inactive') || '{}'); } catch { return {}; }
+}
+function saveLmsDaysInactive(map: Record<string, number>): void {
+  localStorage.setItem('asistenciapro_lms_days_inactive', JSON.stringify(map));
+}
+
 const ALL_PHASES_LMS = 'Todas las fases';
 
 export const AsistenciaLmsView: React.FC = () => {
@@ -234,6 +241,8 @@ export const AsistenciaLmsView: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ITEMS_PER_PAGE = 15;
 
+  const [lmsDaysInactive, setLmsDaysInactive] = useState<Record<string, number>>(() => getLmsDaysInactive());
+
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [lastUpload, setLastUpload] = useState<string>(
     () => localStorage.getItem('asistenciapro_lms_last_upload') || ''
@@ -255,6 +264,7 @@ export const AsistenciaLmsView: React.FC = () => {
     setStudents(getStudents());
     setFichas(getFichas());
     setLmsLastAccess(getLmsLastAccess());
+    setLmsDaysInactive(getLmsDaysInactive());
     setGradeActivities(getGradeActivities());
     setGrades(getGrades());
     setCancelacionMap(getDebidoProcesoState());
@@ -463,8 +473,7 @@ export const AsistenciaLmsView: React.FC = () => {
     .filter(student => {
       const matchesFicha = filterFicha === 'Todas' || (student.group || 'General') === filterFicha;
       const matchesStatus = filterStatus === 'Todos' || (student.status || 'Formación') === filterStatus;
-      const lastAccess = lmsLastAccess[student.id];
-      const days = lastAccess != null ? daysSince(lastAccess) : null;
+      const days = lmsDaysInactive[student.id] !== undefined ? lmsDaysInactive[student.id] : null;
       const final = getFinalForStudent(student);
       const novedad = getNovedad(student, days, final.letter);
       const novedadFilterValue = filterNovedad === 'Sin novedad' ? '-' : filterNovedad;
@@ -483,8 +492,8 @@ export const AsistenciaLmsView: React.FC = () => {
       let cmp = 0;
       const lastA = lmsLastAccess[a.id];
       const lastB = lmsLastAccess[b.id];
-      const daysA = lastA != null ? daysSince(lastA) : -1;
-      const daysB = lastB != null ? daysSince(lastB) : -1;
+      const daysA = lmsDaysInactive[a.id] ?? -1;
+      const daysB = lmsDaysInactive[b.id] ?? -1;
 
       if (sortOrder === 'document') {
         cmp = (a.documentNumber || '').localeCompare(b.documentNumber || '');
@@ -560,7 +569,7 @@ export const AsistenciaLmsView: React.FC = () => {
     // Build table rows
     const tableRows = filteredStudents.map((student, idx) => {
       const lastAccess = lmsLastAccess[student.id];
-      const days = lastAccess != null ? daysSince(lastAccess) : null;
+      const days = lmsDaysInactive[student.id] !== undefined ? lmsDaysInactive[student.id] : null;
       const { count, activities: pendingActivities } = getPendientesForStudent(student);
       const pendingNames = new Set(pendingActivities.map(a => [a.name, a.detail].filter(Boolean).join(' ')));
       const status = student.status || 'Formación';
@@ -854,6 +863,10 @@ export const AsistenciaLmsView: React.FC = () => {
         const { current, updated, skipped, noDate } = processRows(rows, docCol, dateCol, startRow, emailCol);
         saveLmsLastAccess(current);
         setLmsLastAccess(current);
+        const allDaysXlsx: Record<string, number> = {};
+        Object.entries(current).forEach(([sid, d]) => { const v = daysSince(d); if (v >= 0) allDaysXlsx[sid] = v; });
+        saveLmsDaysInactive(allDaysXlsx);
+        setLmsDaysInactive(allDaysXlsx);
         const parts = [`Actualizados: ${updated}`];
         if (noDate > 0) parts.push(`sin fecha: ${noDate}`);
         if (skipped > 0) parts.push(`sin match: ${skipped}`);
@@ -928,6 +941,10 @@ export const AsistenciaLmsView: React.FC = () => {
       const { current, updated, skipped, noDate } = processRows(rows, docCol, dateCol, startRow, emailCol);
       saveLmsLastAccess(current);
       setLmsLastAccess(current);
+      const allDaysCsv: Record<string, number> = {};
+      Object.entries(current).forEach(([sid, d]) => { const v = daysSince(d); if (v >= 0) allDaysCsv[sid] = v; });
+      saveLmsDaysInactive(allDaysCsv);
+      setLmsDaysInactive(allDaysCsv);
       const parts2 = [`Actualizados: ${updated}`];
       if (noDate > 0) parts2.push(`sin fecha: ${noDate}`);
       if (skipped > 0) parts2.push(`sin match: ${skipped}`);
@@ -1318,7 +1335,7 @@ export const AsistenciaLmsView: React.FC = () => {
             ) : (
               paginatedStudents.map((student, index) => {
                 const lastAccess = lmsLastAccess[student.id];
-                const days = lastAccess != null ? daysSince(lastAccess) : null;
+                const days = lmsDaysInactive[student.id] !== undefined ? lmsDaysInactive[student.id] : null;
                 return (
                   <tr key={student.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 text-center text-gray-500 text-xs tabular-nums">
