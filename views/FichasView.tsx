@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Layers, BookOpen, Pencil, X, AlertTriangle, ArrowRightLeft, ArrowRight, Users } from 'lucide-react';
+import { Plus, Trash2, Layers, BookOpen, Pencil, X, AlertTriangle, ArrowRightLeft, ArrowRight, Users, EyeOff, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Ficha, Student } from '../types';
-import { getFichas, addFicha, deleteFicha, updateFicha, getStudents, previewFichaMigration, migrateFichaStudents, FichaMigrationResult } from '../services/db';
+import { getFichas, addFicha, deleteFicha, updateFicha, getStudents, previewFichaMigration, migrateFichaStudents, FichaMigrationResult, getHiddenFichaIds, setFichaHidden } from '../services/db';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   'Formación':       { label: 'Formación',       color: '#16a34a', bg: '#dcfce7' },
@@ -15,6 +15,8 @@ export const FichasView: React.FC = () => {
   const [fichas, setFichas] = useState<Ficha[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+  const [showHidden, setShowHidden] = useState(false);
   const navigate = useNavigate();
   
   // Create State
@@ -62,6 +64,12 @@ export const FichasView: React.FC = () => {
   const loadData = () => {
     setFichas(getFichas());
     setStudents(getStudents());
+    setHiddenIds(getHiddenFichaIds());
+  };
+
+  const toggleHidden = (ficha: Ficha) => {
+    const isHidden = hiddenIds.includes(ficha.id);
+    setHiddenIds(setFichaHidden(ficha.id, !isHidden));
   };
 
   useEffect(() => {
@@ -189,6 +197,13 @@ export const FichasView: React.FC = () => {
     navigate(`/instructor/fichas/${ficha.id}/cronograma`);
   };
 
+  const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
+  const hiddenCount = useMemo(() => fichas.filter(f => hiddenSet.has(f.id)).length, [fichas, hiddenSet]);
+  const visibleFichas = useMemo(
+    () => (showHidden ? fichas : fichas.filter(f => !hiddenSet.has(f.id))),
+    [fichas, hiddenSet, showHidden]
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -196,12 +211,28 @@ export const FichasView: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900">Gestión de Fichas</h2>
           <p className="text-gray-500">Administra los grupos y programas de formación.</p>
         </div>
-        <button
-          onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          {isAdding ? <span>Cancelar</span> : <><Plus className="w-4 h-4" /> <span>Nueva Ficha</span></>}
-        </button>
+        <div className="flex items-center gap-2">
+          {hiddenCount > 0 && (
+            <button
+              onClick={() => setShowHidden(v => !v)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors border ${
+                showHidden
+                  ? 'bg-gray-800 text-white border-gray-800 hover:bg-gray-900'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+              title={showHidden ? 'Ocultar las fichas archivadas' : 'Mostrar las fichas ocultas'}
+            >
+              {showHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              <span>{showHidden ? 'Ocultando' : 'Ver ocultas'} ({hiddenCount})</span>
+            </button>
+          )}
+          <button
+            onClick={() => setIsAdding(!isAdding)}
+            className="flex items-center space-x-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            {isAdding ? <span>Cancelar</span> : <><Plus className="w-4 h-4" /> <span>Nueva Ficha</span></>}
+          </button>
+        </div>
       </div>
 
       {isAdding && (
@@ -293,13 +324,15 @@ export const FichasView: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {fichas.map(ficha => (
-            <div key={ficha.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative">
+        {visibleFichas.map(ficha => {
+          const isHidden = hiddenSet.has(ficha.id);
+          return (
+            <div key={ficha.id} className={`bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition-shadow relative ${isHidden ? 'border-gray-300 border-dashed opacity-60' : 'border-gray-200'}`}>
                 <div className="flex items-start justify-between">
                     <div className="p-3 bg-teal-50 text-teal-600 rounded-lg">
                         <BookOpen className="w-6 h-6" />
                     </div>
-                    
+
                     <div className="flex space-x-1">
                         {ficha.code !== 'General' && (
                             <button
@@ -318,7 +351,16 @@ export const FichasView: React.FC = () => {
                             <Pencil className="w-4 h-4" />
                         </button>
                         {ficha.code !== 'General' && (
-                            <button 
+                            <button
+                                onClick={() => toggleHidden(ficha)}
+                                className="text-gray-400 hover:text-amber-600 p-1.5 hover:bg-amber-50 rounded"
+                                title={isHidden ? 'Mostrar ficha (quitar de ocultas)' : 'Ocultar ficha (archivar)'}
+                            >
+                                {isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                            </button>
+                        )}
+                        {ficha.code !== 'General' && (
+                            <button
                                 onClick={() => promptDelete(ficha)}
                                 className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded"
                                 title="Eliminar Ficha"
@@ -329,7 +371,14 @@ export const FichasView: React.FC = () => {
                     </div>
                 </div>
                 <div className="mt-4">
-                    <h3 className="text-lg font-bold text-gray-900">{ficha.code}</h3>
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-gray-900">{ficha.code}</h3>
+                        {isHidden && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                                <EyeOff className="w-3 h-3" /> Oculta
+                            </span>
+                        )}
+                    </div>
                     <p className="text-teal-600 font-medium text-sm">{ficha.program}</p>
                     {ficha.description && <p className="text-gray-500 text-sm mt-2">{ficha.description}</p>}
                 </div>
@@ -402,7 +451,8 @@ export const FichasView: React.FC = () => {
                     </button>
                 </div>
             </div>
-        ))}
+          );
+        })}
       </div>
 
        {/* Edit Modal */}

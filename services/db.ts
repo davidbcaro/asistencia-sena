@@ -29,6 +29,7 @@ const STORAGE_KEYS = {
   RETIRO_DETAILS: 'asistenciapro_retiro_details',
   HIDDEN_GRADE_ACTIVITIES: 'asistenciapro_hidden_grade_activities',
   DELETED_GRADE_ACTIVITY_IDS: 'asistenciapro_deleted_grade_activity_ids',
+  HIDDEN_FICHAS: 'asistenciapro_hidden_fichas',
   PLANEACION_SEMANAL: 'asistenciapro_planeacion_semanal',
   CRONOGRAMA_GENERAL: 'asistenciapro_cronograma_general',
   MANUAL_FINALS: 'asistenciapro_manual_finals',
@@ -67,6 +68,7 @@ const APP_DATA_SYNC_KEYS: Record<string, string> = {
   sofia_student_estados:       STORAGE_KEYS.SOFIA_STUDENT_ESTADOS,
   hidden_grade_activities:     STORAGE_KEYS.HIDDEN_GRADE_ACTIVITIES,
   deleted_grade_activity_ids:  STORAGE_KEYS.DELETED_GRADE_ACTIVITY_IDS,
+  hidden_fichas:               STORAGE_KEYS.HIDDEN_FICHAS,
   planeacion_semanal:          STORAGE_KEYS.PLANEACION_SEMANAL,
   cronograma_general:          STORAGE_KEYS.CRONOGRAMA_GENERAL,
 };
@@ -1269,6 +1271,35 @@ export const deleteFicha = async (id: string) => {
   } catch (error) {
       console.error("❌ Failed to delete ficha:", error);
   }
+};
+
+// --- FICHAS OCULTAS (archivadas: no se borran, solo se ocultan del listado) ---
+export const getHiddenFichaIds = (): string[] => {
+  return safeParseJSON<string[]>(localStorage.getItem(STORAGE_KEYS.HIDDEN_FICHAS), []);
+};
+
+export const saveHiddenFichaIds = (ids: string[]): void => {
+  localStorage.setItem(STORAGE_KEYS.HIDDEN_FICHAS, JSON.stringify(ids));
+  _markLocalWrite(STORAGE_KEYS.HIDDEN_FICHAS);
+  callSaveAppData('hidden_fichas', ids);
+  notifyChange();
+};
+
+/** Oculta o muestra una ficha. Devuelve la nueva lista de ids ocultas. */
+export const setFichaHidden = (fichaId: string, hidden: boolean): string[] => {
+  const current = getHiddenFichaIds();
+  const isHidden = current.includes(fichaId);
+  if (hidden && !isHidden) {
+    const updated = [...current, fichaId];
+    saveHiddenFichaIds(updated);
+    return updated;
+  }
+  if (!hidden && isHidden) {
+    const updated = current.filter(id => id !== fichaId);
+    saveHiddenFichaIds(updated);
+    return updated;
+  }
+  return current;
 };
 
 export interface FichaMigrationResult {
