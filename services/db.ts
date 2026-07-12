@@ -1271,6 +1271,131 @@ export const deleteFicha = async (id: string) => {
   }
 };
 
+export interface FichaMigrationResult {
+  sourceCode: string;
+  destCode: string;
+  movedStudents: number;
+  skippedStudents: number;
+  movedActivities: number;
+  movedSessions: number;
+  movedJuicioEntries: number;
+}
+
+/**
+ * Cuenta qué se movería al migrar los aprendices de una ficha a otra.
+ * No modifica nada; sirve para la vista previa antes de confirmar.
+ */
+export const previewFichaMigration = (sourceCode: string, destCode: string): FichaMigrationResult => {
+  const result: FichaMigrationResult = {
+    sourceCode, destCode,
+    movedStudents: 0, skippedStudents: 0,
+    movedActivities: 0, movedSessions: 0, movedJuicioEntries: 0,
+  };
+  if (!sourceCode || !destCode || sourceCode === destCode) return result;
+
+  const students = getStudents();
+  const destDocs = new Set(
+    students.filter(s => s.group === destCode && s.documentNumber).map(s => s.documentNumber)
+  );
+  const movedStudentIds = new Set<string>();
+  students.forEach(s => {
+    if (s.group !== sourceCode) return;
+    if (s.documentNumber && destDocs.has(s.documentNumber)) { result.skippedStudents++; return; }
+    result.movedStudents++;
+    movedStudentIds.add(s.id);
+  });
+
+  result.movedActivities = getGradeActivities().filter(a => a.group === sourceCode).length;
+  result.movedSessions = getSessions().filter(s => s.group === sourceCode).length;
+  result.movedJuicioEntries = Object.values(getSofiaJuicioEntries())
+    .filter(e => movedStudentIds.has(e.studentId) && e.fichaCode === sourceCode).length;
+
+  return result;
+};
+
+/**
+ * Migra todos los aprendices de una ficha origen a una ficha destino.
+ * - Reasigna Student.group. El historial por aprendiz (asistencia, notas, juicios,
+ *   debido proceso, retiros, etc.) viaja solo porque se indexa por studentId.
+ * - Reasigna las actividades de calificación (GradeActivity.group) y las sesiones
+ *   (ClassSession.group). Las notas ya puestas siguen enganchadas por activityId.
+ * - Actualiza el fichaCode de los juicios Sofia de los aprendices movidos.
+ * NO toca planeación semanal ni cronogramas: esos quedan en la ficha origen.
+ * Los aprendices que ya existan en la ficha destino (mismo documento) se omiten.
+ */
+export const migrateFichaStudents = (sourceCode: string, destCode: string): FichaMigrationResult => {
+  const result: FichaMigrationResult = {
+    sourceCode, destCode,
+    movedStudents: 0, skippedStudents: 0,
+    movedActivities: 0, movedSessions: 0, movedJuicioEntries: 0,
+  };
+  if (!sourceCode || !destCode || sourceCode === destCode) return result;
+
+  // --- 1. APRENDICES ---
+  const students = getStudents();
+  const destDocs = new Set(
+    students.filter(s => s.group === destCode && s.documentNumber).map(s => s.documentNumber)
+  );
+  const movedStudentIds = new Set<string>();
+  const updatedStudents = students.map(s => {
+    if (s.group !== sourceCode) return s;
+    if (s.documentNumber && destDocs.has(s.documentNumber)) {
+      result.skippedStudents++;
+      return s;
+    }
+    result.movedStudents++;
+    movedStudentIds.add(s.id);
+    return { ...s, group: destCode };
+  });
+  if (result.movedStudents > 0) {
+    saveStudents(updatedStudents);
+    sendStudentsToCloud(updatedStudents.filter(s => movedStudentIds.has(s.id)));
+  }
+
+  // --- 2. ACTIVIDADES DE CALIFICACIÓN (las notas siguen por activityId) ---
+  const activities = getGradeActivities();
+  let activitiesChanged = false;
+  const updatedActivities = activities.map(a => {
+    if (a.group !== sourceCode) return a;
+    result.movedActivities++;
+    activitiesChanged = true;
+    return { ...a, group: destCode };
+  });
+  if (activitiesChanged) saveGradeActivities(updatedActivities);
+
+  // --- 3. SESIONES DE CLASE (la asistencia sigue por studentId) ---
+  const sessions = getSessions();
+  const movedSessions: ClassSession[] = [];
+  const updatedSessions = sessions.map(s => {
+    if (s.group !== sourceCode) return s;
+    const ns = { ...s, group: destCode };
+    movedSessions.push(ns);
+    return ns;
+  });
+  if (movedSessions.length > 0) {
+    result.movedSessions = movedSessions.length;
+    saveSessions(updatedSessions);
+    sendSessionsToCloud(movedSessions);
+  }
+
+  // --- 4. JUICIOS SOFIA (metadato fichaCode de los aprendices movidos) ---
+  const sofiaEntries = getSofiaJuicioEntries();
+  const nowIso = new Date().toISOString();
+  const updatedEntries: JuicioRapEntry[] = [];
+  Object.values(sofiaEntries).forEach(e => {
+    if (movedStudentIds.has(e.studentId) && e.fichaCode === sourceCode) {
+      updatedEntries.push({ ...e, fichaCode: destCode, updatedAt: nowIso });
+    }
+  });
+  if (updatedEntries.length > 0) {
+    upsertSofiaJuicioEntries(updatedEntries);
+    result.movedJuicioEntries = updatedEntries.length;
+  }
+
+  notifyChange();
+  return result;
+};
+
 // --- SESSIONS (Authorized Dates) ---
 export const getSessions = (): ClassSession[] => {
     const data = localStorage.getItem(STORAGE_KEYS.SESSIONS);

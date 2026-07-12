@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Layers, BookOpen, Pencil, X, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Layers, BookOpen, Pencil, X, AlertTriangle, ArrowRightLeft, ArrowRight, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Ficha, Student } from '../types';
-import { getFichas, addFicha, deleteFicha, updateFicha, getStudents } from '../services/db';
+import { getFichas, addFicha, deleteFicha, updateFicha, getStudents, previewFichaMigration, migrateFichaStudents, FichaMigrationResult } from '../services/db';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   'Formación':       { label: 'Formación',       color: '#16a34a', bg: '#dcfce7' },
@@ -44,6 +44,12 @@ export const FichasView: React.FC = () => {
 
   // Delete State
   const [fichaToDelete, setFichaToDelete] = useState<{id: string, code: string} | null>(null);
+
+  // Migration State
+  const [migratingFicha, setMigratingFicha] = useState<Ficha | null>(null);
+  const [migrateDestCode, setMigrateDestCode] = useState('');
+  const [migrateResult, setMigrateResult] = useState<FichaMigrationResult | null>(null);
+  const [isMigrating, setIsMigrating] = useState(false);
 
   // Safe ID Generator
   const generateId = () => {
@@ -135,6 +141,34 @@ export const FichasView: React.FC = () => {
       deleteFicha(fichaToDelete.id);
       setFichaToDelete(null);
     }
+  };
+
+  // --- Migration ---
+  const startMigrate = (ficha: Ficha) => {
+    setMigratingFicha(ficha);
+    setMigrateDestCode('');
+    setMigrateResult(null);
+  };
+
+  const closeMigrate = () => {
+    setMigratingFicha(null);
+    setMigrateDestCode('');
+    setMigrateResult(null);
+    setIsMigrating(false);
+  };
+
+  const migratePreview = useMemo(() => {
+    if (!migratingFicha || !migrateDestCode) return null;
+    return previewFichaMigration(migratingFicha.code, migrateDestCode);
+  }, [migratingFicha, migrateDestCode, students]);
+
+  const confirmMigrate = () => {
+    if (!migratingFicha || !migrateDestCode) return;
+    setIsMigrating(true);
+    const res = migrateFichaStudents(migratingFicha.code, migrateDestCode);
+    setMigrateResult(res);
+    setIsMigrating(false);
+    loadData();
   };
 
   /** Status counts per ficha code */
@@ -267,7 +301,16 @@ export const FichasView: React.FC = () => {
                     </div>
                     
                     <div className="flex space-x-1">
-                        <button 
+                        {ficha.code !== 'General' && (
+                            <button
+                                onClick={() => startMigrate(ficha)}
+                                className="text-gray-400 hover:text-indigo-600 p-1.5 hover:bg-indigo-50 rounded"
+                                title="Migrar aprendices a otra ficha"
+                            >
+                                <ArrowRightLeft className="w-4 h-4" />
+                            </button>
+                        )}
+                        <button
                             onClick={() => startEdit(ficha)}
                             className="text-gray-400 hover:text-teal-600 p-1.5 hover:bg-teal-50 rounded"
                             title="Editar Ficha"
@@ -446,6 +489,133 @@ export const FichasView: React.FC = () => {
                     </div>
                 </div>
             </div>
+        </div>
+      )}
+
+      {/* Migration Modal */}
+      {migratingFicha && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <ArrowRightLeft className="w-5 h-5 text-indigo-600" />
+                Migrar aprendices
+              </h3>
+              <button onClick={closeMigrate} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {!migrateResult ? (
+              <>
+                {/* Source → Dest */}
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-center">
+                    <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">Origen</p>
+                    <p className="text-lg font-bold text-gray-900">{migratingFicha.code}</p>
+                    <p className="text-xs text-teal-600 font-medium">{migratingFicha.program}</p>
+                  </div>
+                  <ArrowRight className="w-6 h-6 text-indigo-500 flex-shrink-0" />
+                  <div className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-center">
+                    <p className="text-[11px] uppercase tracking-wide text-indigo-400 font-semibold">Destino</p>
+                    <p className="text-lg font-bold text-indigo-900">{migrateDestCode || '—'}</p>
+                    <p className="text-xs text-indigo-500 font-medium">
+                      {fichas.find(f => f.code === migrateDestCode)?.program || 'Sin seleccionar'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Destination select */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ficha destino</label>
+                  <select
+                    className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    value={migrateDestCode}
+                    onChange={e => setMigrateDestCode(e.target.value)}
+                  >
+                    <option value="">Selecciona la ficha destino…</option>
+                    {fichas
+                      .filter(f => f.code !== migratingFicha.code && f.code !== 'General')
+                      .map(f => (
+                        <option key={f.id} value={f.code}>{f.code} — {f.program}</option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Preview */}
+                {migratePreview && (
+                  <div className="rounded-lg border border-gray-200 bg-white p-4 mb-4">
+                    <p className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-indigo-500" /> Qué se moverá
+                    </p>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li className="flex justify-between"><span>Aprendices (con todo su historial)</span><span className="font-bold text-gray-900">{migratePreview.movedStudents}</span></li>
+                      <li className="flex justify-between"><span>Actividades de calificación</span><span className="font-bold text-gray-900">{migratePreview.movedActivities}</span></li>
+                      <li className="flex justify-between"><span>Sesiones de clase</span><span className="font-bold text-gray-900">{migratePreview.movedSessions}</span></li>
+                      {migratePreview.movedJuicioEntries > 0 && (
+                        <li className="flex justify-between"><span>Juicios Sofia (fichaCode)</span><span className="font-bold text-gray-900">{migratePreview.movedJuicioEntries}</span></li>
+                      )}
+                      {migratePreview.skippedStudents > 0 && (
+                        <li className="flex justify-between text-amber-600"><span>Aprendices omitidos (ya existen en destino)</span><span className="font-bold">{migratePreview.skippedStudents}</span></li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 mb-5 text-xs text-blue-800">
+                  El historial de cada aprendiz (asistencia, notas, juicios, debido proceso) viaja con él.
+                  <b> No se mueven</b> la planeación semanal ni los cronogramas: esos quedan en la ficha origen,
+                  que permanecerá vacía de aprendices.
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={closeMigrate}
+                    className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmMigrate}
+                    disabled={!migrateDestCode || isMigrating || (migratePreview?.movedStudents ?? 0) === 0}
+                    className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isMigrating ? 'Migrando…' : 'Migrar aprendices'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* Result */
+              <div className="text-center">
+                <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <ArrowRightLeft className="w-6 h-6" />
+                </div>
+                <h4 className="text-lg font-bold text-gray-900 mb-1">Migración completada</h4>
+                <p className="text-sm text-gray-500 mb-4">
+                  De <b>{migrateResult.sourceCode}</b> a <b>{migrateResult.destCode}</b>
+                </p>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-5 text-left">
+                  <ul className="text-sm text-gray-700 space-y-1">
+                    <li className="flex justify-between"><span>Aprendices movidos</span><span className="font-bold">{migrateResult.movedStudents}</span></li>
+                    <li className="flex justify-between"><span>Actividades reasignadas</span><span className="font-bold">{migrateResult.movedActivities}</span></li>
+                    <li className="flex justify-between"><span>Sesiones reasignadas</span><span className="font-bold">{migrateResult.movedSessions}</span></li>
+                    {migrateResult.movedJuicioEntries > 0 && (
+                      <li className="flex justify-between"><span>Juicios Sofia actualizados</span><span className="font-bold">{migrateResult.movedJuicioEntries}</span></li>
+                    )}
+                    {migrateResult.skippedStudents > 0 && (
+                      <li className="flex justify-between text-amber-600"><span>Aprendices omitidos</span><span className="font-bold">{migrateResult.skippedStudents}</span></li>
+                    )}
+                  </ul>
+                </div>
+                <button
+                  onClick={closeMigrate}
+                  className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                >
+                  Listo
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
