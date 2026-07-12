@@ -1276,6 +1276,8 @@ export interface FichaMigrationResult {
   destCode: string;
   movedStudents: number;
   skippedStudents: number;
+  /** Aprendices de la ficha origen que NO se migran por no estar en estado 'Formación'. */
+  nonFormacionStudents: number;
   movedActivities: number;
   movedSessions: number;
   movedJuicioEntries: number;
@@ -1288,7 +1290,7 @@ export interface FichaMigrationResult {
 export const previewFichaMigration = (sourceCode: string, destCode: string): FichaMigrationResult => {
   const result: FichaMigrationResult = {
     sourceCode, destCode,
-    movedStudents: 0, skippedStudents: 0,
+    movedStudents: 0, skippedStudents: 0, nonFormacionStudents: 0,
     movedActivities: 0, movedSessions: 0, movedJuicioEntries: 0,
   };
   if (!sourceCode || !destCode || sourceCode === destCode) return result;
@@ -1300,6 +1302,7 @@ export const previewFichaMigration = (sourceCode: string, destCode: string): Fic
   const movedStudentIds = new Set<string>();
   students.forEach(s => {
     if (s.group !== sourceCode) return;
+    if ((s.status || 'Formación') !== 'Formación') { result.nonFormacionStudents++; return; }
     if (s.documentNumber && destDocs.has(s.documentNumber)) { result.skippedStudents++; return; }
     result.movedStudents++;
     movedStudentIds.add(s.id);
@@ -1314,7 +1317,9 @@ export const previewFichaMigration = (sourceCode: string, destCode: string): Fic
 };
 
 /**
- * Migra todos los aprendices de una ficha origen a una ficha destino.
+ * Migra los aprendices EN ESTADO 'Formación' de una ficha origen a una destino.
+ * Los que estén en otro estado (Cancelado, Retiro Voluntario, Deserción, etc.)
+ * se quedan en la ficha origen.
  * - Reasigna Student.group. El historial por aprendiz (asistencia, notas, juicios,
  *   debido proceso, retiros, etc.) viaja solo porque se indexa por studentId.
  * - Reasigna las actividades de calificación (GradeActivity.group) y las sesiones
@@ -1326,12 +1331,12 @@ export const previewFichaMigration = (sourceCode: string, destCode: string): Fic
 export const migrateFichaStudents = (sourceCode: string, destCode: string): FichaMigrationResult => {
   const result: FichaMigrationResult = {
     sourceCode, destCode,
-    movedStudents: 0, skippedStudents: 0,
+    movedStudents: 0, skippedStudents: 0, nonFormacionStudents: 0,
     movedActivities: 0, movedSessions: 0, movedJuicioEntries: 0,
   };
   if (!sourceCode || !destCode || sourceCode === destCode) return result;
 
-  // --- 1. APRENDICES ---
+  // --- 1. APRENDICES (solo estado 'Formación') ---
   const students = getStudents();
   const destDocs = new Set(
     students.filter(s => s.group === destCode && s.documentNumber).map(s => s.documentNumber)
@@ -1339,6 +1344,10 @@ export const migrateFichaStudents = (sourceCode: string, destCode: string): Fich
   const movedStudentIds = new Set<string>();
   const updatedStudents = students.map(s => {
     if (s.group !== sourceCode) return s;
+    if ((s.status || 'Formación') !== 'Formación') {
+      result.nonFormacionStudents++;
+      return s;
+    }
     if (s.documentNumber && destDocs.has(s.documentNumber)) {
       result.skippedStudents++;
       return s;

@@ -549,11 +549,14 @@ export const FichasView: React.FC = () => {
                       <Users className="w-4 h-4 text-indigo-500" /> Qué se moverá
                     </p>
                     <ul className="text-sm text-gray-600 space-y-1">
-                      <li className="flex justify-between"><span>Aprendices (con todo su historial)</span><span className="font-bold text-gray-900">{migratePreview.movedStudents}</span></li>
+                      <li className="flex justify-between"><span>Aprendices en <b>Formación</b> (con todo su historial)</span><span className="font-bold text-gray-900">{migratePreview.movedStudents}</span></li>
                       <li className="flex justify-between"><span>Actividades de calificación</span><span className="font-bold text-gray-900">{migratePreview.movedActivities}</span></li>
                       <li className="flex justify-between"><span>Sesiones de clase</span><span className="font-bold text-gray-900">{migratePreview.movedSessions}</span></li>
                       {migratePreview.movedJuicioEntries > 0 && (
                         <li className="flex justify-between"><span>Juicios Sofia (fichaCode)</span><span className="font-bold text-gray-900">{migratePreview.movedJuicioEntries}</span></li>
+                      )}
+                      {migratePreview.nonFormacionStudents > 0 && (
+                        <li className="flex justify-between text-gray-500"><span>Se quedan (Cancelado/Retiro/Deserción…)</span><span className="font-bold">{migratePreview.nonFormacionStudents}</span></li>
                       )}
                       {migratePreview.skippedStudents > 0 && (
                         <li className="flex justify-between text-amber-600"><span>Aprendices omitidos (ya existen en destino)</span><span className="font-bold">{migratePreview.skippedStudents}</span></li>
@@ -563,9 +566,10 @@ export const FichasView: React.FC = () => {
                 )}
 
                 <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 mb-5 text-xs text-blue-800">
-                  El historial de cada aprendiz (asistencia, notas, juicios, debido proceso) viaja con él.
-                  <b> No se mueven</b> la planeación semanal ni los cronogramas: esos quedan en la ficha origen,
-                  que permanecerá vacía de aprendices.
+                  Solo se migran los aprendices en estado <b>Formación</b>; los de otros estados
+                  (Cancelado, Retiro, Deserción…) se quedan en la ficha origen. El historial de cada
+                  aprendiz movido (asistencia, notas, juicios, debido proceso) viaja con él.
+                  <b> No se mueven</b> la planeación semanal ni los cronogramas.
                 </div>
 
                 <div className="flex space-x-3">
@@ -601,6 +605,9 @@ export const FichasView: React.FC = () => {
                     <li className="flex justify-between"><span>Sesiones reasignadas</span><span className="font-bold">{migrateResult.movedSessions}</span></li>
                     {migrateResult.movedJuicioEntries > 0 && (
                       <li className="flex justify-between"><span>Juicios Sofia actualizados</span><span className="font-bold">{migrateResult.movedJuicioEntries}</span></li>
+                    )}
+                    {migrateResult.nonFormacionStudents > 0 && (
+                      <li className="flex justify-between text-gray-500"><span>Se quedaron (no Formación)</span><span className="font-bold">{migrateResult.nonFormacionStudents}</span></li>
                     )}
                     {migrateResult.skippedStudents > 0 && (
                       <li className="flex justify-between text-amber-600"><span>Aprendices omitidos</span><span className="font-bold">{migrateResult.skippedStudents}</span></li>
