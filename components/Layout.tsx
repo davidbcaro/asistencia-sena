@@ -4,8 +4,9 @@ import {
   Users, CalendarCheck, BarChart3, Mail, GraduationCap,
   Layers, Database, Cloud, ClipboardCheck, LogOut, FileSpreadsheet,
   PanelLeft, PanelLeftClose, BookOpen, Scale, BookMarked, Menu,
+  CheckCircle2, AlertTriangle, X,
 } from 'lucide-react';
-import { isSupabaseConfigured } from '../services/db';
+import { isSupabaseConfigured, CLOUD_SYNC_EVENT, CloudSyncEventDetail } from '../services/db';
 import { UserRole } from '../types';
 
 const SIDEBAR_PINNED_KEY = 'asistenciapro-sidebar-pinned';
@@ -27,6 +28,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
   const [isHovering, setIsHovering] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Cloud-sync toasts (success auto-dismiss, error persists until closed)
+  interface SyncToast extends CloudSyncEventDetail { id: number; }
+  const [toasts, setToasts] = useState<SyncToast[]>([]);
+  const dismissToast = (id: number) => setToasts(prev => prev.filter(t => t.id !== id));
+
   const homePath = role === 'student' ? '/student' : '/instructor/students';
   const isInstructor = role === 'professor';
 
@@ -43,6 +49,22 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
     const handleStorageChange = () => setHasCloud(isSupabaseConfigured());
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Listen for cloud-sync results and surface them as toasts
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<CloudSyncEventDetail>).detail;
+      if (!detail) return;
+      const id = Date.now() + Math.random();
+      setToasts(prev => [...prev, { ...detail, id }]);
+      if (detail.status === 'ok') {
+        // Auto-dismiss success toasts
+        window.setTimeout(() => dismissToast(id), 3500);
+      }
+    };
+    window.addEventListener(CLOUD_SYNC_EVENT, handler);
+    return () => window.removeEventListener(CLOUD_SYNC_EVENT, handler);
   }, []);
 
   // Desktop: icon rail (collapsed) by default; expands on hover or when pinned.
@@ -182,6 +204,48 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+
+      {/* ── Cloud-sync toasts ──────────────────────────────────── */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 w-[22rem] max-w-[calc(100vw-2rem)]">
+          {toasts.map(t => {
+            const isOk = t.status === 'ok';
+            return (
+              <div
+                key={t.id}
+                className={`flex items-start gap-2.5 rounded-lg border px-3.5 py-3 shadow-lg animate-fade-in ${
+                  isOk ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
+                }`}
+                role="status"
+              >
+                {isOk
+                  ? <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-green-600 mt-0.5" />
+                  : <AlertTriangle className="w-5 h-5 flex-shrink-0 text-red-600 mt-0.5" />}
+                <div className="min-w-0 flex-1 text-sm">
+                  {isOk ? (
+                    <p className="font-medium">
+                      {t.count ?? ''} {t.entity} {t.count === 1 ? 'guardado' : 'guardados'} en la nube ✓
+                    </p>
+                  ) : (
+                    <>
+                      <p className="font-semibold">No se pudieron guardar {t.count ?? ''} {t.entity} en la nube</p>
+                      {t.message && <p className="text-xs text-red-600 mt-0.5 break-words">{t.message}</p>}
+                      <p className="text-xs text-red-700 mt-1">Se guardó localmente. Revisa tu conexión e intenta de nuevo.</p>
+                    </>
+                  )}
+                </div>
+                <button
+                  onClick={() => dismissToast(t.id)}
+                  className={`flex-shrink-0 p-0.5 rounded hover:bg-black/5 ${isOk ? 'text-green-500' : 'text-red-500'}`}
+                  title="Cerrar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Mobile overlay drawer ──────────────────────────────── */}
       {mobileOpen && (

@@ -44,6 +44,23 @@ const notifyChange = () => {
   }
 };
 
+/** Nombre del evento global de estado de sincronización con la nube. */
+export const CLOUD_SYNC_EVENT = 'asistenciapro-cloud-sync';
+export type CloudSyncStatus = 'ok' | 'error';
+export interface CloudSyncEventDetail {
+  status: CloudSyncStatus;
+  entity: 'aprendices' | 'fichas' | 'sesiones';
+  count?: number;
+  message?: string;
+}
+
+/** Emite un evento para que la UI muestre un aviso de éxito/fallo al sincronizar. */
+const emitCloudSync = (detail: CloudSyncEventDetail) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(CLOUD_SYNC_EVENT, { detail }));
+  }
+};
+
 // ─── APP_DATA CLOUD SYNC ────────────────────────────────────────────────────
 
 /** Maps cloud key → localStorage key for app_data table sync */
@@ -633,8 +650,10 @@ export const sendStudentsToCloud = async (students: Student[]): Promise<void> =>
 
         const result = await response.json();
         console.log("✅ Students synced successfully:", result);
+        emitCloudSync({ status: 'ok', entity: 'aprendices', count: payload.length });
     } catch (error: any) {
         console.error("❌ Failed to sync students to cloud:", error.message || error);
+        emitCloudSync({ status: 'error', entity: 'aprendices', count: students.length, message: error?.message || String(error) });
         // Don't throw - allow app to continue working locally
     }
 };
@@ -690,8 +709,10 @@ export const sendFichasToCloud = async (fichas: Ficha[]): Promise<void> => {
 
         const result = await response.json();
         console.log("✅ Fichas synced successfully:", result);
+        emitCloudSync({ status: 'ok', entity: 'fichas', count: payload.length });
     } catch (error: any) {
         console.error("❌ Failed to sync fichas to cloud:", error.message || error);
+        emitCloudSync({ status: 'error', entity: 'fichas', count: fichas.length, message: error?.message || String(error) });
         // Don't throw - allow app to continue working locally
     }
 };
@@ -741,8 +762,10 @@ export const sendSessionsToCloud = async (sessions: ClassSession[]): Promise<voi
 
         const result = await response.json();
         console.log("✅ Sessions synced successfully:", result);
+        emitCloudSync({ status: 'ok', entity: 'sesiones', count: payload.length });
     } catch (error: any) {
         console.error("❌ Failed to sync sessions to cloud:", error.message || error);
+        emitCloudSync({ status: 'error', entity: 'sesiones', count: sessions.length, message: error?.message || String(error) });
         // Don't throw - allow app to continue working locally
     }
 };
