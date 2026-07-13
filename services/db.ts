@@ -907,13 +907,24 @@ export const saveStudents = (students: Student[]) => {
   notifyChange();
 };
 
+/**
+ * Normaliza nombres y apellidos a MAYÚSCULA SOSTENIDA (institucional SENA).
+ * Se aplica en todos los puntos de escritura de aprendices (crear/importar/editar)
+ * para que aparezca consistente en toda la app y en las exportaciones PDF/Excel.
+ */
+const normalizeStudentCase = (student: Student): Student => ({
+  ...student,
+  firstName: (student.firstName ?? '').toLocaleUpperCase('es-CO'),
+  lastName: (student.lastName ?? '').toLocaleUpperCase('es-CO'),
+});
+
 export const addStudent = (student: Student) => {
   const current = getStudents();
-  // Ensure status has a default value
-  const studentWithDefaults = {
+  // Ensure status has a default value + uppercase names
+  const studentWithDefaults = normalizeStudentCase({
     ...student,
     status: student.status || 'Formación'
-  };
+  });
   saveStudents([...current, studentWithDefaults]);
   // Sync to cloud via Edge Function
   sendStudentsToCloud([studentWithDefaults]);
@@ -921,10 +932,11 @@ export const addStudent = (student: Student) => {
 
 export const bulkAddStudents = (newStudents: Student[]) => {
     const current = getStudents();
-    saveStudents([...current, ...newStudents]);
+    const normalized = newStudents.map(normalizeStudentCase);
+    saveStudents([...current, ...normalized]);
     // Sync to cloud via Edge Function
-    if (newStudents.length > 0) {
-        sendStudentsToCloud(newStudents);
+    if (normalized.length > 0) {
+        sendStudentsToCloud(normalized);
     }
 };
 
@@ -932,10 +944,11 @@ export const updateStudent = (updatedStudent: Student) => {
   const students = getStudents();
   const index = students.findIndex(s => s.id === updatedStudent.id);
   if (index !== -1) {
-    students[index] = updatedStudent;
+    const normalized = normalizeStudentCase(updatedStudent);
+    students[index] = normalized;
     saveStudents(students);
     // Sync to cloud via Edge Function
-    sendStudentsToCloud([updatedStudent]);
+    sendStudentsToCloud([normalized]);
   }
 };
 
