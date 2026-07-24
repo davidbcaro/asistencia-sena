@@ -8,6 +8,26 @@ interface StudentAttendanceViewProps {
   onLogout?: () => void;
 }
 
+/**
+ * Normaliza un número de documento para poder compararlo de forma tolerante.
+ *
+ * Motivo: algunas fichas se importan con el TIPO de documento incluido dentro
+ * del número (p. ej. "CC 1233894371", "TI 1018494393", "PPT 1401089"), mientras
+ * que el aprendiz solo escribe el número ("1233894371"). Sin normalizar, la
+ * comparación exacta falla y el portal responde "No se encontró un aprendiz".
+ *
+ * Estrategia: pasar a mayúsculas, quitar un prefijo de tipo de documento inicial
+ * (CC, TI, CE, PPT, PEP, etc.) y eliminar todo lo que no sean dígitos o letras.
+ * Así "CC 1233894371", "cc-1233894371" y "1233894371" se consideran iguales.
+ */
+const normalizeDocNumber = (doc: string | undefined | null): string =>
+  (doc ?? '')
+    .toString()
+    .toUpperCase()
+    .trim()
+    .replace(/^(CC|TI|CE|PPT|PEP|PP|PA|NIT|RC|NUIP|DNI|DE)\.?\s+/i, '')
+    .replace(/[^0-9A-Z]/gi, '');
+
 export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ onLogout }) => {
   const [mode, setMode] = useState<'register' | 'consult'>('register');
   const [step, setStep] = useState<'input' | 'success'>('input');
@@ -39,7 +59,15 @@ export const StudentAttendanceView: React.FC<StudentAttendanceViewProps> = ({ on
     const today = getLocalToday();
 
     // 1. Find Student
-    const student = students.find(s => s.documentNumber === docNumber.trim());
+    // Comparación tolerante: primero exacta y, si falla, normalizando ambos lados
+    // para aceptar números guardados con el tipo de documento incluido
+    // (p. ej. "CC 1233894371") aunque el aprendiz solo escriba el número.
+    const inputDoc = docNumber.trim();
+    const normalizedInput = normalizeDocNumber(inputDoc);
+    const student = students.find(s =>
+        s.documentNumber === inputDoc ||
+        (!!normalizedInput && normalizeDocNumber(s.documentNumber) === normalizedInput)
+    );
 
     if (!student) {
         setError('No se encontró un aprendiz con este número de documento.');

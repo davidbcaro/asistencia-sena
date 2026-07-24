@@ -296,12 +296,18 @@ export const AttendanceView: React.FC = () => {
 
     studentsInGroup.forEach(student => {
         const studentDoc = student.documentNumber ? String(student.documentNumber).trim() : '';
+        // Solo los dígitos, para tolerar documentos guardados con el tipo incluido
+        // (p. ej. "CC 1233894371"): las líneas pegadas se parsean como dígitos puros.
+        const studentDocDigits = studentDoc.replace(/\D/g, '');
         const studentFullName = `${student.firstName} ${student.lastName}`;
         const studentNameNorm = normalize(studentFullName);
         const studentTokens = studentNameNorm.split(/\s+/).filter(t => t.length > 1);
 
         const isPresent = processedLines.some(lineObj => {
             if (studentDoc && lineObj.numbers.includes(studentDoc)) {
+                return true;
+            }
+            if (studentDocDigits && lineObj.numbers.includes(studentDocDigits)) {
                 return true;
             }
             if (lineObj.norm.includes(studentNameNorm)) return true;
