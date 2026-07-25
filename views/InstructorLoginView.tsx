@@ -8,6 +8,37 @@ interface InstructorLoginViewProps {
   onSelectRole: (role: UserRole) => void;
 }
 
+/**
+ * Pide explícitamente al navegador que guarde la contraseña del instructor.
+ *
+ * En una SPA se hace `preventDefault()` y la navegación ocurre por JavaScript,
+ * así que la heurística nativa de "¿Guardar contraseña?" no siempre se dispara.
+ * La Credential Management API (Chromium, contextos seguros HTTPS/localhost)
+ * permite guardarla de forma explícita para que el gestor de contraseñas la
+ * recuerde y la autocomplete la próxima vez.
+ *
+ * Es tolerante a fallos: si el navegador no la soporta (Firefox/Safari) o el
+ * usuario rechaza el aviso, simplemente no hace nada. En esos navegadores sigue
+ * funcionando la heurística nativa gracias al <form> con autocomplete.
+ */
+const saveBrowserCredential = async (password: string): Promise<void> => {
+  try {
+    const w = window as unknown as { PasswordCredential?: new (data: {
+      id: string; password: string; name?: string;
+    }) => Credential };
+    if (w.PasswordCredential && navigator.credentials?.store) {
+      const cred = new w.PasswordCredential({
+        id: 'instructor',
+        name: 'Instructor',
+        password,
+      });
+      await navigator.credentials.store(cred);
+    }
+  } catch {
+    /* Sin soporte o el usuario rechazó: no interrumpe el inicio de sesión. */
+  }
+};
+
 export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSelectRole }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -42,6 +73,8 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
     try {
       const isValid = await verifyInstructorPassword(password);
       if (isValid) {
+        // Ofrecer guardar la contraseña en el navegador antes de navegar.
+        await saveBrowserCredential(password);
         onSelectRole('professor');
       } else {
         setError('Contraseña incorrecta');
@@ -72,6 +105,8 @@ export const InstructorLoginView: React.FC<InstructorLoginViewProps> = ({ onSele
       }
 
       await saveInstructorPassword(setupPassword);
+      // Ofrecer guardar la contraseña recién creada en el navegador.
+      await saveBrowserCredential(setupPassword);
       onSelectRole('professor');
     } catch {
       setSetupError('Error al guardar la contraseña.');
