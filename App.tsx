@@ -17,7 +17,7 @@ import { CronogramaGeneralView } from './views/CronogramaGeneralView';
 import { PlaneacionSemanalView } from './views/PlaneacionSemanalView';
 import { AsistenciaLmsView } from './views/AsistenciaLmsView';
 import { DebidoProcesoView } from './views/DebidoProcesoView';
-import { syncFromCloud, subscribeToRealtime } from './services/db';
+import { syncFromCloud, subscribeToRealtime, retryPendingStudentWrites } from './services/db';
 import { UserRole } from './types';
 
 const instructorRouteToTab: Record<string, string> = {
@@ -68,6 +68,11 @@ const App: React.FC = () => {
     syncFromCloud();
     // 2. Setup Realtime Listener (Insert/Update/Delete)
     subscribeToRealtime();
+    // 3. Al recuperar la conexión, reintentar los cambios de aprendices que
+    //    quedaron sin subir (p. ej. un estado cambiado estando sin internet).
+    const handleOnline = () => { retryPendingStudentWrites(); };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
   }, []);
 
   const activeTab = useMemo(() => getActiveTabFromPath(location.pathname), [location.pathname]);

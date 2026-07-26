@@ -993,7 +993,76 @@ const normalizeStudentCase = (student: Student): Student => ({
   lastName: (student.lastName ?? '').toLocaleUpperCase('es-CO'),
 });
 
-export const addStudent = (student: Student) => {
+// ─── COLA DE ESCRITURAS PENDIENTES DE APRENDICES ────────────────────────────
+// Toda edición de aprendiz (incluido el cambio de estado) se sube al momento.
+// Si esa subida falla o no alcanza a completarse (se cierra la pestaña, se corta
+// la red, se navega), el aprendiz queda anotado aquí y se reintenta solo:
+// al abrir la app, al recuperar conexión y tras la siguiente escritura correcta.
+// Además `syncFromCloud()` respeta estos aprendices para no pisar con datos
+// viejos de la nube un cambio local que todavía no se ha confirmado.
+
+const PENDING_STUDENTS_KEY = 'asistenciapro_pending_students';
+
+const getPendingStudentIds = (): string[] =>
+  safeParseJSON<string[]>(localStorage.getItem(PENDING_STUDENTS_KEY), []);
+
+const setPendingStudentIds = (ids: string[]): void => {
+  const unique = Array.from(new Set(ids));
+  if (unique.length === 0) localStorage.removeItem(PENDING_STUDENTS_KEY);
+  else localStorage.setItem(PENDING_STUDENTS_KEY, JSON.stringify(unique));
+};
+
+const markStudentsPending = (ids: string[]): void =>
+  setPendingStudentIds([...getPendingStudentIds(), ...ids]);
+
+const clearStudentsPending = (ids: string[]): void => {
+  const done = new Set(ids);
+  setPendingStudentIds(getPendingStudentIds().filter(id => !done.has(id)));
+};
+
+/** ¿Hay cambios de aprendices sin confirmar en la nube? */
+export const hasPendingStudentWrites = (): boolean => getPendingStudentIds().length > 0;
+
+/**
+ * Sube aprendices marcándolos como pendientes ANTES de intentarlo, para que
+ * si la pestaña se cierra a mitad del envío el cambio no se pierda: quedará
+ * registrado y se reintentará en el próximo arranque.
+ */
+const pushStudents = async (students: Student[]): Promise<boolean> => {
+  if (students.length === 0) return true;
+  const ids = students.map(s => s.id);
+  markStudentsPending(ids);
+  const ok = await sendStudentsToCloud(students);
+  if (ok) clearStudentsPending(ids);
+  return ok;
+};
+
+/**
+ * Reintenta subir los aprendices que quedaron pendientes.
+ * Devuelve cuántos se subieron correctamente.
+ */
+export const retryPendingStudentWrites = async (): Promise<number> => {
+  const pending = getPendingStudentIds();
+  if (pending.length === 0) return 0;
+
+  const all = getStudents();
+  const byId = new Map(all.map(s => [s.id, s]));
+
+  // Ids que ya no existen localmente (borrados): sacarlos de la cola.
+  const stale = pending.filter(id => !byId.has(id));
+  if (stale.length > 0) clearStudentsPending(stale);
+
+  const toSend = pending.map(id => byId.get(id)).filter((s): s is Student => !!s);
+  if (toSend.length === 0) return 0;
+
+  const ok = await sendStudentsToCloud(toSend);
+  if (!ok) return 0;
+  clearStudentsPending(toSend.map(s => s.id));
+  console.log(`[Sync] Reintento correcto: ${toSend.length} aprendiz(es) subidos`);
+  return toSend.length;
+};
+
+export const addStudent = async (student: Student): Promise<boolean> => {
   const current = getStudents();
   // Ensure status has a default value + uppercase names
   const studentWithDefaults = normalizeStudentCase({
@@ -1001,30 +1070,27 @@ export const addStudent = (student: Student) => {
     status: student.status || 'Formación'
   });
   saveStudents([...current, studentWithDefaults]);
-  // Sync to cloud via Edge Function
-  sendStudentsToCloud([studentWithDefaults]);
+  // Sync to cloud via Edge Function (con cola de reintentos)
+  return pushStudents([studentWithDefaults]);
 };
 
-export const bulkAddStudents = (newStudents: Student[]) => {
+export const bulkAddStudents = async (newStudents: Student[]): Promise<boolean> => {
     const current = getStudents();
     const normalized = newStudents.map(normalizeStudentCase);
     saveStudents([...current, ...normalized]);
-    // Sync to cloud via Edge Function
-    if (normalized.length > 0) {
-        sendStudentsToCloud(normalized);
-    }
+    // Sync to cloud via Edge Function (con cola de reintentos)
+    return pushStudents(normalized);
 };
 
-export const updateStudent = (updatedStudent: Student) => {
+export const updateStudent = async (updatedStudent: Student): Promise<boolean> => {
   const students = getStudents();
   const index = students.findIndex(s => s.id === updatedStudent.id);
-  if (index !== -1) {
-    const normalized = normalizeStudentCase(updatedStudent);
-    students[index] = normalized;
-    saveStudents(students);
-    // Sync to cloud via Edge Function
-    sendStudentsToCloud([normalized]);
-  }
+  if (index === -1) return false;
+  const normalized = normalizeStudentCase(updatedStudent);
+  students[index] = normalized;
+  saveStudents(students);
+  // Sync to cloud via Edge Function (con cola de reintentos)
+  return pushStudents([normalized]);
 };
 
 export const deleteStudent = async (id: string) => {
@@ -2343,7 +2409,26 @@ export const syncFromCloud = async () => {
                 isVocero: x.is_vocero ?? false,
                 isVoceroSuplente: x.is_vocero_suplente ?? false
             }));
-            saveStudents(mappedStudents);
+
+            // No pisar los aprendices que tienen cambios locales sin confirmar
+            // en la nube: para esos gana la versión local (se reintentará subir).
+            const pending = new Set(getPendingStudentIds());
+            if (pending.size === 0) {
+                saveStudents(mappedStudents);
+            } else {
+                const local = getStudents();
+                const localById = new Map(local.map(st => [st.id, st]));
+                const merged = mappedStudents.map(cs =>
+                    pending.has(cs.id) ? (localById.get(cs.id) ?? cs) : cs
+                );
+                // Aprendices nuevos creados aquí que la nube todavía no conoce
+                const cloudIds = new Set(mappedStudents.map(cs => cs.id));
+                local.forEach(st => {
+                    if (pending.has(st.id) && !cloudIds.has(st.id)) merged.push(st);
+                });
+                console.log(`[Sync] ${pending.size} aprendiz(es) con cambios pendientes preservados`);
+                saveStudents(merged);
+            }
         }
 
         // Attendance
@@ -2364,6 +2449,10 @@ export const syncFromCloud = async () => {
     // Always attempt upload — outside try/catch so a Supabase query error above
     // can never prevent local data from being persisted to the cloud.
     await uploadLocalAppDataToCloud();
+
+    // Reintenta los cambios de aprendices que quedaron sin confirmar
+    // (pestaña cerrada a mitad de envío, corte de red, etc.).
+    await retryPendingStudentWrites();
 
     // Fire a final notification so any views that mounted mid-sync (and may have
     // missed earlier events) will reload all their data now that everything is in localStorage.
