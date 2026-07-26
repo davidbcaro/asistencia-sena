@@ -353,6 +353,52 @@ const callSaveAppData = (cloudKey: string, value: unknown): void => {
   }, 400);
 };
 
+/**
+ * Sube UNA clave de app_data inmediatamente y espera la confirmación del servidor.
+ *
+ * A diferencia de `callSaveAppData` (que va con debounce de 400 ms y es
+ * fire-and-forget), esta versión se puede `await`ear. Se usa en operaciones
+ * críticas como la migración de fichas, donde si la escritura remota no se
+ * confirma el cambio quedaría solo en localStorage y el siguiente
+ * `syncFromCloud()` lo revertiría en silencio.
+ *
+ * Devuelve true solo si el servidor confirmó la escritura.
+ */
+const postAppDataNow = async (cloudKey: string, value: unknown): Promise<boolean> => {
+  const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!edgeUrl || !anonKey) return false;
+
+  // Cancela cualquier subida debounced pendiente de esta misma clave para que
+  // no pise después el valor que estamos subiendo ahora.
+  clearTimeout(_cloudTimers[cloudKey]);
+
+  const storageKeyForCloud = APP_DATA_SYNC_KEYS[cloudKey];
+  if (storageKeyForCloud) _markLocalWrite(storageKeyForCloud);
+
+  const uploadedAt = new Date().toISOString();
+  _lastUploadAt[cloudKey] = uploadedAt;
+  try {
+    const res = await fetch(`${edgeUrl}/save-app-data`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${anonKey}`,
+        'apikey': anonKey,
+      },
+      body: JSON.stringify({ key: cloudKey, value, updated_at: uploadedAt }),
+    });
+    if (!res.ok) {
+      console.warn('[AppData] immediate cloud write failed for key:', cloudKey, res.status);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('[AppData] immediate cloud write failed for key:', cloudKey, e);
+    return false;
+  }
+};
+
 /** Fetch all rows from app_data via Edge Function (service_role — bypasses RLS).
  *  @param force  When true: cloud always wins (overwrites local regardless of content).
  *                When false (default): local wins if it already has data.
@@ -597,16 +643,17 @@ export const sendAttendanceToCloud = async (records: AttendanceRecord[]): Promis
     }
 };
 
-export const sendStudentsToCloud = async (students: Student[]): Promise<void> => {
+/** Sube aprendices a la nube. Devuelve true solo si la escritura remota se confirmó. */
+export const sendStudentsToCloud = async (students: Student[]): Promise<boolean> => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    
+
     if (!edgeUrl) {
         console.error("❌ VITE_SUPABASE_EDGE_URL not configured! Check your environment variables.");
-        return;
+        return false;
     }
 
     if (students.length === 0) {
-        return; // Nothing to sync
+        return true; // Nothing to sync
     }
 
     try {
@@ -651,10 +698,12 @@ export const sendStudentsToCloud = async (students: Student[]): Promise<void> =>
         const result = await response.json();
         console.log("✅ Students synced successfully:", result);
         emitCloudSync({ status: 'ok', entity: 'aprendices', count: payload.length });
+        return true;
     } catch (error: any) {
         console.error("❌ Failed to sync students to cloud:", error.message || error);
         emitCloudSync({ status: 'error', entity: 'aprendices', count: students.length, message: error?.message || String(error) });
         // Don't throw - allow app to continue working locally
+        return false;
     }
 };
 
@@ -717,16 +766,17 @@ export const sendFichasToCloud = async (fichas: Ficha[]): Promise<void> => {
     }
 };
 
-export const sendSessionsToCloud = async (sessions: ClassSession[]): Promise<void> => {
+/** Sube sesiones a la nube. Devuelve true solo si la escritura remota se confirmó. */
+export const sendSessionsToCloud = async (sessions: ClassSession[]): Promise<boolean> => {
     const edgeUrl = import.meta.env.VITE_SUPABASE_EDGE_URL;
-    
+
     if (!edgeUrl) {
         console.error("❌ VITE_SUPABASE_EDGE_URL not configured! Check your environment variables.");
-        return;
+        return false;
     }
 
     if (sessions.length === 0) {
-        return; // Nothing to sync
+        return true; // Nothing to sync
     }
 
     try {
@@ -763,10 +813,12 @@ export const sendSessionsToCloud = async (sessions: ClassSession[]): Promise<voi
         const result = await response.json();
         console.log("✅ Sessions synced successfully:", result);
         emitCloudSync({ status: 'ok', entity: 'sesiones', count: payload.length });
+        return true;
     } catch (error: any) {
         console.error("❌ Failed to sync sessions to cloud:", error.message || error);
         emitCloudSync({ status: 'error', entity: 'sesiones', count: sessions.length, message: error?.message || String(error) });
         // Don't throw - allow app to continue working locally
+        return false;
     }
 };
 
@@ -1348,6 +1400,12 @@ export interface FichaMigrationResult {
   movedActivities: number;
   movedSessions: number;
   movedJuicioEntries: number;
+  /**
+   * true solo si TODAS las escrituras a la nube se confirmaron.
+   * Si es false el cambio quedó únicamente en este equipo y el siguiente
+   * `syncFromCloud()` lo revertiría: hay que avisar al usuario y reintentar.
+   */
+  cloudSynced: boolean;
 }
 
 /**
@@ -1359,6 +1417,7 @@ export const previewFichaMigration = (sourceCode: string, destCode: string): Fic
     sourceCode, destCode,
     movedStudents: 0, skippedStudents: 0, nonFormacionStudents: 0,
     movedActivities: 0, movedSessions: 0, movedJuicioEntries: 0,
+    cloudSynced: false,
   };
   if (!sourceCode || !destCode || sourceCode === destCode) return result;
 
@@ -1395,11 +1454,12 @@ export const previewFichaMigration = (sourceCode: string, destCode: string): Fic
  * NO toca planeación semanal ni cronogramas: esos quedan en la ficha origen.
  * Los aprendices que ya existan en la ficha destino (mismo documento) se omiten.
  */
-export const migrateFichaStudents = (sourceCode: string, destCode: string): FichaMigrationResult => {
+export const migrateFichaStudents = async (sourceCode: string, destCode: string): Promise<FichaMigrationResult> => {
   const result: FichaMigrationResult = {
     sourceCode, destCode,
     movedStudents: 0, skippedStudents: 0, nonFormacionStudents: 0,
     movedActivities: 0, movedSessions: 0, movedJuicioEntries: 0,
+    cloudSynced: false,
   };
   if (!sourceCode || !destCode || sourceCode === destCode) return result;
 
@@ -1423,9 +1483,13 @@ export const migrateFichaStudents = (sourceCode: string, destCode: string): Fich
     movedStudentIds.add(s.id);
     return { ...s, group: destCode };
   });
+  // Se espera cada escritura remota: si alguna falla lo reportamos en el
+  // resultado para que la UI avise en vez de dar la migración por buena.
+  let cloudOk = true;
   if (result.movedStudents > 0) {
     saveStudents(updatedStudents);
-    sendStudentsToCloud(updatedStudents.filter(s => movedStudentIds.has(s.id)));
+    const ok = await sendStudentsToCloud(updatedStudents.filter(s => movedStudentIds.has(s.id)));
+    if (!ok) cloudOk = false;
   }
 
   // --- 2. ACTIVIDADES DE CALIFICACIÓN (las notas siguen por activityId) ---
@@ -1437,7 +1501,13 @@ export const migrateFichaStudents = (sourceCode: string, destCode: string): Fich
     activitiesChanged = true;
     return { ...a, group: destCode };
   });
-  if (activitiesChanged) saveGradeActivities(updatedActivities);
+  if (activitiesChanged) {
+    saveGradeActivities(updatedActivities);
+    // saveGradeActivities sube con debounce (400 ms); aquí forzamos la subida
+    // inmediata y esperamos confirmación para que no se pierda al navegar.
+    const ok = await postAppDataNow('grade_activities', updatedActivities);
+    if (!ok) cloudOk = false;
+  }
 
   // --- 3. SESIONES DE CLASE (la asistencia sigue por studentId) ---
   const sessions = getSessions();
@@ -1451,7 +1521,8 @@ export const migrateFichaStudents = (sourceCode: string, destCode: string): Fich
   if (movedSessions.length > 0) {
     result.movedSessions = movedSessions.length;
     saveSessions(updatedSessions);
-    sendSessionsToCloud(movedSessions);
+    const ok = await sendSessionsToCloud(movedSessions);
+    if (!ok) cloudOk = false;
   }
 
   // --- 4. JUICIOS SOFIA (metadato fichaCode de los aprendices movidos) ---
@@ -1466,8 +1537,12 @@ export const migrateFichaStudents = (sourceCode: string, destCode: string): Fich
   if (updatedEntries.length > 0) {
     upsertSofiaJuicioEntries(updatedEntries);
     result.movedJuicioEntries = updatedEntries.length;
+    // Igual que las actividades: forzar subida inmediata y confirmada.
+    const ok = await postAppDataNow('sofia_juicio_entries', getSofiaJuicioEntries());
+    if (!ok) cloudOk = false;
   }
 
+  result.cloudSynced = cloudOk;
   notifyChange();
   return result;
 };

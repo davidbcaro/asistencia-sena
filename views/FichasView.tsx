@@ -170,13 +170,18 @@ export const FichasView: React.FC = () => {
     return previewFichaMigration(migratingFicha.code, migrateDestCode);
   }, [migratingFicha, migrateDestCode, students]);
 
-  const confirmMigrate = () => {
+  const confirmMigrate = async () => {
     if (!migratingFicha || !migrateDestCode) return;
     setIsMigrating(true);
-    const res = migrateFichaStudents(migratingFicha.code, migrateDestCode);
-    setMigrateResult(res);
-    setIsMigrating(false);
-    loadData();
+    try {
+      // Se espera la migración completa (incluidas las escrituras a la nube)
+      // para poder avisar si el cambio no quedó guardado en el servidor.
+      const res = await migrateFichaStudents(migratingFicha.code, migrateDestCode);
+      setMigrateResult(res);
+    } finally {
+      setIsMigrating(false);
+      loadData();
+    }
   };
 
   /** Status counts per ficha code */
@@ -641,13 +646,29 @@ export const FichasView: React.FC = () => {
             ) : (
               /* Result */
               <div className="text-center">
-                <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <ArrowRightLeft className="w-6 h-6" />
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                  migrateResult.cloudSynced ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                }`}>
+                  {migrateResult.cloudSynced
+                    ? <ArrowRightLeft className="w-6 h-6" />
+                    : <AlertTriangle className="w-6 h-6" />}
                 </div>
-                <h4 className="text-lg font-bold text-gray-900 mb-1">Migración completada</h4>
+                <h4 className="text-lg font-bold text-gray-900 mb-1">
+                  {migrateResult.cloudSynced ? 'Migración completada' : 'Migración NO guardada en la nube'}
+                </h4>
                 <p className="text-sm text-gray-500 mb-4">
                   De <b>{migrateResult.sourceCode}</b> a <b>{migrateResult.destCode}</b>
                 </p>
+
+                {!migrateResult.cloudSynced && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-4 mb-4 text-left flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-700">
+                      El cambio se guardó en este equipo pero <b>no se pudo confirmar en el servidor</b>.
+                      Al recargar la app se revertirá. Revisa tu conexión y vuelve a ejecutar la migración.
+                    </p>
+                  </div>
+                )}
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-5 text-left">
                   <ul className="text-sm text-gray-700 space-y-1">
                     <li className="flex justify-between"><span>Aprendices movidos</span><span className="font-bold">{migrateResult.movedStudents}</span></li>
