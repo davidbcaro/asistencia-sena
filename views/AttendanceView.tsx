@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Calendar, Check, X, Save, Filter, Users, Upload, FileText, Download, CheckCircle, Search, ChevronLeft, ChevronRight, Settings, Plus, Trash2, RotateCcw, History, AlertTriangle, Lock } from 'lucide-react';
+import { Calendar, Check, X, Save, Filter, Users, Upload, FileText, Download, CheckCircle, Search, ChevronLeft, ChevronRight, ChevronDown, Settings, Plus, Trash2, RotateCcw, History, AlertTriangle, Lock } from 'lucide-react';
 import { Student, AttendanceRecord, ClassSession } from '../types';
-import { getStudents, getAttendanceForDate, bulkSaveAttendance, getSessions, addSession, deleteSession, getAttendance, syncFromCloud } from '../services/db';
+import { getStudents, getAttendanceForDate, bulkSaveAttendance, getSessions, addSessions, deleteSession, getAttendance, syncFromCloud } from '../services/db';
 
 export const AttendanceView: React.FC = () => {
   // Helper to get local date YYYY-MM-DD correctly
@@ -53,12 +53,18 @@ export const AttendanceView: React.FC = () => {
   const [importStats, setImportStats] = useState<{matched: number, total: number} | null>(null);
 
   // Session Management Form
+  // 'Todas' es un centinela: habilita la sesión para todas las fichas.
+  // Si no está, la lista contiene los códigos de las fichas seleccionadas.
+  const ALL_FICHAS = 'Todas';
   const [newSessionDate, setNewSessionDate] = useState(getLocalToday());
-  const [newSessionGroup, setNewSessionGroup] = useState('Todas');
+  const [newSessionGroups, setNewSessionGroups] = useState<string[]>([ALL_FICHAS]);
   const [newSessionDesc, setNewSessionDesc] = useState('');
+  const [showSessionFichaDropdown, setShowSessionFichaDropdown] = useState(false);
+  const [sessionFeedback, setSessionFeedback] = useState<string | null>(null);
 
-  // Ref for Date Picker
+  // Refs for Date Picker & Ficha Dropdown
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const sessionFichaDropdownRef = useRef<HTMLDivElement>(null);
 
   const loadData = () => {
       setStudents(getStudents());
@@ -85,6 +91,20 @@ export const AttendanceView: React.FC = () => {
     const g = new Set(students.map(s => s.group || 'General'));
     return ['Todos', ...Array.from(g).sort()];
   }, [students]);
+
+  // Fichas seleccionables al habilitar sesiones (sin el comodín 'Todos')
+  const sessionFichaOptions = useMemo(() => groups.filter(g => g !== 'Todos'), [groups]);
+
+  // Click-outside: cerrar el selector de fichas del modal de sesiones
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (sessionFichaDropdownRef.current && !sessionFichaDropdownRef.current.contains(e.target as Node)) {
+        setShowSessionFichaDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // VALIDATION: Check if a session exists for current selection
   const isSessionValid = useMemo(() => {
@@ -213,17 +233,60 @@ export const AttendanceView: React.FC = () => {
       return Date.now().toString(36) + Math.random().toString(36).substring(2);
   };
 
+  // Selección de fichas: 'Todas' es excluyente frente a las fichas individuales
+  const toggleSessionFicha = (ficha: string) => {
+      setNewSessionGroups(prev => {
+          const withoutAll = prev.filter(g => g !== ALL_FICHAS);
+          return withoutAll.includes(ficha)
+              ? withoutAll.filter(g => g !== ficha)
+              : [...withoutAll, ficha];
+      });
+  };
+
+  const sessionFichasLabel = useMemo(() => {
+      if (newSessionGroups.includes(ALL_FICHAS)) return 'Todas las fichas';
+      if (newSessionGroups.length === 0) return 'Seleccionar fichas';
+      if (newSessionGroups.length === 1) return newSessionGroups[0];
+      return `${newSessionGroups.length} fichas seleccionadas`;
+  }, [newSessionGroups]);
+
   const handleAddSession = () => {
-      const session: ClassSession = {
+      if (newSessionGroups.length === 0) {
+          setSessionFeedback('Selecciona al menos una ficha.');
+          return;
+      }
+
+      const newSessions: ClassSession[] = newSessionGroups.map(group => ({
           id: generateId(),
           date: newSessionDate,
-          group: newSessionGroup,
+          group,
           description: newSessionDesc
-      };
-      addSession(session);
+      }));
+
+      const created = addSessions(newSessions);
+      const skipped = newSessions.length - created.length;
+
+      if (created.length === 0) {
+          setSessionFeedback(
+              newSessions.length === 1
+                  ? 'Esa sesión ya estaba habilitada.'
+                  : 'Esas sesiones ya estaban habilitadas.'
+          );
+      } else {
+          setSessionFeedback(
+              `${created.length} ${created.length === 1 ? 'sesión habilitada' : 'sesiones habilitadas'}` +
+              (skipped > 0 ? ` (${skipped} ya ${skipped === 1 ? 'existía' : 'existían'})` : '')
+          );
+      }
+
       // Event listener handles refresh, but we clear input
       setNewSessionDesc('');
   };
+
+  // Limpiar el mensaje del modal al cambiar la selección
+  useEffect(() => {
+      setSessionFeedback(null);
+  }, [newSessionDate, newSessionGroups]);
 
   const promptDeleteSession = (e: React.MouseEvent, session: ClassSession) => {
       e.preventDefault();
@@ -648,35 +711,98 @@ export const AttendanceView: React.FC = () => {
                     <p><b>Importante:</b> Los aprendices solo podrán registrar su asistencia en el Portal del Aprendiz si la fecha actual está en esta lista para su Ficha.</p>
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-3 mb-6 bg-gray-50 p-4 rounded-lg">
-                     <input 
+                <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+                  <div className="flex flex-col md:flex-row gap-3">
+                     <input
                         type="date"
                         className="bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500"
                         value={newSessionDate}
                         onChange={e => setNewSessionDate(e.target.value)}
                      />
-                     <select
-                        className="bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500"
-                        value={newSessionGroup}
-                        onChange={e => setNewSessionGroup(e.target.value)}
-                     >
-                         {groups.map(g => (
-                            <option key={g} value={g}>{g === 'Todos' ? 'Todas las fichas' : g}</option>
-                         ))}
-                     </select>
-                     <input 
+
+                     {/* Selector múltiple de fichas */}
+                     <div className="relative md:w-56" ref={sessionFichaDropdownRef}>
+                        <button
+                           type="button"
+                           onClick={() => setShowSessionFichaDropdown(p => !p)}
+                           className={`w-full flex items-center justify-between gap-2 border rounded px-3 py-2 text-sm transition-colors ${showSessionFichaDropdown ? 'border-teal-500 ring-2 ring-teal-500 bg-white' : newSessionGroups.length === 0 ? 'bg-white border-red-300 text-red-600' : 'bg-white border-gray-300 hover:bg-gray-50'}`}
+                        >
+                           <span className={`truncate ${newSessionGroups.length === 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                              {sessionFichasLabel}
+                           </span>
+                           <ChevronDown className={`w-4 h-4 flex-shrink-0 text-gray-400 transition-transform ${showSessionFichaDropdown ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {showSessionFichaDropdown && (
+                           <div className="absolute left-0 mt-2 w-full min-w-[14rem] rounded-lg border border-gray-200 bg-white shadow-xl z-50 py-1 max-h-64 overflow-y-auto">
+                              <label className="flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-teal-50 cursor-pointer">
+                                 <input
+                                    type="checkbox"
+                                    checked={newSessionGroups.includes(ALL_FICHAS)}
+                                    onChange={() => setNewSessionGroups(prev => prev.includes(ALL_FICHAS) ? [] : [ALL_FICHAS])}
+                                    className="w-3.5 h-3.5 accent-teal-600 flex-shrink-0"
+                                 />
+                                 <span className={newSessionGroups.includes(ALL_FICHAS) ? 'text-teal-700 font-medium' : 'text-gray-700'}>
+                                    Todas las fichas
+                                 </span>
+                              </label>
+                              <div className="border-t border-gray-100 my-1" />
+                              {sessionFichaOptions.length === 0 ? (
+                                 <p className="px-4 py-2 text-xs text-gray-400">No hay fichas registradas.</p>
+                              ) : sessionFichaOptions.map(g => (
+                                 <label key={g} className="flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-teal-50 cursor-pointer">
+                                    <input
+                                       type="checkbox"
+                                       checked={newSessionGroups.includes(g)}
+                                       onChange={() => toggleSessionFicha(g)}
+                                       className="w-3.5 h-3.5 accent-teal-600 flex-shrink-0"
+                                    />
+                                    <span className={newSessionGroups.includes(g) ? 'text-teal-700 font-medium' : 'text-gray-700'}>{g}</span>
+                                 </label>
+                              ))}
+                           </div>
+                        )}
+                     </div>
+
+                     <input
                         type="text"
                         placeholder="Descripción (Opcional)"
                         className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500"
                         value={newSessionDesc}
                         onChange={e => setNewSessionDesc(e.target.value)}
                      />
-                     <button 
+                     <button
                         onClick={handleAddSession}
-                        className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 flex items-center justify-center"
+                        disabled={newSessionGroups.length === 0}
+                        title={newSessionGroups.length === 0 ? 'Selecciona al menos una ficha' : 'Habilitar sesión'}
+                        className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 flex items-center justify-center disabled:bg-gray-300 disabled:cursor-not-allowed"
                      >
                          <Plus className="w-4 h-4" />
                      </button>
+                  </div>
+
+                  {/* Chips de fichas seleccionadas */}
+                  {!newSessionGroups.includes(ALL_FICHAS) && newSessionGroups.length > 0 && (
+                     <div className="flex flex-wrap gap-1.5 mt-3">
+                        {newSessionGroups.map(g => (
+                           <span key={g} className="inline-flex items-center gap-1 bg-teal-50 text-teal-700 border border-teal-200 text-xs font-medium px-2 py-1 rounded-full">
+                              {g}
+                              <button
+                                 type="button"
+                                 onClick={() => toggleSessionFicha(g)}
+                                 className="text-teal-500 hover:text-teal-800"
+                                 title={`Quitar ${g}`}
+                              >
+                                 <X className="w-3 h-3" />
+                              </button>
+                           </span>
+                        ))}
+                     </div>
+                  )}
+
+                  {sessionFeedback && (
+                     <p className="text-xs text-gray-600 mt-3">{sessionFeedback}</p>
+                  )}
                 </div>
 
                 <h4 className="font-bold text-gray-700 text-sm mb-2">Sesiones Programadas</h4>

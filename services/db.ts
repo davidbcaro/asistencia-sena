@@ -1647,6 +1647,33 @@ export const addSession = (session: ClassSession) => {
     sendSessionsToCloud([session]);
 };
 
+/**
+ * Habilita varias sesiones de una sola vez (una por ficha seleccionada).
+ * Omite las combinaciones fecha+ficha que ya existen para no duplicar sesiones.
+ * Devuelve las sesiones realmente creadas.
+ */
+export const addSessions = (sessions: ClassSession[]): ClassSession[] => {
+    if (sessions.length === 0) return [];
+
+    const current = getSessions();
+    const existing = new Set(current.map(s => `${s.date}|${s.group}`));
+
+    const toAdd: ClassSession[] = [];
+    sessions.forEach(s => {
+        const key = `${s.date}|${s.group}`;
+        if (existing.has(key)) return;
+        existing.add(key);
+        toAdd.push(s);
+    });
+
+    if (toAdd.length === 0) return [];
+
+    saveSessions([...current, ...toAdd]);
+    // Sync to cloud via Edge Function (una sola llamada para todo el lote)
+    sendSessionsToCloud(toAdd);
+    return toAdd;
+};
+
 export const deleteSession = async (id: string) => {
     if (!id) return; 
 
