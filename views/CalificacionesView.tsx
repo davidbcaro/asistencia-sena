@@ -28,7 +28,7 @@ import {
   saveRapNotes,
   saveStudentGradeObservations,
   updateGradeActivity,
-  updateStudent,
+  bulkUpdateStudents,
   upsertGrades,
   getEvidenceCompMap,
   saveEvidenceCompMap,
@@ -1155,12 +1155,21 @@ export const CalificacionesView: React.FC = () => {
 
   useEffect(() => {
     const validAreas = new Set(califEvAreaOptions.filter((a) => a !== ALL_EVIDENCE_AREAS));
-    setCalifEvidenceAreaFilters((prev) => prev.filter((a) => validAreas.has(a)));
+    setCalifEvidenceAreaFilters((prev) => {
+      const next = prev.filter((a) => validAreas.has(a));
+      // Evitar crear una referencia nueva cuando no hay cambios reales: si no,
+      // este array "nuevo" (aunque con el mismo contenido) dispara el efecto
+      // que resetea la paginación cada vez que se guarda una nota.
+      return next.length === prev.length ? prev : next;
+    });
   }, [califEvAreaOptions]);
 
   useEffect(() => {
     const valid = new Set(califEvidencePickerPool.map((a) => a.id));
-    setCalifSelectedEvidenceIdList((prev) => prev.filter((id) => valid.has(id)));
+    setCalifSelectedEvidenceIdList((prev) => {
+      const next = prev.filter((id) => valid.has(id));
+      return next.length === prev.length ? prev : next;
+    });
   }, [califEvidencePickerPool]);
 
   const visibleActivities = useMemo(() => {
@@ -2409,6 +2418,7 @@ export const CalificacionesView: React.FC = () => {
 
       const entries: GradeEntry[] = [];
       const unmatched: string[] = [];
+      const studentsToUpdate: Student[] = [];
 
       rows.slice(1).forEach(row => {
         const docValue = docIndex >= 0 ? normalizeDoc(row[docIndex]) : '';
@@ -2460,7 +2470,7 @@ export const CalificacionesView: React.FC = () => {
             email: emailValue || student.email,
           };
           if (updatedStudent.username !== student.username || updatedStudent.email !== student.email) {
-            updateStudent(updatedStudent);
+            studentsToUpdate.push(updatedStudent);
           }
         }
 
@@ -2545,6 +2555,12 @@ export const CalificacionesView: React.FC = () => {
       }
 
       upsertGrades(entries);
+
+      if (studentsToUpdate.length > 0) {
+        // Un solo guardado/sincronización para todos los aprendices con
+        // usuario/correo nuevos, en vez de una llamada (y un toast) por fila.
+        bulkUpdateStudents(studentsToUpdate);
+      }
 
       // -----------------------------------------------------------------------
       // Extract and persist competencia / AA mapping from Excel column names.
@@ -3075,14 +3091,30 @@ export const CalificacionesView: React.FC = () => {
 
       {uploadError && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4" />
-          <span className="text-sm">{uploadError}</span>
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          <span className="text-sm flex-1">{uploadError}</span>
+          <button
+            type="button"
+            onClick={() => setUploadError('')}
+            className="p-1 rounded-md hover:bg-red-100 text-red-500 flex-shrink-0"
+            aria-label="Cerrar notificación"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
       {uploadInfo && (
-        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">
-          {uploadInfo}
+        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm flex items-center gap-2">
+          <span className="flex-1">{uploadInfo}</span>
+          <button
+            type="button"
+            onClick={() => setUploadInfo('')}
+            className="p-1 rounded-md hover:bg-green-100 text-green-600 flex-shrink-0"
+            aria-label="Cerrar notificación"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 

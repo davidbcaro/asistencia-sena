@@ -1093,6 +1093,22 @@ export const updateStudent = async (updatedStudent: Student): Promise<boolean> =
   return pushStudents([normalized]);
 };
 
+/**
+ * Igual que `updateStudent` pero para varios estudiantes a la vez: un solo
+ * guardado local y una sola subida a la nube (un solo toast de sincronización),
+ * en vez de una petición y una notificación por cada estudiante actualizado.
+ * Útil en importaciones masivas (ej. carga de calificaciones desde Excel).
+ */
+export const bulkUpdateStudents = async (updatedStudents: Student[]): Promise<boolean> => {
+  if (updatedStudents.length === 0) return true;
+  const students = getStudents();
+  const normalizedList = updatedStudents.map(normalizeStudentCase);
+  const byId = new Map(normalizedList.map(s => [s.id, s]));
+  const merged = students.map(s => byId.get(s.id) || s);
+  saveStudents(merged);
+  return pushStudents(normalizedList);
+};
+
 export const deleteStudent = async (id: string) => {
   const current = getStudents();
   const updated = current.filter(s => s.id !== id);
