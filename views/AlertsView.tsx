@@ -76,6 +76,33 @@ const DEFAULT_GRADE_PHASES = [
   'Fase 4: Evaluación',
 ] as const;
 
+/** Evidencia pendiente con el motivo: sin nota registrada o calificada con D. */
+interface PendingEvidence {
+  activity: GradeActivity;
+  /** true = tiene nota pero no es A (no aprobada); false = no tiene nota (sin entregar). */
+  delivered: boolean;
+}
+
+/** Evidencias sin A con su motivo (fase, área y subconjunto de ids — misma lógica que Reportes). */
+function getPendingGradeActivitiesDetailed(
+  student: Student,
+  activities: GradeActivity[],
+  gradeMap: Map<string, GradeEntry>,
+  scope: EvidencePendingScope
+): PendingEvidence[] {
+  const group = student.group || '';
+  const fichaSpecific = activities.filter((a) => a.group === group);
+  const fichaActs =
+    fichaSpecific.length > 0 ? fichaSpecific : activities.filter((a) => a.group === '');
+  const acts = filterActsForPendingEvidence(fichaActs, scope);
+  const pending: PendingEvidence[] = [];
+  acts.forEach((a) => {
+    const g = gradeMap.get(`${student.id}-${a.id}`);
+    if (!g || g.letter !== 'A') pending.push({ activity: a, delivered: !!g });
+  });
+  return pending;
+}
+
 /** Evidencias sin A (fase, área y subconjunto de ids — misma lógica que Reportes). */
 function getPendingGradeActivities(
   student: Student,
@@ -83,17 +110,26 @@ function getPendingGradeActivities(
   gradeMap: Map<string, GradeEntry>,
   scope: EvidencePendingScope
 ): GradeActivity[] {
-  const group = student.group || '';
-  const fichaSpecific = activities.filter((a) => a.group === group);
-  const fichaActs =
-    fichaSpecific.length > 0 ? fichaSpecific : activities.filter((a) => a.group === '');
-  const acts = filterActsForPendingEvidence(fichaActs, scope);
-  const pending: GradeActivity[] = [];
-  acts.forEach((a) => {
-    const g = gradeMap.get(`${student.id}-${a.id}`);
-    if (!g || g.letter !== 'A') pending.push(a);
-  });
-  return pending;
+  return getPendingGradeActivitiesDetailed(student, activities, gradeMap, scope).map(
+    (p) => p.activity
+  );
+}
+
+/** Texto de la evidencia sin el prefijo «Evidencia de conocimiento/producto/desempeño». */
+function cleanEvidenceText(activity: GradeActivity): string {
+  return (activity.detail || activity.name)
+    .replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const PENDING_REASON_LABEL = {
+  noEntregada: 'sin entregar',
+  noAprobada: 'no aprobada',
+} as const;
+
+function pendingReasonLabel(p: PendingEvidence): string {
+  return p.delivered ? PENDING_REASON_LABEL.noAprobada : PENDING_REASON_LABEL.noEntregada;
 }
 
 function getNovedad(
@@ -127,15 +163,25 @@ interface PreparedEmail {
   status?: 'pending' | 'sending' | 'sent' | 'error';
 }
 
+/**
+ * A quien se le genera el correo:
+ * - 'novedad'    → aprendices con Riesgo de desercion o Plan de mejoramiento (comportamiento clasico).
+ * - 'pendientes' → todo aprendiz en formacion con evidencias sin entregar o no aprobadas
+ *                  segun los filtros de ficha, fase, area y evidencias (llamados de atencion).
+ */
+type TemplateAudience = 'novedad' | 'pendientes';
+
 interface EmailTemplate {
   id: string;
   name: string;
   subject: string;
   body: string;
+  audience?: TemplateAudience;
 }
 
 // ─── Gestión de plantillas de correo ────────────────────────────────────────
 const TEMPLATES_KEY = 'asistenciapro_email_templates';
+const DEADLINE_KEY = 'asistenciapro_alerts_deadline';
 
 const DEFAULT_TEMPLATE_BODY =
   `Estimado(a) Aprendiz:<br><br><strong>{estudiante}</strong><br><strong>C.C.</strong> {documento}<br><strong>Programa:</strong> {programa}<br><strong>Ficha:</strong> {grupo}<br><br>Reciba un cordial saludo.<br>Como instructor responsable de su proceso formativo en el programa, me permito comunicarle que, tras la revisión del sistema de gestión académica Zajuna, se ha evidenciado que usted no registra ingresos a la plataforma desde hace <strong>{dias_sin_ingresar}</strong> días y no reporta entrega de las evidencias.<br><br>De acuerdo con el <strong>Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA)</strong>, su situación se enmarca en la causal de deserción establecida para la modalidad virtual, la cual cito a continuación:<br><br><em>"Artículo 30º. Deserción: Se considera deserción en el proceso de formación, cuando el aprendiz:<br>b) En la formación bajo la modalidad virtual en etapa lectiva, se presenta cuando el aprendiz no asiste a tres (3) citaciones seguidas elevadas por el instructor o por el responsable del grupo o no ingresa a su ambiente virtual de formación (plataforma LMS) durante veinte (20) días consecutivos, sin previa justificación soportada ante el sistema de gestión académico-administrativo."</em><br><br>De no recibir respuesta con una justificación válida o evidencia de actividad en el proceso formativo, se procederá conforme a lo establecido en el reglamento del aprendiz.<br><br>Atentamente,`;
@@ -145,17 +191,72 @@ const DEFAULT_TEMPLATE: EmailTemplate = {
   name: 'Deserción (por defecto)',
   subject: 'Notificación de Inicio de Proceso de Deserción',
   body: DEFAULT_TEMPLATE_BODY,
+  audience: 'novedad',
 };
+
+/** Cuerpo del llamado de atención: sólo cambian la apertura y el párrafo de cierre. */
+function buildLlamadoBody(apertura: string, cierre: string): string {
+  return (
+    `{fecha_larga}<br><br>` +
+    `Respetado aprendiz,<br><br>` +
+    `<strong>{nombre}</strong><br>{identificacion}<br>{correo}<br>` +
+    `<strong>Programa:</strong> {programa}<br><strong>Ficha:</strong> {ficha}<br><br>` +
+    `Estimado(a) aprendiz,<br><br>` +
+    `${apertura}<br><br>` +
+    `Específicamente, se registra la falta de entrega o aprobación en las siguientes actividades y evidencias de aprendizaje:<br>` +
+    `{evidencias}` +
+    `Este incumplimiento constituye una infracción a los deberes que usted adquirió al matricularse en la entidad, de acuerdo con lo consagrado en el <strong>Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA)</strong>. A continuación, se detallan las normas aplicables:<br><br>` +
+    `<strong>Artículo 8°. Deberes del Aprendiz SENA (Numeral 6):</strong> <em>"Cumplir con todas las actividades de su proceso formativo, presentando las evidencias según la planeación pedagógica, guías de aprendizaje y cronograma, en los plazos o en la oportunidad que estas deban presentarse o reportarse, a través de los medios dispuestos para ello."</em><br><br>` +
+    `<strong>Artículo 27°. Cumplimiento satisfactorio del proceso formativo:</strong> <em>"Se configura cuando el aprendiz presenta evidencias de aprendizaje, idóneas y pertinentes, en las fechas establecidas, asiste y participa activamente en actividades presenciales o virtuales concertadas en su ruta de aprendizaje. Se configura como un incumplimiento la falta de ejecución de lo anteriormente definido. Los incumplimientos se catalogan en incumplimientos justificados y no justificados."</em><br><br>` +
+    `<strong>Artículo 46°. Tipos de medidas formativas (Numeral 1, Literal a - Llamado de atención académico):</strong> <em>"Los llamados de atención deben ser por escrito, el aprendiz puede recibir hasta dos (2) llamados de atención por fase del proyecto formativo, por parte de los instructores integrantes del equipo ejecutor, para alcanzar el o los resultados de aprendizaje."</em><br><br>` +
+    `${cierre}<br><br>` +
+    `<strong>OPORTUNIDAD DE ENTREGA:</strong> Se le concede término ampliado hasta el <strong>{fecha_limite}</strong> para que proceda con la entrega de las evidencias requeridas. En caso de incumplimiento de este plazo, se continuará con el debido proceso disciplinario, de conformidad con lo establecido en el Reglamento del Aprendiz.<br><br>` +
+    `Le invitamos a hacer uso de este plazo excepcional para normalizar su estado académico. Si presenta alguna dificultad técnica con el manejo de la plataforma, por favor infórmela de inmediato a su instructor de competencia.<br><br>` +
+    `Atentamente,`
+  );
+}
+
+const PRIMER_LLAMADO_TEMPLATE: EmailTemplate = {
+  id: 'llamado_1',
+  name: 'Primer Llamado de Atención',
+  subject: 'Primer Llamado de Atención – Ficha {ficha} – {nombre}',
+  body: buildLlamadoBody(
+    'Por medio de la presente, se le notifica de manera formal que se ha identificado un incumplimiento en su ruta de aprendizaje al no presentar las evidencias correspondientes a los plazos establecidos en el cronograma académico.',
+    'Tenga en cuenta que, en caso de persistir el incumplimiento de sus compromisos académicos tras agotarse los dos llamados de atención escritos, se procederá a la asignación de un Plan de Mejoramiento Académico como medida formativa obligatoria para salvaguardar su permanencia, o en su defecto, el caso será remitido ante el Comité de Evaluación y Seguimiento.'
+  ),
+  audience: 'pendientes',
+};
+
+const SEGUNDO_LLAMADO_TEMPLATE: EmailTemplate = {
+  id: 'llamado_2',
+  name: 'Segundo Llamado de Atención',
+  subject: 'Segundo Llamado de Atención – Ficha {ficha} – {nombre}',
+  body: buildLlamadoBody(
+    'Por medio de la presente, se le notifica de manera formal el <strong>segundo llamado de atención</strong>, al persistir el incumplimiento en su ruta de aprendizaje por no presentar las evidencias correspondientes a los plazos establecidos en el cronograma académico.',
+    'Con el presente comunicado se agotan los dos (2) llamados de atención escritos previstos en el Artículo 46° del Acuerdo 009 de 2024 para esta fase del proyecto formativo. En consecuencia, de continuar el incumplimiento se procederá de acuerdo con lo establecido en el Reglamento del Aprendiz SENA.'
+  ),
+  audience: 'pendientes',
+};
+
+/** Plantillas que siempre deben existir; se agregan a las guardadas sin pisar las ediciones del usuario. */
+const BUILT_IN_TEMPLATES: EmailTemplate[] = [
+  DEFAULT_TEMPLATE,
+  PRIMER_LLAMADO_TEMPLATE,
+  SEGUNDO_LLAMADO_TEMPLATE,
+];
 
 function loadEmailTemplates(): EmailTemplate[] {
   try {
     const raw = localStorage.getItem(TEMPLATES_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as EmailTemplate[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const missing = BUILT_IN_TEMPLATES.filter((b) => !parsed.some((p) => p.id === b.id));
+        return [...parsed, ...missing];
+      }
     }
   } catch {}
-  return [DEFAULT_TEMPLATE];
+  return [...BUILT_IN_TEMPLATES];
 }
 
 function persistEmailTemplates(templates: EmailTemplate[]): void {
@@ -236,6 +337,9 @@ export const AlertsView: React.FC = () => {
   const [templateBody, setTemplateBody] = useState(() => activeTemplate?.body ?? DEFAULT_TEMPLATE.body);
   // ─────────────────────────────────────────────────────────────────────────
 
+  /** Fecha límite de entrega para {fecha_limite} (YYYY-MM-DD). */
+  const [deadline, setDeadline] = useState<string>(() => localStorage.getItem(DEADLINE_KEY) ?? '');
+
   const [preparedEmails, setPreparedEmails] = useState<PreparedEmail[]>([]);
   const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -258,6 +362,10 @@ export const AlertsView: React.FC = () => {
     setGradeActivities(getGradeActivities());
     setGrades(getGrades());
   };
+
+  useEffect(() => {
+    localStorage.setItem(DEADLINE_KEY, deadline);
+  }, [deadline]);
 
   useEffect(() => {
     loadData();
@@ -403,32 +511,39 @@ export const AlertsView: React.FC = () => {
     [students]
   );
 
-  // Aprendices con novedad "Riesgo de deserción" o "Plan de mejoramiento"
-  const apprenticesWithNovedad = useMemo((): ApprenticeWithNovedad[] => {
-    return studentsFormacion
-      .filter((s) => {
-        const lastAccess = lmsLastAccess[s.id];
-        const days = lastAccess != null ? daysSince(lastAccess) : null;
-        const final = getFinalForStudent(s);
-        const novedad = getNovedad(s, days, final.letter);
-        return novedad === 'Riesgo de deserción' || novedad === 'Plan de mejoramiento';
-      })
-      .map((student) => {
-        const lastAccess = lmsLastAccess[student.id];
-        const daysInactive = lastAccess != null ? daysSince(lastAccess) : null;
-        const final = getFinalForStudent(student);
-        const novedad = getNovedad(student, daysInactive, final.letter);
-        return { student, novedad, daysInactive, finalLetter: final.letter };
-      });
+  // Todos los aprendices activos con su novedad calculada
+  const apprenticesAll = useMemo((): ApprenticeWithNovedad[] => {
+    return studentsFormacion.map((student) => {
+      const lastAccess = lmsLastAccess[student.id];
+      const daysInactive = lastAccess != null ? daysSince(lastAccess) : null;
+      const final = getFinalForStudent(student);
+      const novedad = getNovedad(student, daysInactive, final.letter);
+      return { student, novedad, daysInactive, finalLetter: final.letter };
+    });
   }, [studentsFormacion, lmsLastAccess, gradeActivities, grades, gradeMap]);
 
+  // Aprendices con novedad "Riesgo de deserción" o "Plan de mejoramiento"
+  const apprenticesWithNovedad = useMemo(
+    () =>
+      apprenticesAll.filter(
+        (a) => a.novedad === 'Riesgo de deserción' || a.novedad === 'Plan de mejoramiento'
+      ),
+    [apprenticesAll]
+  );
+
+  /** Las plantillas de llamado de atención se dirigen a quien tenga evidencias pendientes. */
+  const activeAudience: TemplateAudience = activeTemplate?.audience ?? 'novedad';
+
   const filteredList = useMemo(() => {
+    const base = activeAudience === 'pendientes' ? apprenticesAll : apprenticesWithNovedad;
     let list =
       filterFicha === 'Todas'
-        ? [...apprenticesWithNovedad]
-        : apprenticesWithNovedad.filter((a) => (a.student.group || '') === filterFicha);
+        ? [...base]
+        : base.filter((a) => (a.student.group || '') === filterFicha);
 
+    // En modo llamado de atención siempre se exige al menos una evidencia pendiente.
     const restrictByPending =
+      activeAudience === 'pendientes' ||
       filterFase !== ALL_PHASES_LABEL ||
       selectedAlertEvidenceIdList.length > 0 ||
       filterEvidenceArea !== ALL_EVIDENCE_AREAS;
@@ -456,7 +571,9 @@ export const AlertsView: React.FC = () => {
     }
     return list;
   }, [
+    apprenticesAll,
     apprenticesWithNovedad,
+    activeAudience,
     filterFicha,
     filterFase,
     filterEvidenceArea,
@@ -472,6 +589,22 @@ export const AlertsView: React.FC = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
+
+  /** «27 de agosto de 2026», para el encabezado de los llamados de atención. */
+  const getLocalDateLong = () => {
+    const meses = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+    ];
+    const d = new Date();
+    return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
+  };
+
+  /** Fecha límite en dd/mm/aaaa; si no se ha fijado queda el marcador [Fecha]. */
+  const deadlineLabel = useMemo(() => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(deadline.trim());
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : '[Fecha]';
+  }, [deadline]);
 
   const insertVariable = (variable: string) => {
     const el = editorRef.current;
@@ -607,37 +740,64 @@ export const AlertsView: React.FC = () => {
     const programName = ficha?.cronogramaProgramName || ficha?.program || student.group || 'N/A';
     const lastAccessFormatted = formatLastAccess(lmsLastAccess[student.id]);
     const safe = escapeHtml;
-    const pendientes = getPendingGradeActivities(student, gradeActivities, gradeMap, alertsPendingScope);
+    const pendientes = getPendingGradeActivitiesDetailed(
+      student,
+      gradeActivities,
+      gradeMap,
+      alertsPendingScope
+    );
+    const sinPendientes = 'Ninguna evidencia pendiente según los filtros aplicados.';
     const evidenciasPlain =
       pendientes.length === 0
-        ? 'Ninguna evidencia pendiente según los filtros aplicados.'
-        : pendientes.map((a) => (a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').replace(/\s+/g, ' ').trim()).join('; ');
+        ? sinPendientes
+        : pendientes
+            .map((p) => `${cleanEvidenceText(p.activity)} (${pendingReasonLabel(p)})`)
+            .join('; ');
     const evidenciasHtml =
       pendientes.length === 0
-        ? `<p>${safe('Ninguna evidencia pendiente según los filtros aplicados.')}</p>`
+        ? `<p>${safe(sinPendientes)}</p>`
         : `<ul style="margin:0.5em 0;padding-left:1.25em;">${pendientes
-            .map((a) => `<li>${safe((a.detail || a.name).replace(/^Evidencia de (?:conocimiento|producto|desempe[ñn]o):\s*/i, '').trim())}</li>`)
+            .map(
+              (p, i) =>
+                `<li>Evidencia ${i + 1}: ${safe(cleanEvidenceText(p.activity))} <em>(${safe(
+                  pendingReasonLabel(p)
+                )})</em></li>`
+            )
             .join('')}</ul>`;
     const subject = subjectTpl
       .replace(/{estudiante}/g, fullName)
+      .replace(/{nombre}/g, fullName)
       .replace(/{novedad}/g, novedad)
       .replace(/{grupo}/g, student.group || '')
+      .replace(/{ficha}/g, student.group || '')
       .replace(/{dias_sin_ingresar}/g, diasStr)
+      .replace(/{fecha_larga}/g, getLocalDateLong())
+      .replace(/{fecha_limite}/g, deadlineLabel)
       .replace(/{fecha}/g, fecha)
       .replace(/{documento}/g, student.documentNumber || '')
+      .replace(/{identificacion}/g, student.documentNumber || '')
+      .replace(/{correo}/g, student.email || '')
       .replace(/{programa}/g, programName)
       .replace(/{fecha_ultimo_ingreso}/g, lastAccessFormatted)
+      .replace(/{total_evidencias}/g, String(pendientes.length))
       .replace(/{evidencias}/g, evidenciasPlain);
     const bodySource = !/<\/?[a-z][^>]*>/i.test(bodyTpl) ? bodyTpl.replace(/\n/g, '<br>') : bodyTpl;
     const body = bodySource
       .replace(/{estudiante}/g, safe(fullName))
+      .replace(/{nombre}/g, safe(fullName))
       .replace(/{novedad}/g, safe(novedad))
       .replace(/{grupo}/g, safe(student.group || ''))
+      .replace(/{ficha}/g, safe(student.group || ''))
       .replace(/{dias_sin_ingresar}/g, safe(diasStr))
+      .replace(/{fecha_larga}/g, safe(getLocalDateLong()))
+      .replace(/{fecha_limite}/g, safe(deadlineLabel))
       .replace(/{fecha}/g, safe(fecha))
       .replace(/{documento}/g, safe(student.documentNumber || 'N/A'))
+      .replace(/{identificacion}/g, safe(student.documentNumber || 'N/A'))
+      .replace(/{correo}/g, safe(student.email || ''))
       .replace(/{programa}/g, safe(programName))
       .replace(/{fecha_ultimo_ingreso}/g, safe(lastAccessFormatted))
+      .replace(/{total_evidencias}/g, safe(String(pendientes.length)))
       .replace(/{evidencias}/g, evidenciasHtml);
     return {
       studentId: student.id,
@@ -759,6 +919,7 @@ export const AlertsView: React.FC = () => {
       name,
       subject: templateSubject,
       body: templateBody,
+      audience: activeAudience,
     };
     const updated = [...emailTemplates, newTpl];
     setEmailTemplates(updated);
@@ -860,8 +1021,17 @@ export const AlertsView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Alertas y Correos</h2>
           <p className="text-gray-500">
-            Aprendices con <strong>Riesgo de deserción</strong> o <strong>Plan de mejoramiento</strong>.
-            Genera y previsualiza correos desde una plantilla.
+            {activeAudience === 'pendientes' ? (
+              <>
+                Aprendices con <strong>evidencias sin entregar o no aprobadas</strong> según los filtros.
+                Genera y previsualiza los llamados de atención.
+              </>
+            ) : (
+              <>
+                Aprendices con <strong>Riesgo de deserción</strong> o <strong>Plan de mejoramiento</strong>.
+                Genera y previsualiza correos desde una plantilla.
+              </>
+            )}
           </p>
         </div>
         <button
@@ -971,7 +1141,7 @@ export const AlertsView: React.FC = () => {
               value={filterNovedad}
               onChange={(e) => setFilterNovedad(e.target.value)}
             >
-              <option value="Ambos">Ambas novedades</option>
+              <option value="Ambos">Todas las novedades</option>
               <option value="Riesgo de deserción">Riesgo de deserción</option>
               <option value="Plan de mejoramiento">Plan de mejoramiento</option>
             </select>
@@ -1057,14 +1227,23 @@ export const AlertsView: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-4 text-sm flex-wrap">
             <span className="text-gray-500">
-              <strong className="text-gray-900">{filteredList.length}</strong> aprendices con novedad
+              <strong className="text-gray-900">{filteredList.length}</strong>{' '}
+              {activeAudience === 'pendientes'
+                ? 'aprendices con evidencias pendientes'
+                : 'aprendices con novedad'}
             </span>
             {filteredList.length > 0 && (
               <span className="text-gray-400">
                 ({filteredList.filter((a) => a.novedad === 'Riesgo de deserción').length} riesgo ·{' '}
                 {filteredList.filter((a) => a.novedad === 'Plan de mejoramiento').length} plan mejoramiento)
+              </span>
+            )}
+            {activeAudience === 'pendientes' && (
+              <span className="text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-full px-2.5 py-1">
+                Plantilla de llamado de atención: incluye a todo aprendiz en formación con evidencias
+                sin entregar o no aprobadas, tenga o no novedad.
               </span>
             )}
           </div>
@@ -1209,6 +1388,21 @@ export const AlertsView: React.FC = () => {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha límite de entrega{' '}
+                <span className="text-xs font-normal text-gray-400">
+                  (variable {'{fecha_limite}'}
+                  {deadline ? '' : ' · sin fijar se envía como [Fecha]'})
+                </span>
+              </label>
+              <input
+                type="date"
+                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+              />
+            </div>
+            <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="block text-sm font-medium text-gray-700">Mensaje</label>
                 <span className="text-xs text-gray-400">Variables: se reemplazan por aprendiz</span>
@@ -1216,13 +1410,20 @@ export const AlertsView: React.FC = () => {
               <div className="flex flex-wrap gap-2 mb-2">
                 {[
                   '{estudiante}',
+                  '{nombre}',
                   '{documento}',
+                  '{identificacion}',
+                  '{correo}',
                   '{programa}',
                   '{grupo}',
+                  '{ficha}',
                   '{fecha_ultimo_ingreso}',
                   '{novedad}',
                   '{dias_sin_ingresar}',
                   '{fecha}',
+                  '{fecha_larga}',
+                  '{fecha_limite}',
+                  '{total_evidencias}',
                   '{evidencias}',
                 ].map((v) => (
                   <button
