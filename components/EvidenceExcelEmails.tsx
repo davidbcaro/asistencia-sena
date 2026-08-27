@@ -18,15 +18,26 @@ import {
   Trash2,
   UserPlus,
   X,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  List,
+  Type,
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import { getEmailSettings, getStudents } from '../services/db';
 import type { Student } from '../types';
 import {
-  applyInlineMarkdown,
   buildEmailHtml,
+  DEFAULT_EMAIL_FONT,
+  DEFAULT_EMAIL_FONT_SIZE,
+  EMAIL_FONTS,
+  EMAIL_FONT_SIZES,
   escapeHtml,
+  FORMAT_MARKERS,
   htmlToPlainText,
+  renderTemplateBody,
 } from '../services/emailFormat';
 import {
   buildApprenticeRows,
@@ -95,6 +106,31 @@ const VARIABLES: { token: string; help: string }[] = [
   { token: '{fecha_limite}', help: 'Fecha limite de entrega configurada abajo' },
 ];
 
+const FORMAT_BUTTONS: {
+  key: string;
+  marker: string;
+  placeholder: string;
+  title: string;
+  Icon: typeof Bold;
+}[] = [
+  { key: 'bold', marker: FORMAT_MARKERS.bold, placeholder: 'texto', title: 'Negrita', Icon: Bold },
+  { key: 'italic', marker: FORMAT_MARKERS.italic, placeholder: 'texto', title: 'Cursiva', Icon: Italic },
+  {
+    key: 'underline',
+    marker: FORMAT_MARKERS.underline,
+    placeholder: 'texto',
+    title: 'Subrayado',
+    Icon: Underline,
+  },
+  {
+    key: 'strike',
+    marker: FORMAT_MARKERS.strike,
+    placeholder: 'texto',
+    title: 'Tachado',
+    Icon: Strikethrough,
+  },
+];
+
 const META_LABELS: { key: MetaKey; label: string }[] = [
   { key: 'nombres', label: 'Nombres' },
   { key: 'apellidos', label: 'Apellidos' },
@@ -115,6 +151,9 @@ const MARK_STYLES: Record<EvidenceMark, { label: string; className: string }> = 
 interface StoredTemplate {
   subject: string;
   body: string;
+  /** Tipografía del cuerpo del correo. */
+  fontFamily: string;
+  fontSize: number;
 }
 
 interface StoredSettings {
@@ -136,15 +175,22 @@ const DEFAULT_SETTINGS: StoredSettings = {
   onlyWithPending: true,
 };
 
+const DEFAULT_TEMPLATE: StoredTemplate = {
+  subject: DEFAULT_SUBJECT,
+  body: DEFAULT_BODY,
+  fontFamily: DEFAULT_EMAIL_FONT,
+  fontSize: DEFAULT_EMAIL_FONT_SIZE,
+};
+
 function loadTemplate(): StoredTemplate {
   try {
     const raw = localStorage.getItem(TEMPLATE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as StoredTemplate;
-      if (parsed && typeof parsed.body === 'string') return parsed;
+      const parsed = JSON.parse(raw) as Partial<StoredTemplate>;
+      if (parsed && typeof parsed.body === 'string') return { ...DEFAULT_TEMPLATE, ...parsed };
     }
   } catch {}
-  return { subject: DEFAULT_SUBJECT, body: DEFAULT_BODY };
+  return DEFAULT_TEMPLATE;
 }
 
 function loadSettings(): StoredSettings {
@@ -404,9 +450,9 @@ export const EvidenceExcelEmails: React.FC = () => {
       subject = subject.split(token).join(value);
     });
 
-    // El cuerpo es texto plano: se escapa completo, se aplica el formato **negrita**
-    // y luego se inyectan los valores ya escapados.
-    let body = applyInlineMarkdown(escapeHtml(template.body)).replace(/\r?\n/g, '<br>');
+    // El cuerpo es texto plano: se escapa completo, se convierten las marcas de
+    // formato y las viñetas, y luego se inyectan los valores ya escapados.
+    let body = renderTemplateBody(escapeHtml(template.body));
     Object.entries(plainValues).forEach(([token, value]) => {
       if (token === '{evidencias}') return;
       body = body.split(token).join(escapeHtml(value));
@@ -472,6 +518,49 @@ export const EvidenceExcelEmails: React.FC = () => {
     setTimeout(() => setFeedback(null), 2200);
   };
 
+  const emailFont = useMemo(
+    () => ({ family: template.fontFamily, size: template.fontSize }),
+    [template.fontFamily, template.fontSize]
+  );
+
+  /** Envuelve la seleccion del textarea con la marca indicada (o la inserta vacia). */
+  const wrapSelection = (marker: string, placeholder: string) => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? start;
+    const selected = el.value.slice(start, end) || placeholder;
+    const next = `${el.value.slice(0, start)}${marker}${selected}${marker}${el.value.slice(end)}`;
+    setTemplate((t) => ({ ...t, body: next }));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + marker.length, start + marker.length + selected.length);
+    });
+  };
+
+  /** Convierte en vinetas las lineas seleccionadas (o la linea del cursor). */
+  const toggleBulletList = () => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const value = el.value;
+    const lineStart = value.lastIndexOf('\n', (el.selectionStart ?? 0) - 1) + 1;
+    const endPos = el.selectionEnd ?? el.selectionStart ?? 0;
+    const lineEndIdx = value.indexOf('\n', endPos);
+    const lineEnd = lineEndIdx === -1 ? value.length : lineEndIdx;
+    const chunk = value.slice(lineStart, lineEnd) || 'Evidencia pendiente';
+    const allBullets = chunk.split('\n').every((l) => /^\s*-\s+/.test(l) || l.trim() === '');
+    const converted = chunk
+      .split('\n')
+      .map((l) => (allBullets ? l.replace(/^\s*-\s+/, '') : l.trim() === '' ? l : `- ${l}`))
+      .join('\n');
+    const next = `${value.slice(0, lineStart)}${converted}${value.slice(lineEnd)}`;
+    setTemplate((t) => ({ ...t, body: next }));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(lineStart, lineStart + converted.length);
+    });
+  };
+
   const insertVariable = (token: string) => {
     const el = bodyRef.current;
     if (!el) {
@@ -494,7 +583,7 @@ export const EvidenceExcelEmails: React.FC = () => {
   };
 
   const restoreTemplate = () => {
-    setTemplate({ subject: DEFAULT_SUBJECT, body: DEFAULT_BODY });
+    setTemplate(DEFAULT_TEMPLATE);
     showFeedback('Plantilla por defecto restaurada');
   };
 
@@ -510,7 +599,7 @@ export const EvidenceExcelEmails: React.FC = () => {
 
   const copyBody = async () => {
     if (!current) return;
-    const html = buildEmailHtml(current.body);
+    const html = buildEmailHtml(current.body, emailFont);
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -545,7 +634,7 @@ export const EvidenceExcelEmails: React.FC = () => {
             from_name: cfg.teacherName || 'Instructor',
             reply_to: cfg.teacherEmail,
             subject: email.subject,
-            message: email.body,
+            message: buildEmailHtml(email.body, emailFont),
           },
           cfg.publicKey
         );
@@ -574,7 +663,7 @@ export const EvidenceExcelEmails: React.FC = () => {
           `<div style="background:#fff;max-width:760px;margin:0 auto 24px;padding:24px;border:1px solid #e5e7eb;border-radius:12px;">` +
           `<p style="font-size:12px;color:#6b7280;margin:0 0 4px;">Para: ${escapeHtml(e.correo || 'sin correo')}</p>` +
           `<p style="font-weight:bold;margin:0 0 12px;">${escapeHtml(e.subject)}</p>` +
-          buildEmailHtml(e.body) +
+          buildEmailHtml(e.body, emailFont) +
           `</div>`
       )
       .join('')}</body></html>`;
@@ -1184,17 +1273,70 @@ export const EvidenceExcelEmails: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Mensaje</label>
+
+              {/* Barra de formato: aplica sobre el texto seleccionado en el mensaje */}
+              <div className="flex flex-wrap items-center gap-1.5 border border-gray-300 border-b-0 rounded-t-lg bg-gray-50 px-2 py-1.5">
+                {FORMAT_BUTTONS.map(({ key, marker, placeholder, title, Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => wrapSelection(marker, placeholder)}
+                    title={title}
+                    className="p-1.5 rounded border border-transparent text-gray-600 hover:bg-white hover:border-gray-300"
+                  >
+                    <Icon className="w-4 h-4" />
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={toggleBulletList}
+                  title="Lista con viñetas (líneas que empiezan por «- »)"
+                  className="p-1.5 rounded border border-transparent text-gray-600 hover:bg-white hover:border-gray-300"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+
+                <span className="w-px h-5 bg-gray-300 mx-1" />
+
+                <Type className="w-4 h-4 text-gray-400" />
+                <select
+                  value={template.fontFamily}
+                  onChange={(e) => setTemplate((t) => ({ ...t, fontFamily: e.target.value }))}
+                  title="Tipografía del correo"
+                  className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:ring-2 focus:ring-teal-500 outline-none"
+                >
+                  {EMAIL_FONTS.map((f) => (
+                    <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={template.fontSize}
+                  onChange={(e) => setTemplate((t) => ({ ...t, fontSize: Number(e.target.value) }))}
+                  title="Tamaño de letra"
+                  className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:ring-2 focus:ring-teal-500 outline-none"
+                >
+                  {EMAIL_FONT_SIZES.map((s) => (
+                    <option key={s} value={s}>
+                      {s} px
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <textarea
                 ref={bodyRef}
                 value={template.body}
                 onChange={(e) => setTemplate((t) => ({ ...t, body: e.target.value }))}
                 rows={16}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none leading-relaxed"
+                className="w-full text-sm border border-gray-300 rounded-b-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none leading-relaxed"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Los saltos de línea se respetan y el texto entre <code>**dobles asteriscos**</code> se
-                envía en negrita. <code>{'{evidencias}'}</code> se reemplaza por la lista con viñetas de
-                las evidencias pendientes de cada aprendiz.
+                Selecciona el texto y usa los botones: <code>**negrita**</code>, <code>_cursiva_</code>,{' '}
+                <code>__subrayado__</code>, <code>~~tachado~~</code> y las líneas que empiezan por{' '}
+                <code>- </code> se envían como lista con viñetas. Los saltos de línea se respetan y{' '}
+                <code>{'{evidencias}'}</code> se reemplaza por las evidencias pendientes de cada aprendiz.
               </p>
             </div>
           </div>
@@ -1303,6 +1445,7 @@ export const EvidenceExcelEmails: React.FC = () => {
                     )}
                     <div
                       className="prose prose-sm max-w-none"
+                      style={{ fontFamily: template.fontFamily, fontSize: `${template.fontSize}px` }}
                       dangerouslySetInnerHTML={{ __html: current.body }}
                     />
                   </div>
