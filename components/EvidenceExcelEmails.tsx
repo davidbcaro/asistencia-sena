@@ -16,10 +16,18 @@ import {
   Users,
   Columns3,
   Trash2,
+  UserPlus,
+  X,
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
-import { getEmailSettings } from '../services/db';
-import { buildEmailHtml, escapeHtml, htmlToPlainText } from '../services/emailFormat';
+import { getEmailSettings, getStudents } from '../services/db';
+import type { Student } from '../types';
+import {
+  applyInlineMarkdown,
+  buildEmailHtml,
+  escapeHtml,
+  htmlToPlainText,
+} from '../services/emailFormat';
 import {
   buildApprenticeRows,
   DEFAULT_PENDING_MARKS,
@@ -35,29 +43,42 @@ import {
   type SheetData,
 } from '../services/evidenceExcel';
 
-const TEMPLATE_KEY = 'asistenciapro_evidence_excel_template';
+const TEMPLATE_KEY = 'asistenciapro_evidence_excel_template_v2';
 const SETTINGS_KEY = 'asistenciapro_evidence_excel_settings';
 
-const DEFAULT_SUBJECT = 'Notificación por evidencias pendientes';
+const DEFAULT_SUBJECT = 'Primer Llamado de Atención – Ficha {ficha} – {nombre}';
 
-const DEFAULT_BODY = `Estimado Aprendiz:
+const DEFAULT_BODY = `{fecha}
 
-{nombre}
+Respetado aprendiz,
+
+**{nombre}**
 {identificacion}
+{correo}
 Programa: {programa}
 Ficha: {ficha}
 
-Reciba un cordial saludo.
-Como instructor responsable de su proceso formativo en el programa, me permito comunicarle que, tras la revisión del sistema de gestión académica Zajuna, se ha evidenciado que usted no reporta entrega de las evidencias.
+Estimado(a) aprendiz,
+
+Por medio de la presente, se le notifica de manera formal que se ha identificado un incumplimiento en su ruta de aprendizaje al no presentar las evidencias correspondientes a los plazos establecidos en el cronograma académico.
+
+Específicamente, se registra la falta de entrega o aprobación en las siguientes actividades y evidencias de aprendizaje:
 
 {evidencias}
 
-De acuerdo con el Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA), su situación se enmarca en la causal de deserción establecida para la modalidad virtual, la cual cito a continuación:
+Este incumplimiento constituye una infracción a los deberes que usted adquirió al matricularse en la entidad, de acuerdo con lo consagrado en el Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA). A continuación, se detallan las normas aplicables:
 
-"Artículo 30º. Deserción: Se considera deserción en el proceso de formación, cuando el aprendiz:
-b) En la formación bajo la modalidad virtual en etapa lectiva, se presenta cuando el aprendiz no asiste a tres (3) citaciones seguidas elevadas por el instructor o por el responsable del grupo o no ingresa a su ambiente virtual de formación (plataforma LMS) durante veinte (20) días consecutivos, sin previa justificación soportada ante el sistema de gestión académico-administrativo."
+**Artículo 8°. Deberes del Aprendiz SENA (Numeral 6):** "Cumplir con todas las actividades de su proceso formativo, presentando las evidencias según la planeación pedagógica, guías de aprendizaje y cronograma, en los plazos o en la oportunidad que estas deban presentarse o reportarse, a través de los medios dispuestos para ello."
 
-De no recibir respuesta con una justificación válida o evidencia de actividad en el proceso formativo, se procederá conforme a lo establecido en el reglamento del aprendiz.
+**Artículo 27°. Cumplimiento satisfactorio del proceso formativo:** "Se configura cuando el aprendiz presenta evidencias de aprendizaje, idóneas y pertinentes, en las fechas establecidas, asiste y participa activamente en actividades presenciales o virtuales concertadas en su ruta de aprendizaje. Se configura como un incumplimiento la falta de ejecución de lo anteriormente definido. Los incumplimientos se catalogan en incumplimientos justificados y no justificados."
+
+**Artículo 46°. Tipos de medidas formativas (Numeral 1, Literal a - Llamado de atención académico):** "Los llamados de atención deben ser por escrito, el aprendiz puede recibir hasta dos (2) llamados de atención por fase del proyecto formativo, por parte de los instructores integrantes del equipo ejecutor, para alcanzar el o los resultados de aprendizaje."
+
+Tenga en cuenta que, en caso de persistir el incumplimiento de sus compromisos académicos tras agotarse los dos llamados de atención escritos, se procederá a la asignación de un Plan de Mejoramiento Académico como medida formativa obligatoria para salvaguardar su permanencia, o en su defecto, el caso será remitido ante el Comité de Evaluación y Seguimiento.
+
+**OPORTUNIDAD DE ENTREGA:** Se le concede término ampliado hasta el {fecha_limite} para que proceda con la entrega de las evidencias requeridas. En caso de incumplimiento de este plazo, se continuará con el debido proceso disciplinario, de conformidad con lo establecido en el Reglamento del Aprendiz.
+
+Le invitamos a hacer uso de este plazo excepcional para normalizar su estado académico. Si presenta alguna dificultad técnica con el manejo de la plataforma, por favor infórmela de inmediato a su instructor de competencia.
 
 Atentamente,`;
 
@@ -71,6 +92,7 @@ const VARIABLES: { token: string; help: string }[] = [
   { token: '{total_evidencias}', help: 'Cantidad de evidencias pendientes' },
   { token: '{correo}', help: 'Correo del aprendiz (si viene en el Excel)' },
   { token: '{fecha}', help: 'Fecha de hoy' },
+  { token: '{fecha_limite}', help: 'Fecha limite de entrega configurada abajo' },
 ];
 
 const META_LABELS: { key: MetaKey; label: string }[] = [
@@ -98,6 +120,8 @@ interface StoredTemplate {
 interface StoredSettings {
   programa: string;
   fichaFallback: string;
+  /** Fecha límite de entrega (YYYY-MM-DD) que se inyecta en {fecha_limite}. */
+  fechaLimite: string;
   uppercaseNames: boolean;
   pending: PendingMarks;
   onlyWithPending: boolean;
@@ -106,6 +130,7 @@ interface StoredSettings {
 const DEFAULT_SETTINGS: StoredSettings = {
   programa: 'Gestión de Redes de Datos',
   fichaFallback: '',
+  fechaLimite: '',
   uppercaseNames: true,
   pending: DEFAULT_PENDING_MARKS,
   onlyWithPending: true,
@@ -138,6 +163,42 @@ function todayLocal(): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
+/** Convierte una fecha de <input type="date"> (YYYY-MM-DD) a dd/mm/aaaa. */
+function formatDateInput(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!m) return value.trim();
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+/** Una línea por evidencia; se limpian viñetas y espacios sobrantes. */
+function parseEvidenceLines(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^[\s*\-•]+/, '').trim())
+    .filter(Boolean);
+}
+
+/** Aprendiz agregado a mano desde el buscador (sin Excel). */
+interface ManualEntry {
+  id: string;
+  fullName: string;
+  documento: string;
+  ficha: string;
+  correo: string;
+  /** Evidencias pendientes, una por línea. */
+  evidencias: string;
+}
+
+/** Fuente común de un correo: filas del Excel y aprendices agregados desde el buscador. */
+interface EmailSource {
+  rowId: string;
+  fullName: string;
+  documento: string;
+  ficha: string;
+  correo: string;
+  pending: string[];
+}
+
 interface BuiltEmail {
   rowId: string;
   name: string;
@@ -167,6 +228,12 @@ export const EvidenceExcelEmails: React.FC = () => {
   const [template, setTemplate] = useState<StoredTemplate>(() => loadTemplate());
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
+  // Buscador de aprendices registrados (flujo sin Excel)
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [studentQuery, setStudentQuery] = useState('');
+  const [manualEntries, setManualEntries] = useState<ManualEntry[]>([]);
+  const [manualEvidenceDraft, setManualEvidenceDraft] = useState('');
+
   const [previewIndex, setPreviewIndex] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [sendStatus, setSendStatus] = useState<Record<string, 'sending' | 'sent' | 'error'>>({});
@@ -175,6 +242,24 @@ export const EvidenceExcelEmails: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
+
+  // Los aprendices del buscador salen del mismo listado que el resto de la app.
+  useEffect(() => {
+    const load = () =>
+      setAllStudents(
+        getStudents()
+          .slice()
+          .sort((a, b) =>
+            `${a.firstName ?? ''} ${a.lastName ?? ''}`.localeCompare(
+              `${b.firstName ?? ''} ${b.lastName ?? ''}`,
+              'es'
+            )
+          )
+      );
+    load();
+    window.addEventListener('asistenciapro-storage-update', load);
+    return () => window.removeEventListener('asistenciapro-storage-update', load);
+  }, []);
 
   const applyParsed = (wb: XLSX.WorkBook, index: number) => {
     const parsed = parseSheet(wb, index);
@@ -290,22 +375,25 @@ export const EvidenceExcelEmails: React.FC = () => {
     [rows, excludedRows, settings.onlyWithPending, pendingByRow]
   );
 
-  const buildEmail = (row: ApprenticeRow): BuiltEmail => {
-    const pending = pendingByRow.get(row.id) ?? [];
-    const ficha = row.ficha || settings.fichaFallback;
+  const composeEmail = (source: EmailSource): BuiltEmail => {
+    const { pending } = source;
+    const ficha = source.ficha || settings.fichaFallback;
     const listaHtml =
       pending.length === 0
         ? '<p>Sin evidencias pendientes.</p>'
-        : `<ul>${pending.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul>`;
+        : `<ul>${pending
+            .map((p, i) => `<li>Evidencia ${i + 1}: ${escapeHtml(p)}</li>`)
+            .join('')}</ul>`;
     const listaTexto = pending.length === 0 ? 'Sin evidencias pendientes' : pending.join('; ');
 
     const plainValues: Record<string, string> = {
-      '{nombre}': row.fullName,
-      '{identificacion}': row.documento,
+      '{nombre}': source.fullName,
+      '{identificacion}': source.documento,
       '{programa}': settings.programa,
       '{ficha}': ficha,
-      '{correo}': row.correo,
+      '{correo}': source.correo,
       '{fecha}': todayLocal(),
+      '{fecha_limite}': formatDateInput(settings.fechaLimite) || '[Fecha]',
       '{total_evidencias}': String(pending.length),
       '{evidencias_texto}': listaTexto,
       '{evidencias}': listaTexto,
@@ -316,8 +404,9 @@ export const EvidenceExcelEmails: React.FC = () => {
       subject = subject.split(token).join(value);
     });
 
-    // El cuerpo es texto plano: se escapa completo y luego se inyectan los valores ya escapados.
-    let body = escapeHtml(template.body).replace(/\r?\n/g, '<br>');
+    // El cuerpo es texto plano: se escapa completo, se aplica el formato **negrita**
+    // y luego se inyectan los valores ya escapados.
+    let body = applyInlineMarkdown(escapeHtml(template.body)).replace(/\r?\n/g, '<br>');
     Object.entries(plainValues).forEach(([token, value]) => {
       if (token === '{evidencias}') return;
       body = body.split(token).join(escapeHtml(value));
@@ -326,22 +415,50 @@ export const EvidenceExcelEmails: React.FC = () => {
     body = body.replace(/(?:<br>)?\{evidencias\}(?:<br>)?/g, listaHtml);
 
     return {
-      rowId: row.id,
-      name: row.fullName,
-      documento: row.documento,
+      rowId: source.rowId,
+      name: source.fullName,
+      documento: source.documento,
       ficha,
-      correo: row.correo,
+      correo: source.correo,
       pending,
       subject,
       body,
     };
   };
 
-  const emails = useMemo(
+  const buildEmail = (row: ApprenticeRow): BuiltEmail =>
+    composeEmail({
+      rowId: row.id,
+      fullName: row.fullName,
+      documento: row.documento,
+      ficha: row.ficha,
+      correo: row.correo,
+      pending: pendingByRow.get(row.id) ?? [],
+    });
+
+  const excelEmails = useMemo(
     () => includedRows.map(buildEmail),
     // buildEmail depende de plantilla, ajustes y pendientes
     [includedRows, template, settings, pendingByRow]
   );
+
+  // Los aprendices buscados a mano siempre generan correo, tengan o no evidencias escritas.
+  const manualEmails = useMemo(
+    () =>
+      manualEntries.map((m) =>
+        composeEmail({
+          rowId: m.id,
+          fullName: settings.uppercaseNames ? m.fullName.toUpperCase() : m.fullName,
+          documento: m.documento,
+          ficha: m.ficha,
+          correo: m.correo,
+          pending: parseEvidenceLines(m.evidencias),
+        })
+      ),
+    [manualEntries, template, settings]
+  );
+
+  const emails = useMemo(() => [...manualEmails, ...excelEmails], [manualEmails, excelEmails]);
 
   useEffect(() => {
     setPreviewIndex((i) => (emails.length === 0 ? 0 : Math.min(i, emails.length - 1)));
@@ -480,6 +597,55 @@ export const EvidenceExcelEmails: React.FC = () => {
   const toggleRow = (id: string) =>
     setExcludedRows((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
+  const studentMatches = useMemo(() => {
+    const term = studentQuery.trim().toLowerCase();
+    if (term.length < 2) return [];
+    return allStudents
+      .filter((s) => {
+        const full = `${s.firstName ?? ''} ${s.lastName ?? ''}`.toLowerCase();
+        return (
+          full.includes(term) ||
+          (s.documentNumber ?? '').toLowerCase().includes(term) ||
+          (s.email ?? '').toLowerCase().includes(term) ||
+          (s.group ?? '').toLowerCase().includes(term)
+        );
+      })
+      .slice(0, 8);
+  }, [allStudents, studentQuery]);
+
+  const addManualStudent = (s: Student) => {
+    const id = `manual-${s.id}`;
+    setStudentQuery('');
+    if (manualEntries.some((m) => m.id === id)) {
+      showFeedback('Ese aprendiz ya está en la lista');
+      return;
+    }
+    setManualEntries((prev) => [
+      ...prev,
+      {
+        id,
+        fullName: `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim(),
+        documento: s.documentNumber ?? '',
+        ficha: s.group ?? '',
+        correo: s.email ?? '',
+        evidencias: manualEvidenceDraft,
+      },
+    ]);
+    // El nuevo aprendiz queda al final del bloque manual, que va primero en la vista previa.
+    setPreviewIndex(manualEntries.length);
+  };
+
+  const removeManualEntry = (id: string) =>
+    setManualEntries((prev) => prev.filter((m) => m.id !== id));
+
+  const updateManualEvidences = (id: string, evidencias: string) =>
+    setManualEntries((prev) => prev.map((m) => (m.id === id ? { ...m, evidencias } : m)));
+
+  const applyDraftToAll = () => {
+    setManualEntries((prev) => prev.map((m) => ({ ...m, evidencias: manualEvidenceDraft })));
+    showFeedback('Evidencias aplicadas a los aprendices agregados');
+  };
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
       <div className="p-6 border-b border-gray-100">
@@ -491,6 +657,8 @@ export const EvidenceExcelEmails: React.FC = () => {
           Sube un Excel con los aprendices y una columna por evidencia (<strong>A</strong> aprobada,{' '}
           <strong>D</strong> desaprobada, <strong>-</strong> sin entregar). Los nombres, la
           identificación y las evidencias pendientes se toman del archivo y se insertan en la plantilla.
+          También puedes <strong>buscar un aprendiz</strong> registrado y generarle el correo sin subir
+          nada.
         </p>
       </div>
 
@@ -560,6 +728,208 @@ export const EvidenceExcelEmails: React.FC = () => {
                 {markCounts.VACIA})
               </span>
             </p>
+          )}
+        </div>
+
+        {/* Datos que se inyectan en la plantilla (aplican al Excel y al buscador) */}
+        <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-gray-800">Datos del programa</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Programa <span className="text-gray-400">({'{programa}'})</span>
+              </label>
+              <input
+                type="text"
+                value={settings.programa}
+                onChange={(e) => setSettings((s) => ({ ...s, programa: e.target.value }))}
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Ficha por defecto <span className="text-gray-400">({'{ficha}'} si falta)</span>
+              </label>
+              <input
+                type="text"
+                value={settings.fichaFallback}
+                onChange={(e) => setSettings((s) => ({ ...s, fichaFallback: e.target.value }))}
+                placeholder="Ej: 2843147"
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Fecha límite de entrega <span className="text-gray-400">({'{fecha_limite}'})</span>
+              </label>
+              <input
+                type="date"
+                value={settings.fechaLimite}
+                onChange={(e) => setSettings((s) => ({ ...s, fechaLimite: e.target.value }))}
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.uppercaseNames}
+              onChange={(e) => setSettings((s) => ({ ...s, uppercaseNames: e.target.checked }))}
+              className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+            />
+            Nombres en MAYÚSCULAS
+          </label>
+        </div>
+
+        {/* Buscador de aprendices: genera el correo sin necesidad de Excel */}
+        <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+            <UserPlus className="w-4 h-4 text-teal-600" />
+            Buscar aprendiz y enviarle el correo
+          </h4>
+          <p className="text-xs text-gray-500">
+            Busca cualquier aprendiz registrado por nombre, identificación, correo o ficha y agrégalo a
+            la lista de correos. Funciona con o sin Excel cargado.
+          </p>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={studentQuery}
+              onChange={(e) => setStudentQuery(e.target.value)}
+              placeholder="Nombre, identificación, correo o ficha..."
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+            />
+            {studentQuery.trim().length >= 2 && (
+              <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                {studentMatches.length === 0 ? (
+                  <p className="px-3 py-2 text-sm text-gray-400">
+                    Sin coincidencias entre los aprendices registrados.
+                  </p>
+                ) : (
+                  studentMatches.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => addManualStudent(s)}
+                      className="w-full text-left px-3 py-2 hover:bg-teal-50 border-b border-gray-100 last:border-0"
+                    >
+                      <span className="block text-sm font-medium text-gray-800">
+                        {`${s.firstName ?? ''} ${s.lastName ?? ''}`.trim() || 'Sin nombre'}
+                      </span>
+                      <span className="block text-xs text-gray-500">
+                        {s.documentNumber || 'sin identificación'}
+                        {s.group ? ` · Ficha ${s.group}` : ''}
+                        {s.email ? ` · ${s.email}` : ' · sin correo'}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+              <label className="block text-xs font-medium text-gray-600">
+                Evidencias pendientes (una por línea) para los aprendices que agregues
+              </label>
+              {manualEntries.length > 0 && (
+                <button
+                  type="button"
+                  onClick={applyDraftToAll}
+                  className="text-xs font-medium px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                >
+                  Aplicar a todos
+                </button>
+              )}
+            </div>
+            <textarea
+              value={manualEvidenceDraft}
+              onChange={(e) => setManualEvidenceDraft(e.target.value)}
+              rows={3}
+              placeholder={'GA1-220501046-AA2-EV01 · Nombre de la evidencia\nGA1-220501046-AA4-EV01 · Nombre de la evidencia'}
+              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
+            />
+          </div>
+
+          {manualEntries.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-600">
+                Aprendices agregados ({manualEntries.length})
+              </p>
+              {manualEntries.map((m, i) => {
+                const email = manualEmails[i];
+                const status = sendStatus[m.id];
+                return (
+                  <div key={m.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800">{m.fullName || '—'}</p>
+                        <p className="text-xs text-gray-500">
+                          {m.documento || 'sin identificación'}
+                          {` · Ficha ${m.ficha || settings.fichaFallback || '—'}`}
+                          {m.correo ? ` · ${m.correo}` : ' · sin correo'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {status === 'sent' && (
+                          <span className="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded">
+                            <CheckCircle className="w-3 h-3" /> Enviado
+                          </span>
+                        )}
+                        {status === 'error' && (
+                          <span className="text-red-600 text-xs font-bold bg-red-50 px-2 py-1 rounded">
+                            Error
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setPreviewIndex(i)}
+                          className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                        >
+                          Ver correo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => email && sendOne(email)}
+                          disabled={!email || !email.correo.includes('@') || status === 'sending'}
+                          title={
+                            m.correo.includes('@')
+                              ? 'Enviar con la configuración de EmailJS'
+                              : 'El aprendiz no tiene correo registrado'
+                          }
+                          className="px-2.5 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1.5 text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        >
+                          {status === 'sending' ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Send className="w-3.5 h-3.5" />
+                          )}
+                          Enviar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeManualEntry(m.id)}
+                          title="Quitar de la lista"
+                          className="p-1.5 rounded-lg border border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      value={m.evidencias}
+                      onChange={(e) => updateManualEvidences(m.id, e.target.value)}
+                      rows={2}
+                      placeholder="Evidencias pendientes de este aprendiz (una por línea)"
+                      className="mt-2 w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-teal-500 outline-none"
+                    />
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
@@ -649,44 +1019,8 @@ export const EvidenceExcelEmails: React.FC = () => {
               </div>
             </div>
 
-            {/* Paso 3 · Datos fijos y criterio de pendiente */}
+            {/* Paso 3 · Criterio de pendiente (solo aplica al Excel) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="rounded-xl border border-gray-200 p-4 space-y-3">
-                <h4 className="text-sm font-semibold text-gray-800">Datos del programa</h4>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Programa <span className="text-gray-400">({'{programa}'})</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.programa}
-                    onChange={(e) => setSettings((s) => ({ ...s, programa: e.target.value }))}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Ficha por defecto <span className="text-gray-400">(si no viene en el Excel)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.fichaFallback}
-                    onChange={(e) => setSettings((s) => ({ ...s, fichaFallback: e.target.value }))}
-                    placeholder="Ej: 2843147"
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
-                  />
-                </div>
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.uppercaseNames}
-                    onChange={(e) => setSettings((s) => ({ ...s, uppercaseNames: e.target.checked }))}
-                    className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
-                  />
-                  Nombres en MAYÚSCULAS
-                </label>
-              </div>
-
               <div className="rounded-xl border border-gray-200 p-4 space-y-3">
                 <h4 className="text-sm font-semibold text-gray-800">¿Qué cuenta como pendiente?</h4>
                 <div className="space-y-2">
@@ -858,8 +1192,9 @@ export const EvidenceExcelEmails: React.FC = () => {
                 className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none leading-relaxed"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Los saltos de línea se respetan. <code>{'{evidencias}'}</code> se reemplaza por la lista
-                con viñetas de las evidencias pendientes de cada aprendiz.
+                Los saltos de línea se respetan y el texto entre <code>**dobles asteriscos**</code> se
+                envía en negrita. <code>{'{evidencias}'}</code> se reemplaza por la lista con viñetas de
+                las evidencias pendientes de cada aprendiz.
               </p>
             </div>
           </div>

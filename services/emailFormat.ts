@@ -31,3 +31,11 @@ export function buildEmailHtml(body: string): string {
   // Usar <table> de ancho 100% para que Outlook respete el ancho completo del área de composición
   return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;"><tr><td style="${BASE}word-wrap:break-word;">${styled}</td></tr></table>`;
 }
+
+/**
+ * Formato ligero para las plantillas de correo escritas en texto plano.
+ * Se aplica sobre texto YA escapado: convierte **negrita** en <strong>.
+ */
+export function applyInlineMarkdown(escaped: string): string {
+  return escaped.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+}
