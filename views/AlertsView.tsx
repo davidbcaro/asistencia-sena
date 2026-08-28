@@ -585,6 +585,18 @@ export const AlertsView: React.FC = () => {
     selectedAlertEvidenceIdList.length,
   ]);
 
+  /** Evidencias pendientes de cada aprendiz del listado, para mostrarlas en el resumen. */
+  const pendingCountByStudent = useMemo(() => {
+    const map = new Map<string, number>();
+    filteredList.forEach((a) => {
+      map.set(
+        a.student.id,
+        getPendingGradeActivities(a.student, gradeActivities, gradeMap, alertsPendingScope).length
+      );
+    });
+    return map;
+  }, [filteredList, gradeActivities, gradeMap, alertsPendingScope]);
+
   const getLocalDate = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -1245,6 +1257,48 @@ export const AlertsView: React.FC = () => {
                 Plantilla de llamado de atención: incluye a todo aprendiz en formación con evidencias
                 sin entregar o no aprobadas, tenga o no novedad.
               </span>
+            )}
+          </div>
+
+          {/* Resultado del filtro: aprendices que recibirán el correo */}
+          <div className="w-full">
+            {filteredList.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                Ningún aprendiz coincide con la búsqueda y los filtros aplicados.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                {filteredList.map((a) => {
+                  const pendientes = pendingCountByStudent.get(a.student.id) ?? 0;
+                  return (
+                    <span
+                      key={a.student.id}
+                      title={`${a.student.documentNumber || 'sin identificación'}${
+                        a.student.email ? ` · ${a.student.email}` : ''
+                      }${a.novedad !== '-' ? ` · ${a.novedad}` : ''}`}
+                      className="inline-flex items-center gap-1.5 text-xs bg-white border border-gray-200 rounded-full pl-2.5 pr-1.5 py-1"
+                    >
+                      <Users className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                      <span className="font-medium text-gray-900">
+                        {`${a.student.firstName} ${a.student.lastName}`.trim()}
+                      </span>
+                      {a.student.group && (
+                        <span className="text-gray-400">· {a.student.group}</span>
+                      )}
+                      <span
+                        className={`font-semibold rounded-full px-1.5 py-0.5 border ${
+                          pendientes > 0
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-green-50 text-green-700 border-green-200'
+                        }`}
+                        title={`${pendientes} evidencia(s) pendiente(s) según los filtros`}
+                      >
+                        {pendientes}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
