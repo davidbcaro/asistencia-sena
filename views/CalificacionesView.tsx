@@ -463,6 +463,173 @@ const getActivityCanonicalKey = (a: { name: string; detail?: string | null }): s
 const getActivityPhaseScopedKey = (a: { id: string; phase?: string | null; name: string; detail?: string | null }) =>
   `${a.phase || 'Sin fase'}::${getActivityCanonicalKey(a)}::${a.id}`;
 
+// ─── Identidad de evidencia para la importación de Excel ─────────────────────
+// El código SENA completo (G[AI]#-<competencia>-AA#-EV##) es la ÚNICA identidad
+// que no colisiona. El sufijo suelto "AA#-EV##" SÍ colisiona: dentro de una misma
+// fase hasta 14 evidencias de competencias distintas lo comparten (p. ej. en
+// "Fase 3: Ejecución" hay 14 evidencias que terminan en AA1-EV01). Por eso el
+// sufijo sólo se usa como desempate y únicamente cuando es inequívoco.
+
+/** Código SENA completo normalizado, o null si el texto no lo contiene. */
+const getFullEvidenceCode = (text: string): string | null => {
+  const m = text.match(/G[AI]\d+-\d+-AA\d+-EV\d+/i);
+  return m ? normalizeText(m[0]) : null;
+};
+
+/** Sufijo AA#-EV## en minúsculas, o null. Ambiguo por naturaleza. */
+const getPartialAaEvKey = (text: string): string | null => {
+  const m = text.match(/AA\d+-EV\d+/i);
+  return m ? m[0].toLowerCase() : null;
+};
+
+/** Clave de AGRUPACIÓN de las columnas del Excel.
+ *  Con código SENA completo usa ese código; si no, usa el encabezado completo
+ *  normalizado. Nunca reduce a "AA#-EV##": hacerlo colapsaba en una sola entrada
+ *  columnas de evidencias distintas y las notas terminaban en la evidencia
+ *  equivocada. Las columnas (Real) y (Letra) de una misma evidencia siguen
+ *  agrupándose porque `splitActivityHeader` ya les quita ese sufijo. */
+const getColumnGroupKey = (baseName: string): string =>
+  getFullEvidenceCode(baseName) ?? (normalizeHeader(baseName) || baseName.trim().toLowerCase());
+
+/** Texto descriptivo del encabezado sin códigos ni prefijos de Sofía Plus.
+ *  Permite emparejar por descripción cuando el Excel no trae el código completo. */
+const getEvidenceDescriptionKey = (text: string): string =>
+  normalizeHeader(
+    text
+      .replace(/G[AI]\d+-\d+-AA\d+-EV\d+/gi, ' ')
+      .replace(/AA\d+-EV\d+/gi, ' ')
+      .replace(/\b(prueba de conocimiento|evidencias?)\s*[:\-]/gi, ' ')
+      .replace(/evidencia de (conocimiento|producto|desempe[nñ]o)\s*[:\-]?/gi, ' ')
+  );
+
+/** Encabezados que NUNCA son evidencias: metadatos del aprendiz o columnas
+ *  calculadas que la propia app escribe al exportar. Antes bastaba con que un
+ *  encabezado tuviera un dígito para aceptarlo como evidencia, así que al
+ *  reimportar el Excel exportado "RAP1", "Ficha" o "Días sin ingresar" se
+ *  convertían en evidencias fantasma con notas inventadas (el número de ficha,
+ *  3335783, se recortaba a 100 y quedaba como calificación). */
+const COMPUTED_HEADER_PATTERNS: RegExp[] = [
+  /^total\b/,
+  /^rap\s*\d*$/,
+  /^promedio/,
+  /^nota\s*final/,
+  /^dias sin ingresar$/,
+  /^juicios evaluativos$/,
+  /^estado$/,
+  /^ficha$/,
+  /^grupo$/,
+  /^pendientes$/,
+  /^final$/,
+  /^no$/,
+  /^n$/,
+  /^documento$/,
+  /^(numero|tipo) de documento$/,
+  /^identificacion$/,
+  /^celular$/,
+  /^telefono$/,
+  /^programa$/,
+];
+
+const isComputedHeader = (normalizedHeader: string) =>
+  COMPUTED_HEADER_PATTERNS.some(re => re.test(normalizedHeader));
+
+/** Resultado de emparejar una columna del Excel con una evidencia existente. */
+type ColumnMatch =
+  | { status: 'matched'; activity: GradeActivity; via: 'código SENA' | 'descripción' | 'AA-EV único' }
+  | { status: 'ambiguous'; candidates: GradeActivity[] }
+  | { status: 'none' };
+
+/** Índices de búsqueda construidos una sola vez por importación. */
+interface ActivityIndex {
+  byFullCode: Map<string, GradeActivity[]>;
+  byDescription: Map<string, GradeActivity[]>;
+  byPartial: Map<string, GradeActivity[]>;
+}
+
+const buildActivityIndex = (activities: GradeActivity[]): ActivityIndex => {
+  const byFullCode = new Map<string, GradeActivity[]>();
+  const byDescription = new Map<string, GradeActivity[]>();
+  const byPartial = new Map<string, GradeActivity[]>();
+  const push = (map: Map<string, GradeActivity[]>, key: string, a: GradeActivity) => {
+    const list = map.get(key);
+    if (list) list.push(a); else map.set(key, [a]);
+  };
+  activities.forEach(a => {
+    const text = `${a.name} ${a.detail ?? ''}`;
+    const phase = a.phase || 'Sin fase';
+    const full = getFullEvidenceCode(text);
+    if (full) push(byFullCode, full, a);
+    const desc = getEvidenceDescriptionKey(text);
+    if (desc) push(byDescription, `${phase}::${desc}`, a);
+    const partial = getPartialAaEvKey(text);
+    if (partial) push(byPartial, `${phase}::${partial}`, a);
+  });
+  return { byFullCode, byDescription, byPartial };
+};
+
+/** De varias candidatas escoge la de la ficha seleccionada (que tiene prioridad
+ *  sobre la global); si sigue habiendo más de una, no elige: devuelve null. */
+const pickPreferred = (candidates: GradeActivity[], selectedFicha: string): GradeActivity | null => {
+  if (candidates.length === 1) return candidates[0];
+  const ofFicha = candidates.filter(a => a.group === selectedFicha);
+  if (ofFicha.length === 1) return ofFicha[0];
+  const global = candidates.filter(a => a.group === '');
+  if (global.length === 1) return global[0];
+  return null;
+};
+
+/** Empareja una columna del Excel con UNA evidencia existente, sin adivinar.
+ *  Orden: (1) código SENA completo, (2) descripción exacta dentro de la fase,
+ *  (3) sufijo AA#-EV## dentro de la fase, y sólo si hay una única candidata.
+ *  Si quedan varias candidatas devuelve 'ambiguous' y la columna no se importa. */
+const resolveActivityForColumn = (
+  baseName: string,
+  phase: string,
+  index: ActivityIndex,
+  selectedFicha: string
+): ColumnMatch => {
+  const full = getFullEvidenceCode(baseName);
+  if (full) {
+    const candidates = index.byFullCode.get(full);
+    if (candidates?.length) {
+      const picked = pickPreferred(candidates, selectedFicha);
+      return picked
+        ? { status: 'matched', activity: picked, via: 'código SENA' }
+        : { status: 'ambiguous', candidates };
+    }
+    // Con código completo y sin coincidencia la evidencia es nueva: no se busca
+    // por sufijo, porque el sufijo pertenece a otra competencia.
+    return { status: 'none' };
+  }
+
+  const desc = getEvidenceDescriptionKey(baseName);
+  if (desc) {
+    const candidates = index.byDescription.get(`${phase}::${desc}`);
+    if (candidates?.length) {
+      const picked = pickPreferred(candidates, selectedFicha);
+      if (picked) return { status: 'matched', activity: picked, via: 'descripción' };
+    }
+  }
+
+  const partial = getPartialAaEvKey(baseName);
+  if (partial) {
+    const candidates = index.byPartial.get(`${phase}::${partial}`) ?? [];
+    if (candidates.length) {
+      // Desempate por descripción entre las candidatas del mismo AA#-EV##.
+      const byDesc = desc
+        ? candidates.filter(a => getEvidenceDescriptionKey(`${a.name} ${a.detail ?? ''}`) === desc)
+        : [];
+      const pool = byDesc.length ? byDesc : candidates;
+      const picked = pickPreferred(pool, selectedFicha);
+      return picked
+        ? { status: 'matched', activity: picked, via: byDesc.length ? 'descripción' : 'AA-EV único' }
+        : { status: 'ambiguous', candidates: pool };
+    }
+  }
+
+  return { status: 'none' };
+};
+
 const getActivityShortLabel = (name: string) => {
   const aaEv = name.match(/AA\d+-EV\d+/i);
   if (aaEv) return aaEv[0].toUpperCase();
@@ -957,42 +1124,24 @@ export const CalificacionesView: React.FC = () => {
   useEffect(() => {
     const all = getGradeActivities();
 
-    // Build seed lookup: full canonical key + phase-scoped partial AA-EV key + Sofia Plus aliases
-    const seedByKey = new Map<string, GradeActivity>();
-    // Build alias map: sofiaAliases canonical key → seed SENA code
-    const aliasBySeedCode = new Map<string, string[]>(); // seedId → alias canonical keys
-    Object.values(FASE_EVIDENCES).forEach(evs => evs.forEach(ev => {
-      if (ev.sofiaAliases) aliasBySeedCode.set(`seed-${ev.code}`, ev.sofiaAliases.map(a => getCanonicalEvidenceKey(a)));
-    }));
-    all.filter(a => a.id.startsWith('seed-')).forEach(a => {
-      const fullKey = getActivityCanonicalKey(a);
-      seedByKey.set(fullKey, a);
-      // Phase-scoped partial: lets "Fase Inducción::aa1-ev01" match "GI1-...-AA1-EV01"
-      const partial = fullKey.match(/aa\d+-ev\d+/i)?.[0]?.toLowerCase();
-      if (partial && a.phase) seedByKey.set(`${a.phase}::${partial}`, a);
-      // Sofia Plus aliases (e.g. AA3-EV01 → GI1-240201530-AA2-EV03)
-      aliasBySeedCode.get(a.id)?.forEach(aliasKey => {
-        seedByKey.set(aliasKey, a);
-        if (a.phase) seedByKey.set(`${a.phase}::${aliasKey}`, a);
-      });
-    });
+    // Índice de semillas con TODAS las candidatas por clave. Antes este mapa
+    // guardaba una sola semilla por clave parcial "fase::AA#-EV##" y ganaba la
+    // última: como en "Fase 3: Ejecución" hay 14 evidencias que terminan en
+    // AA1-EV01, cualquier actividad con ese sufijo se fusionaba con una semilla
+    // arbitraria y sus notas se movían a la evidencia equivocada en cada montaje.
+    const seeds = all.filter(a => a.id.startsWith('seed-'));
+    const seedIndex = buildActivityIndex(seeds);
 
     const toRemoveIds = new Set<string>();
     const gradeRemap = new Map<string, string>(); // duplicateId → seedId
 
     all.filter(a => !a.id.startsWith('seed-')).forEach(a => {
-      const canonKey = getActivityCanonicalKey(a);
-      // 1. Try exact canonical key match
-      let seed = seedByKey.get(canonKey);
-      // 2. Fallback: phase-scoped partial key
-      if (!seed && a.phase) {
-        const partial = canonKey.match(/aa\d+-ev\d+/i)?.[0]?.toLowerCase();
-        if (partial) seed = seedByKey.get(`${a.phase}::${partial}`);
-      }
-      if (seed) {
-        toRemoveIds.add(a.id);
-        gradeRemap.set(a.id, seed.id);
-      }
+      const text = `${a.name} ${a.detail ?? ''}`;
+      const match = resolveActivityForColumn(text, a.phase || 'Sin fase', seedIndex, a.group || '');
+      // Sólo se fusiona cuando la evidencia queda identificada sin ambigüedad.
+      if (match.status !== 'matched') return;
+      toRemoveIds.add(a.id);
+      gradeRemap.set(a.id, match.activity.id);
     });
 
     if (toRemoveIds.size === 0) return;
@@ -2216,29 +2365,37 @@ export const CalificacionesView: React.FC = () => {
       const headers = rows[0].map(h => String(h || '').trim());
       const normalizedHeaders = headers.map(h => normalizeHeader(h));
 
-      const docIndex = normalizedHeaders.findIndex(h =>
-        h.includes('document') || h.includes('doc') || h.includes('identificacion') || h.includes('identidad')
+      // Una columna que trae un código de evidencia NUNCA es un metadato del
+      // aprendiz. Sin esta guarda, "Evidencia de conocimiento: Documento
+      // escrito. AA1-EV01" se tomaba como la columna de documento (contiene
+      // "documento") y esa evidencia se perdía en cada importación.
+      const isEvidenceHeader = (raw: string) => /G[AI]\d+-\d+-AA\d+-EV\d+|AA\d+-EV\d+|\bEV\s?\d+\b/i.test(raw);
+      const findMetaIndex = (pred: (h: string) => boolean) =>
+        normalizedHeaders.findIndex((h, i) => !isEvidenceHeader(headers[i]) && pred(h));
+
+      const docIndex = findMetaIndex(h =>
+        h.includes('documento') || /\bdoc\b/.test(h) || h.includes('identificacion') || h.includes('identidad')
       );
       // "Nombre(s)" normaliza a "nombre s" → también capturar esa variante
-      const firstNameIndex = normalizedHeaders.findIndex(h =>
+      const firstNameIndex = findMetaIndex(h =>
         (h === 'nombres' || h === 'nombre s' || h === 'nombre' || h.startsWith('nombre ')) && !h.includes('usuario')
       );
       // "Apellido(s)" normaliza a "apellido s" → también capturar esa variante
-      const lastNameIndex = normalizedHeaders.findIndex(h =>
-        h.includes('apellido')
-      );
-      const fullNameIndex = normalizedHeaders.findIndex(h => h.includes('nombre completo') || h.includes('aprendiz'));
-      const usernameIndex = normalizedHeaders.findIndex(h =>
+      const lastNameIndex = findMetaIndex(h => h.includes('apellido'));
+      const fullNameIndex = findMetaIndex(h => h.includes('nombre completo') || h.includes('aprendiz'));
+      const usernameIndex = findMetaIndex(h =>
         h.includes('nombre de usuario') || h === 'usuario' || h === 'username'
       );
-      const emailIndex = normalizedHeaders.findIndex(h =>
+      const emailIndex = findMetaIndex(h =>
         h.includes('correo electronico') || h.includes('correo') || h.includes('email')
       );
 
       const reservedIndexes = new Set(
         [docIndex, firstNameIndex, lastNameIndex, fullNameIndex, usernameIndex, emailIndex].filter(i => i >= 0)
       );
-      const looksLikeEvidence = (h: string) => /ev\s*\d|evidencia\s*\d|ev\d+/i.test(h) || (/\d+/.test(h) && h.length < 80);
+      const dynamicRap = (rapColumns[rapKey] || rapColumns[selectedFicha] || []).map(col =>
+        normalizeHeaderKey(col)
+      );
 
       const activityIndexes = headers
         .map((header, index) => ({ header: header.trim(), index }))
@@ -2247,12 +2404,12 @@ export const CalificacionesView: React.FC = () => {
           const headerKey = normalizeHeaderKey(item.header);
           if (!item.header || reservedIndexes.has(item.index)) return false;
           if (EXCLUDED_ACTIVITY_HEADERS.has(header)) return false;
-          if (looksLikeEvidence(header)) return true;
+          // Las columnas calculadas se descartan ANTES que cualquier heurística
+          // de "parece evidencia": "RAP1" o "Ficha" contienen dígitos y antes
+          // pasaban el filtro, creando evidencias fantasma con notas inventadas.
           if (BASE_COMPUTED_HEADERS.has(headerKey)) return false;
-          const dynamicRap = (rapColumns[rapKey] || rapColumns[selectedFicha] || []).map(col =>
-            normalizeHeaderKey(col)
-          );
           if (dynamicRap.includes(headerKey)) return false;
+          if (isComputedHeader(header)) return false;
           return true;
         });
 
@@ -2266,25 +2423,35 @@ export const CalificacionesView: React.FC = () => {
         { baseName: string; realIndex?: number; letterIndex?: number; fallbackIndex?: number }
       >();
 
+      // Columnas que el Excel trae repetidas para una misma evidencia; se avisa
+      // en vez de sobrescribir en silencio (antes la última columna ganaba).
+      const duplicateColumns: string[] = [];
+
       activityIndexes.forEach(({ header, index }) => {
         const { baseName, kind } = splitActivityHeader(header);
         if (!baseName || !baseName.trim()) return;
-        const canonicalKey = getCanonicalEvidenceKey(baseName);
-        const entry = evidenceMap.get(canonicalKey);
+        // Clave de agrupación por columna, NO la clave canónica reducida a
+        // "AA#-EV##": esa reducción hacía colisionar evidencias distintas.
+        const groupKey = getColumnGroupKey(baseName);
+        const entry = evidenceMap.get(groupKey);
         if (entry) {
           if (kind === 'real') {
-            entry.realIndex = index;
+            if (entry.realIndex !== undefined) duplicateColumns.push(header);
+            else entry.realIndex = index;
           } else if (kind === 'letter') {
-            entry.letterIndex = index;
+            if (entry.letterIndex !== undefined) duplicateColumns.push(header);
+            else entry.letterIndex = index;
           } else if (entry.fallbackIndex === undefined) {
             entry.fallbackIndex = index;
+          } else {
+            duplicateColumns.push(header);
           }
         } else {
           const newEntry: { baseName: string; realIndex?: number; letterIndex?: number; fallbackIndex?: number } = { baseName: baseName.trim() };
           if (kind === 'real') newEntry.realIndex = index;
           else if (kind === 'letter') newEntry.letterIndex = index;
           else newEntry.fallbackIndex = index;
-          evidenceMap.set(canonicalKey, newEntry);
+          evidenceMap.set(groupKey, newEntry);
         }
       });
 
@@ -2306,37 +2473,16 @@ export const CalificacionesView: React.FC = () => {
         return effectiveSinglePhase === ALL_PHASES_VIEW ? phases[1] : effectiveSinglePhase;
       };
 
-      // ── Buscar actividades existentes buscando en TODAS las fases ───────────
-      // (no filtramos por selectedPhase para que el re-import siempre reutilice
-      //  las actividades semilla correctas independientemente del filtro activo)
-      // Build Sofia Plus alias lookup: aliasCanonicalKey → seed activity
-      const seedAliasByKey = new Map<string, GradeActivity>();
-      Object.values(FASE_EVIDENCES).forEach(evs => evs.forEach(ev => {
-        if (!ev.sofiaAliases) return;
-        const seedAct = activities.find(a => a.id === `seed-${ev.code}`);
-        if (!seedAct) return;
-        ev.sofiaAliases.forEach(alias => {
-          const aliasKey = getCanonicalEvidenceKey(alias);
-          seedAliasByKey.set(aliasKey, seedAct);
-          if (seedAct.phase) seedAliasByKey.set(`${seedAct.phase}::${aliasKey}`, seedAct);
-        });
-      }));
-
-      const existingByDetail = new Map<string, GradeActivity>();
-      const addToExistingByDetail = (activity: GradeActivity, override = false) => {
-        const fullKey = getActivityCanonicalKey(activity);
-        if (override || !existingByDetail.has(fullKey)) existingByDetail.set(fullKey, activity);
-        // Secondary phase-scoped partial key: lets "AA1-EV01" columns match "GI1-...-AA1-EV01" seeds.
-        const partialAaEv = fullKey.match(/aa\d+-ev\d+/i)?.[0]?.toLowerCase();
-        if (partialAaEv && activity.phase) {
-          const scopedKey = `${activity.phase}::${partialAaEv}`;
-          if (override || !existingByDetail.has(scopedKey)) existingByDetail.set(scopedKey, activity);
-        }
-      };
-      activities.filter(a => a.group === '').forEach(a => addToExistingByDetail(a));
-      if (!isAllFichas) {
-        activities.filter(a => a.group === selectedFicha).forEach(a => addToExistingByDetail(a, true)); // ficha overrides global
-      }
+      // ── Índice de actividades existentes, en TODAS las fases ────────────────
+      // (no se filtra por selectedPhase para que el re-import reutilice siempre
+      //  las actividades semilla correctas, independientemente del filtro activo).
+      // El índice guarda TODAS las candidatas por clave; `resolveActivityForColumn`
+      // sólo empareja cuando queda una única candidata, de modo que una columna
+      // nunca puede escribir su nota en la evidencia de otra competencia.
+      const candidateActivities = isAllFichas
+        ? activities
+        : activities.filter(a => a.group === '' || a.group === selectedFicha);
+      const activityIndex = buildActivityIndex(candidateActivities);
 
       // Para calcular el siguiente número de EV sólo miramos la fase detectada
       const activitiesInPhase = activities.filter(
@@ -2353,27 +2499,37 @@ export const CalificacionesView: React.FC = () => {
         { activity: GradeActivity; realIndex?: number; letterIndex?: number; fallbackIndex?: number; detail: string }
       >();
 
-      evidenceMap.forEach((entry, canonicalKey) => {
-        let activity = existingByDetail.get(canonicalKey);
-        if (!activity) {
-          const autoPhase = detectPhaseFromCode(entry.baseName);
-          // Fallback 1: phase-scoped partial AA-EV key
-          // (handles Sofia Plus exports where header is "Infografía. AA1-EV01" instead of full code)
-          const partialAaEv = canonicalKey.match(/aa\d+-ev\d+/i)?.[0]?.toLowerCase();
-          if (partialAaEv && autoPhase) {
-            activity = existingByDetail.get(`${autoPhase}::${partialAaEv}`);
-          }
-          // Fallback 2: Sofia Plus alias map (e.g. AA3-EV01 → GI1-240201530-AA2-EV03)
-          if (!activity) {
-            activity = seedAliasByKey.get(canonicalKey);
-            if (!activity && partialAaEv && autoPhase) {
-              activity = seedAliasByKey.get(`${autoPhase}::${partialAaEv}`);
-            }
-          }
+      // Columnas que no se importan porque su evidencia no puede determinarse
+      // con certeza; se informan al usuario en vez de asignar una nota a ciegas.
+      const ambiguousColumns: string[] = [];
+      const conflictingColumns: string[] = [];
+      /** activityId ya reclamado por otra columna → evita sobrescrituras. */
+      const claimedActivityIds = new Map<string, string>();
+
+      evidenceMap.forEach((entry, groupKey) => {
+        const autoPhase = detectPhaseFromCode(entry.baseName);
+        const match = resolveActivityForColumn(entry.baseName, autoPhase, activityIndex, selectedFicha);
+
+        if (match.status === 'ambiguous') {
+          // Varias evidencias distintas encajan (p. ej. el encabezado sólo trae
+          // "AA1-EV01" y en esa fase hay varias evidencias con ese sufijo).
+          // No se adivina: la columna se descarta y se informa.
+          ambiguousColumns.push(entry.baseName);
+          return;
         }
-        if (!activity) {
-          // Auto-detect phase from the evidence code in the column header
-          const autoPhase = detectPhaseFromCode(entry.baseName);
+
+        let activity: GradeActivity;
+        if (match.status === 'matched') {
+          activity = match.activity;
+          const claimedBy = claimedActivityIds.get(activity.id);
+          if (claimedBy !== undefined) {
+            // Otra columna ya escribe en esta evidencia: importar ambas haría
+            // que la segunda pisara a la primera con una nota que no le toca.
+            conflictingColumns.push(`${entry.baseName} ↔ ${claimedBy}`);
+            return;
+          }
+          if (!activity.detail) updateGradeActivity({ ...activity, detail: entry.baseName });
+        } else {
           activity = {
             id: generateId(),
             name: `EV${String(nextEvNumber).padStart(2, '0')}`,
@@ -2385,11 +2541,10 @@ export const CalificacionesView: React.FC = () => {
           };
           nextEvNumber += 1;
           newActivities.push(activity);
-          existingByDetail.set(canonicalKey, activity);
-        } else if (!activity.detail) {
-          updateGradeActivity({ ...activity, detail: entry.baseName });
         }
-        activityColumns.set(canonicalKey, {
+
+        claimedActivityIds.set(activity.id, entry.baseName);
+        activityColumns.set(groupKey, {
           activity,
           realIndex: entry.realIndex,
           letterIndex: entry.letterIndex,
@@ -2418,6 +2573,7 @@ export const CalificacionesView: React.FC = () => {
 
       const entries: GradeEntry[] = [];
       const unmatched: string[] = [];
+      const outOfRangeValues: string[] = [];
       const studentsToUpdate: Student[] = [];
 
       rows.slice(1).forEach(row => {
@@ -2505,7 +2661,14 @@ export const CalificacionesView: React.FC = () => {
 
           if (score === null) return;
 
-          const finalScore = Math.max(0, Math.min(100, Math.round(score)));
+          // Fuera de rango = el dato no es una nota (antes un número de ficha
+          // como 3335783 se recortaba a 100 y quedaba como calificación real).
+          if (score < 0 || score > 100) {
+            outOfRangeValues.push(`${activity.detail || activity.name}: ${score}`);
+            return;
+          }
+
+          const finalScore = Math.round(score);
           const finalLetter = letter || scoreToLetter(finalScore);
           entries.push({
             studentId: student.id,
@@ -2518,23 +2681,21 @@ export const CalificacionesView: React.FC = () => {
       });
 
       // ── Limpiar calificaciones antiguas mal mapeadas ────────────────────────
-      // Elimina entradas previas del MISMO estudiante × MISMA EVIDENCIA (por clave canónica)
-      // que referencien un activity.id diferente al que se acaba de importar.
-      // Esto borra las entradas dejadas por reparaciones posicionales incorrectas
-      // aunque estén en fases distintas (no filtra por fase sino por clave canónica).
+      // Elimina entradas previas del MISMO estudiante × MISMA EVIDENCIA que
+      // referencien un activity.id distinto al recién importado (duplicados que
+      // dejaron reparaciones anteriores). La identidad se toma SÓLO del código
+      // SENA completo: con la clave canónica reducida, dos evidencias distintas
+      // que comparten el sufijo AA#-EV## se consideraban la misma y esta limpieza
+      // borraba notas correctas de otra competencia.
       if (entries.length > 0) {
         const importedStudentIds = new Set(entries.map(e => e.studentId));
-        // Mapa: activityId correcto → clave canónica de esa evidencia
         const importedActivityIds = new Set(entries.map(e => e.activityId));
-        const canonicalByImportedId = new Map<string, string>();
+        const importedFullCodes = new Set<string>();
         activityColumns.forEach(({ activity }) => {
-          canonicalByImportedId.set(activity.id, getActivityCanonicalKey(activity));
+          const code = getFullEvidenceCode(`${activity.name} ${activity.detail ?? ''}`);
+          if (code) importedFullCodes.add(code);
         });
-        // Inverso: clave canónica → activityId correcto (para la búsqueda rápida)
-        const importedIdByCanonical = new Map<string, string>();
-        canonicalByImportedId.forEach((canonical, id) => importedIdByCanonical.set(canonical, id));
 
-        // Construir mapa de todas las actividades conocidas para la búsqueda
         const allActivitiesById = new Map<string, GradeActivity>(activities.map(a => [a.id, a] as [string, GradeActivity]));
         newActivities.forEach(a => allActivitiesById.set(a.id, a));
 
@@ -2542,12 +2703,11 @@ export const CalificacionesView: React.FC = () => {
         const cleaned = beforeClean.filter(g => {
           if (!importedStudentIds.has(g.studentId)) return true; // estudiante no importado → conservar
           if (importedActivityIds.has(g.activityId)) return true; // es la entrada correcta → conservar
-          // Verificar si esta entrada apunta a la misma evidencia (clave canónica) que alguna importada
           const act = allActivitiesById.get(g.activityId);
           if (!act) return true; // actividad desconocida → conservar
-          const canonical = getActivityCanonicalKey(act);
-          if (importedIdByCanonical.has(canonical)) return false; // misma evidencia, ID incorrecto → eliminar
-          return true; // evidencia diferente → conservar
+          const code = getFullEvidenceCode(`${act.name} ${act.detail ?? ''}`);
+          if (!code) return true; // sin código completo no hay identidad segura → conservar
+          return !importedFullCodes.has(code); // duplicado exacto de la misma evidencia → eliminar
         });
         if (cleaned.length < beforeClean.length) {
           saveGrades(cleaned);
@@ -2575,14 +2735,16 @@ export const CalificacionesView: React.FC = () => {
       const byEvKey: Record<string, EvCompEntry> = {};
       const seenComps: string[] = [];
 
-      activityColumns.forEach(({ activity, detail }, canonicalKey) => {
+      activityColumns.forEach(({ activity, detail }) => {
         const rawName = detail || activity.detail || activity.name;
         const info = parseCompetenciaInfoFromName(rawName);
         if (info) {
           const staticRap = FASE_RAPS[effectiveSinglePhase]?.find(
             r => r.compCode === info.competenciaCode && r.aaKey === info.aaKey.toUpperCase()
           );
-          byEvKey[canonicalKey] = {
+          // Se indexa por la clave canónica de la ACTIVIDAD (que es la que usa el
+          // render), no por la clave de agrupación de la columna del Excel.
+          byEvKey[getActivityCanonicalKey(activity)] = {
             competenciaCode: info.competenciaCode,
             competenciaName: COMPETENCIA_NAMES[info.competenciaCode] || info.competenciaCode,
             aaKey: info.aaKey,
@@ -2603,12 +2765,38 @@ export const CalificacionesView: React.FC = () => {
         saveEvidenceCompMap({ ...existingCompMap, [compMappingKey]: { byEvKey: mergedByEvKey, compOrder: mergedOrder } });
       }
 
-      const infoParts = [];
-      infoParts.push(`Se actualizaron ${entries.length} calificaciones.`);
+      const infoParts = [
+        `Se actualizaron ${entries.length} calificaciones en ${activityColumns.size} evidencia${activityColumns.size === 1 ? '' : 's'}.`,
+      ];
       if (unmatched.length > 0) {
         infoParts.push(`Sin coincidencia: ${unmatched.length} filas.`);
       }
       setUploadInfo(infoParts.join(' '));
+
+      // Nada se importa "a medias en silencio": toda columna descartada se avisa,
+      // con el encabezado exacto, para que el instructor pueda corregir el Excel.
+      const warnParts: string[] = [];
+      const preview = (list: string[], max = 3) =>
+        list.slice(0, max).map(s => `«${s.length > 70 ? s.slice(0, 70) + '…' : s}»`).join(', ') +
+        (list.length > max ? ` y ${list.length - max} más` : '');
+      if (ambiguousColumns.length > 0) {
+        warnParts.push(
+          `${ambiguousColumns.length} columna${ambiguousColumns.length === 1 ? '' : 's'} no se importó porque su encabezado no identifica una única evidencia ` +
+          `(varias evidencias de esta fase comparten ese AA#-EV##): ${preview(ambiguousColumns)}. ` +
+          `Solución: exporta el Excel con el código SENA completo (GA#-competencia-AA#-EV##).`
+        );
+      }
+      if (conflictingColumns.length > 0) {
+        warnParts.push(`${conflictingColumns.length} columna(s) apuntaban a la misma evidencia y se omitieron: ${preview(conflictingColumns)}.`);
+      }
+      if (duplicateColumns.length > 0) {
+        warnParts.push(`${duplicateColumns.length} columna(s) repetidas se omitieron: ${preview(duplicateColumns)}.`);
+      }
+      if (outOfRangeValues.length > 0) {
+        warnParts.push(`${outOfRangeValues.length} valor(es) fuera del rango 0-100 se descartaron: ${preview(outOfRangeValues)}.`);
+      }
+      setUploadError(warnParts.join(' '));
+
       saveUploadTimestamp();
       loadData();
     } catch (error) {
