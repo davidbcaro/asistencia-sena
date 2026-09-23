@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Ficha, Programa, Student } from '../types';
 import { getFichas, addFicha, deleteFicha, updateFicha, getStudents, previewFichaMigration, migrateFichaStudents, FichaMigrationResult, getHiddenFichaIds, setFichaHidden } from '../services/db';
 import { FichaSetupReport, GRD_PROGRAMA_ID, applyProgramaToFicha, getPrograma, getProgramaIdForFicha, getProgramas, parseProgramaExcel } from '../services/programas';
+import { FileDropZone } from '../components/FileDropZone';
 
 /** Lee el Excel de la ficha (mismo formato que el del programa: hoja EVIDENCIAS con fechas) */
 const readFichaExcel = async (file: File | null) => (file ? parseProgramaExcel(await file.arrayBuffer()) : null);
@@ -35,7 +36,6 @@ export const FichasView: React.FC = () => {
   const [newCronogramaDownloadUrl, setNewCronogramaDownloadUrl] = useState('');
   const [newProgramaId, setNewProgramaId] = useState(GRD_PROGRAMA_ID);
   const [newExcelFile, setNewExcelFile] = useState<File | null>(null);
-  const [fileInputKey, setFileInputKey] = useState(0);
 
   // Programas
   const [programas, setProgramas] = useState<Programa[]>([]);
@@ -138,7 +138,6 @@ export const FichasView: React.FC = () => {
     await runSetup(newFicha, newProgramaId, newExcelFile);
     setNewProgramaId(GRD_PROGRAMA_ID);
     setNewExcelFile(null);
-    setFileInputKey(k => k + 1);
     setNewCode('');
     setNewProgram('');
     setNewDesc('');
@@ -342,13 +341,7 @@ export const FichasView: React.FC = () => {
                         <label className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
                             <FileSpreadsheet className="h-4 w-4 text-green-600" /> Excel con las fechas de la ficha (opcional)
                         </label>
-                        <input
-                            key={fileInputKey}
-                            type="file"
-                            accept=".xlsx,.xls"
-                            className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-teal-800 hover:file:bg-teal-200"
-                            onChange={(e) => setNewExcelFile(e.target.files?.[0] ?? null)}
-                        />
+                        <FileDropZone file={newExcelFile} onFile={setNewExcelFile} accept={['.xlsx', '.xls']} typeLabel="Excel" />
                     </div>
                 </div>
             </div>
@@ -601,12 +594,7 @@ export const FichasView: React.FC = () => {
                             <label className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
                                 <FileSpreadsheet className="h-4 w-4 text-green-600" /> Recargar fechas desde Excel
                             </label>
-                            <input
-                                type="file"
-                                accept=".xlsx,.xls"
-                                className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-teal-800 hover:file:bg-teal-200"
-                                onChange={e => setEditExcelFile(e.target.files?.[0] ?? null)}
-                            />
+                            <FileDropZone file={editExcelFile} onFile={setEditExcelFile} accept={['.xlsx', '.xls']} typeLabel="Excel" />
                             <p className="mt-1 text-xs text-gray-500">Reemplaza las fechas y la ubicación en la planeación de las evidencias que traiga el Excel.</p>
                         </div>
                     </div>

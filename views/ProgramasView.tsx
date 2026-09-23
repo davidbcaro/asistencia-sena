@@ -5,6 +5,7 @@ import {
   ProgramaBuildReport, buildProgramaFases, countEvidencias, countFichasWithPrograma, deletePrograma,
   getProgramas, parseCronogramaHtml, parseProgramaExcel, savePrograma,
 } from '../services/programas';
+import { FileDropZone } from '../components/FileDropZone';
 
 const generateId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -97,8 +98,6 @@ export const ProgramasView: React.FC = () => {
     setToDelete(null);
   };
 
-  const fileInputCls = 'block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-teal-700 hover:file:bg-teal-100';
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -135,11 +134,11 @@ export const ProgramasView: React.FC = () => {
               <label className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
                 <FileSpreadsheet className="h-4 w-4 text-green-600" /> Excel de evidencias por fase
               </label>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                className={fileInputCls}
-                onChange={e => setDraft({ ...draft, excelFile: e.target.files?.[0] ?? null, preview: null, error: '' })}
+              <FileDropZone
+                file={draft.excelFile}
+                accept={['.xlsx', '.xls']}
+                typeLabel="Excel"
+                onFile={file => setDraft({ ...draft, excelFile: file, preview: null, error: '' })}
               />
               <p className="mt-1 text-xs text-gray-500">Hoja EVIDENCIAS: fase, evidencia, código, tipo (área).</p>
             </div>
@@ -147,11 +146,11 @@ export const ProgramasView: React.FC = () => {
               <label className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
                 <FileCode className="h-4 w-4 text-blue-600" /> Plantilla HTML del cronograma (recomendada)
               </label>
-              <input
-                type="file"
-                accept=".html,.htm"
-                className={fileInputCls}
-                onChange={e => setDraft({ ...draft, htmlFile: e.target.files?.[0] ?? null, preview: null, error: '' })}
+              <FileDropZone
+                file={draft.htmlFile}
+                accept={['.html', '.htm']}
+                typeLabel="HTML"
+                onFile={file => setDraft({ ...draft, htmlFile: file, preview: null, error: '' })}
               />
               <p className="mt-1 text-xs text-gray-500">Aporta actividad de proyecto, actividad de aprendizaje, RAP y tipo de evidencia.</p>
             </div>
