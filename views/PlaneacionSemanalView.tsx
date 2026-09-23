@@ -1152,9 +1152,15 @@ export const PlaneacionSemanalView: React.FC = () => {
           onDragLeave={onDragLeave}
           onDrop={onDropToPanel}
         >
-          <div className="px-3 py-2 border-b border-gray-100 flex-shrink-0">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Sin asignar</p>
-            <p className="text-[10px] text-gray-400">{unassigned.length} evidencia(s)</p>
+          <div className="px-3 py-2 border-b border-gray-100 flex-shrink-0 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Sin asignar</p>
+              <p className="text-[10px] text-gray-400">{unassigned.length} evidencia(s)</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-teal-600">Asignadas</p>
+              <p className="text-[10px] text-teal-600">{activities.length - unassigned.length} de {activities.length}</p>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-3">
             {Array.from(unassignedByPhase.entries()).map(([phase, acts]) => {
