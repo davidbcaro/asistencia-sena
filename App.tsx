@@ -8,6 +8,7 @@ import { AttendanceView } from './views/AttendanceView';
 import { ReportsView } from './views/ReportsView';
 import { AlertsView } from './views/AlertsView';
 import { FichasView } from './views/FichasView';
+import { ProgramasView } from './views/ProgramasView';
 import { SettingsView } from './views/SettingsView';
 import { StudentAttendanceView } from './views/StudentAttendanceView';
 import { CalificacionesView } from './views/CalificacionesView';
@@ -22,6 +23,7 @@ import { UserRole } from './types';
 
 const instructorRouteToTab: Record<string, string> = {
   fichas: 'fichas',
+  programas: 'programas',
   students: 'students',
   'asistencia-lms': 'asistencia-lms',
   'debido-proceso': 'debido-proceso',
@@ -148,6 +150,7 @@ const App: React.FC = () => {
       >
         <Route index element={<Navigate to="students" replace />} />
         <Route path="fichas" element={<FichasView />} />
+        <Route path="programas" element={<ProgramasView />} />
         <Route path="fichas/:fichaId/cronograma" element={<CronogramaView />} />
         <Route path="fichas/:fichaId/cronograma-general" element={<CronogramaGeneralView />} />
         <Route path="fichas/:fichaId/planeacion-semanal" element={<PlaneacionSemanalView />} />

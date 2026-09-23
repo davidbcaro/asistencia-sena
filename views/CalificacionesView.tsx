@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { AlertTriangle, Check, ChevronDown, ChevronLeft, ChevronRight, Eye, EyeOff, FileDown, FileSpreadsheet, Filter, Pencil, Plus, Trash2, Upload, X, Search, ListChecks } from 'lucide-react';
 import { Ficha, GradeActivity, GradeEntry, Student } from '../types';
+import { fichaUsesGlobalActivities } from '../services/programas';
 import {
   addGradeActivity,
   clearGradesForPhase,
@@ -1135,7 +1136,8 @@ export const CalificacionesView: React.FC = () => {
     const toRemoveIds = new Set<string>();
     const gradeRemap = new Map<string, string>(); // duplicateId → seedId
 
-    all.filter(a => !a.id.startsWith('seed-')).forEach(a => {
+    // Las actividades creadas desde un programa ('prog-') son propias de su ficha: nunca se fusionan con las semillas globales
+    all.filter(a => !a.id.startsWith('seed-') && !a.id.startsWith('prog-')).forEach(a => {
       const text = `${a.name} ${a.detail ?? ''}`;
       const match = resolveActivityForColumn(text, a.phase || 'Sin fase', seedIndex, a.group || '');
       // Sólo se fusiona cuando la evidencia queda identificada sin ambigüedad.
@@ -1224,7 +1226,8 @@ export const CalificacionesView: React.FC = () => {
 
     if (selectedFicha !== 'Todas') {
       const fichaSpecific = phaseMatch.filter(a => a.group === selectedFicha);
-      const globals      = phaseMatch.filter(a => a.group === '');
+      // Las globales son las del programa base: una ficha con otro programa no las ve
+      const globals      = fichaUsesGlobalActivities(selectedFicha) ? phaseMatch.filter(a => a.group === '') : [];
 
       if (fichaSpecific.length === 0) {
         // Sin actividades propias de la ficha: mostrar todas las globales (base)
@@ -1242,9 +1245,11 @@ export const CalificacionesView: React.FC = () => {
       const result: GradeActivity[] = [];
       phaseMatch.forEach(a => {
         const k = getActivityPhaseScopedKey(a);
-        if (!seen.has(k)) {
+        const chosen = best.get(k);
+        // phaseMatch trae actividades que no aplican (otras fichas, o globales cuando la ficha usa otro programa)
+        if (chosen && !seen.has(k)) {
           seen.add(k);
-          result.push(best.get(k)!);
+          result.push(chosen);
         }
       });
 
@@ -2481,7 +2486,10 @@ export const CalificacionesView: React.FC = () => {
       // nunca puede escribir su nota en la evidencia de otra competencia.
       const candidateActivities = isAllFichas
         ? activities
-        : activities.filter(a => a.group === '' || a.group === selectedFicha);
+        : (() => {
+            const usesGlobals = fichaUsesGlobalActivities(selectedFicha);
+            return activities.filter(a => (a.group === '' && usesGlobals) || a.group === selectedFicha);
+          })();
       const activityIndex = buildActivityIndex(candidateActivities);
 
       // Para calcular el siguiente número de EV sólo miramos la fase detectada

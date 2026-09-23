@@ -37,6 +37,7 @@ import {
   getEmailSettings,
   saveEmailSettings,
 } from '../services/db';
+import { fichaUsesGlobalActivities } from '../services/programas';
 import {
   ALL_EVIDENCE_AREAS,
   buildEvidenceAreaOptions,
@@ -418,9 +419,10 @@ export const AlertsView: React.FC = () => {
   }, [gradeActivities]);
 
   const alertsEvidenceBasePool = useMemo(() => {
+    const usesGlobals = filterFicha === 'Todas' || fichaUsesGlobalActivities(filterFicha);
     let pool = gradeActivities.filter((a) => {
       if (filterFicha === 'Todas') return true;
-      return a.group === filterFicha || a.group === '';
+      return a.group === filterFicha || (a.group === '' && usesGlobals);
     });
     if (filterFase !== ALL_PHASES_LABEL) {
       pool = pool.filter((a) => a.phase === filterFase);

@@ -73,6 +73,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
 
   const allNavItems = [
     { id: 'fichas',         label: 'Fichas',              icon: Layers,          roles: ['professor'] },
+    { id: 'programas',      label: 'Programas',           icon: GraduationCap,   roles: ['professor'] },
     { id: 'students',       label: 'Aprendices',          icon: Users,           roles: ['professor'] },
     { id: 'asistencia-lms', label: 'Asistencia LMS',      icon: BookOpen,        roles: ['professor'] },
     { id: 'debido-proceso', label: 'Debido proceso',      icon: Scale,           roles: ['professor'] },

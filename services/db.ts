@@ -1,5 +1,5 @@
 import { createClient, RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { Student, Ficha, AttendanceRecord, EmailDraft, EmailSettings, ClassSession, GradeActivity, GradeEntry, RapDefinition, JuicioRapEntry, JuicioRapHistoryEntry, PlaneacionSemanalData, CronogramaGeneralData } from '../types';
+import { Student, Ficha, AttendanceRecord, EmailDraft, EmailSettings, ClassSession, GradeActivity, GradeEntry, RapDefinition, JuicioRapEntry, JuicioRapHistoryEntry, PlaneacionSemanalData, CronogramaGeneralData, ProgramasData, FichaProgramasData } from '../types';
 
 const STORAGE_KEYS = {
   STUDENTS: 'asistenciapro_students',
@@ -32,6 +32,8 @@ const STORAGE_KEYS = {
   HIDDEN_FICHAS: 'asistenciapro_hidden_fichas',
   PLANEACION_SEMANAL: 'asistenciapro_planeacion_semanal',
   CRONOGRAMA_GENERAL: 'asistenciapro_cronograma_general',
+  PROGRAMAS: 'asistenciapro_programas',
+  FICHA_PROGRAMAS: 'asistenciapro_ficha_programas',
   MANUAL_FINALS: 'asistenciapro_manual_finals',
   MANUAL_PHASE_TOTALS: 'asistenciapro_manual_phase_totals',
 };
@@ -88,6 +90,8 @@ const APP_DATA_SYNC_KEYS: Record<string, string> = {
   hidden_fichas:               STORAGE_KEYS.HIDDEN_FICHAS,
   planeacion_semanal:          STORAGE_KEYS.PLANEACION_SEMANAL,
   cronograma_general:          STORAGE_KEYS.CRONOGRAMA_GENERAL,
+  programas:                   STORAGE_KEYS.PROGRAMAS,
+  ficha_programas:             STORAGE_KEYS.FICHA_PROGRAMAS,
 };
 
 const _isEmptyValue = (raw: string | null | undefined): boolean =>
@@ -110,6 +114,8 @@ const ADDITIVE_MERGE_KEYS = new Set([
   'deleted_grade_activity_ids',
   'planeacion_semanal',
   'cronograma_general',
+  'programas',
+  'ficha_programas',
   // Debido proceso: union merge so data from multiple devices is preserved
   'plan_mejoramiento',
   'pma_details',
@@ -223,6 +229,21 @@ const _mergeAdditiveKey = (key: string, local: unknown, cloud: unknown): unknown
         cloudArr.forEach(e => map.set(e.id, e));
         localArr.forEach(e => map.set(e.id, e)); // local wins
         merged[fichaId] = Array.from(map.values());
+      });
+      return merged;
+    }
+
+    if (key === 'programas' || key === 'ficha_programas') {
+      // Record<id, { updatedAt }> – per id, the newer updatedAt wins (deletions are soft, so they propagate)
+      type Stamped = { updatedAt?: string };
+      const cloudRec = (cloud && typeof cloud === 'object' && !Array.isArray(cloud))
+        ? (cloud as Record<string, Stamped>) : {};
+      const localRec = (local && typeof local === 'object' && !Array.isArray(local))
+        ? (local as Record<string, Stamped>) : {};
+      const merged: Record<string, Stamped> = { ...cloudRec };
+      Object.entries(localRec).forEach(([id, localItem]) => {
+        const cloudItem = merged[id];
+        if (!cloudItem || (localItem?.updatedAt ?? '') >= (cloudItem.updatedAt ?? '')) merged[id] = localItem;
       });
       return merged;
     }
@@ -1817,6 +1838,26 @@ export const saveCronogramaGeneral = (data: CronogramaGeneralData): void => {
     localStorage.setItem(STORAGE_KEYS.CRONOGRAMA_GENERAL, JSON.stringify(data));
     _markLocalWrite(STORAGE_KEYS.CRONOGRAMA_GENERAL);
     callSaveAppData('cronograma_general', data);
+    notifyChange();
+};
+
+export const getProgramasData = (): ProgramasData =>
+    safeParseJSON<ProgramasData>(localStorage.getItem(STORAGE_KEYS.PROGRAMAS), {});
+
+export const saveProgramasData = (data: ProgramasData): void => {
+    localStorage.setItem(STORAGE_KEYS.PROGRAMAS, JSON.stringify(data));
+    _markLocalWrite(STORAGE_KEYS.PROGRAMAS);
+    callSaveAppData('programas', data);
+    notifyChange();
+};
+
+export const getFichaProgramas = (): FichaProgramasData =>
+    safeParseJSON<FichaProgramasData>(localStorage.getItem(STORAGE_KEYS.FICHA_PROGRAMAS), {});
+
+export const saveFichaProgramas = (data: FichaProgramasData): void => {
+    localStorage.setItem(STORAGE_KEYS.FICHA_PROGRAMAS, JSON.stringify(data));
+    _markLocalWrite(STORAGE_KEYS.FICHA_PROGRAMAS);
+    callSaveAppData('ficha_programas', data);
     notifyChange();
 };
 

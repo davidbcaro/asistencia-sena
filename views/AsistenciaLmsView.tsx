@@ -4,6 +4,7 @@ import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
 import { Student, Ficha, GradeActivity, GradeEntry } from '../types';
 import { getStudents, getFichas, getLmsLastAccess, saveLmsLastAccess, getGradeActivities, getGrades, getDebidoProcesoState, saveDebidoProcesoStep, getRetiroVoluntarioState, saveRetiroVoluntarioStep, getPlanMejoramientoState, savePlanMejoramientoStep, getEstadoStepperTooltip } from '../services/db';
+import { fichaUsesGlobalActivities } from '../services/programas';
 import {
   ALL_EVIDENCE_AREAS,
   activityMatchesEvidenceArea,
@@ -301,7 +302,8 @@ export const AsistenciaLmsView: React.FC = () => {
   /** Activities visible for the selected ficha (global seeds + ficha-specific) */
   const evidenceBasePool = useMemo(() => {
     const isAll = filterFicha === 'Todas';
-    let pool = gradeActivities.filter(a => a.group === '' || (isAll ? false : a.group === filterFicha));
+    const usesGlobals = isAll || fichaUsesGlobalActivities(filterFicha);
+    let pool = gradeActivities.filter(a => (a.group === '' && usesGlobals) || (isAll ? false : a.group === filterFicha));
     if (filterFase.length > 0) pool = pool.filter(a => filterFase.includes(a.phase ?? ''));
     return [...pool].sort((a, b) =>
       (a.phase || '').localeCompare(b.phase || '', 'es') || a.name.localeCompare(b.name, 'es')

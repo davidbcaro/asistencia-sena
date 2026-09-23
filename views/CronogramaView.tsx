@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Calendar } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Ficha } from '../types';
-import { getFichas } from '../services/db';
+import { CronogramaGeneralEntry, Ficha, Programa, ProgramaFase } from '../types';
+import { getCronogramaGeneral, getFichas } from '../services/db';
+import { getProgramaForFicha } from '../services/programas';
 import cronogramaHtml from '../assets/cronogramaGeneral.html?raw';
 
 type CronogramaSection = {
@@ -117,17 +118,87 @@ const sectionMarkers = [
   },
 ];
 
+const fmtDate = (iso?: string) => {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+};
+
+const TIPO_LABEL: Record<string, string> = {
+  conocimiento: 'Evidencia de conocimiento',
+  producto: 'Evidencia de producto',
+  desempeño: 'Evidencia de desempeño',
+  inducción: 'Inducción',
+};
+
+const SinFecha = () => <span className="text-xs font-semibold text-amber-700">Sin fecha</span>;
+
+/** Tabla de una fase generada desde el programa de la ficha (Actividad de proyecto → AA/RAP → evidencias) */
+const FaseTable: React.FC<{ fase: ProgramaFase; entries: Map<string, CronogramaGeneralEntry> }> = ({ fase, entries }) => {
+  const dates = fase.actividadesProyecto.flatMap(ap => ap.actividades.flatMap(aa => aa.evidencias.map(ev => entries.get(ev.id))));
+  const inicios = dates.map(e => e?.fechaInicio).filter(Boolean).sort() as string[];
+  const fines = dates.map(e => e?.fechaFin || e?.fechaInicio).filter(Boolean).sort() as string[];
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-4 text-sm text-gray-700">
+        <span><strong>Fecha de inicio:</strong> {inicios[0] ? fmtDate(inicios[0]) : <SinFecha />}</span>
+        <span><strong>Fecha fin:</strong> {fines.length ? fmtDate(fines[fines.length - 1]) : <SinFecha />}</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style={{ width: '16%' }}>ACTIVIDAD DE PROYECTO</th>
+            <th style={{ width: '20%' }}>ACTIVIDAD DE APRENDIZAJE</th>
+            <th style={{ width: '20%' }}>RESULTADO DE APRENDIZAJE</th>
+            <th>EVIDENCIAS DE APRENDIZAJE</th>
+            <th style={{ width: '9%' }}>FECHA DE INICIO</th>
+            <th style={{ width: '9%' }}>FECHA DE FINALIZACIÓN</th>
+            <th style={{ width: '11%' }}>INSTRUCTOR</th>
+          </tr>
+        </thead>
+        <tbody>
+          {fase.actividadesProyecto.map(ap => {
+            const apRows = ap.actividades.reduce((s, aa) => s + aa.evidencias.length, 0);
+            return ap.actividades.map((aa, aaIdx) => aa.evidencias.map((ev, evIdx) => {
+              const entry = entries.get(ev.id);
+              return (
+                <tr key={`${ap.codigo}-${aa.codigo}-${ev.id}`}>
+                  {aaIdx === 0 && evIdx === 0 && <td rowSpan={apRows}>{ap.titulo}</td>}
+                  {evIdx === 0 && <td rowSpan={aa.evidencias.length}>{aa.titulo}</td>}
+                  {evIdx === 0 && <td rowSpan={aa.evidencias.length}>{aa.rapTitulo || aa.rap}</td>}
+                  <td>
+                    {ev.tipo && <div className="text-xs font-semibold text-gray-500">{TIPO_LABEL[ev.tipo] ?? ev.tipo}:</div>}
+                    <strong>{ev.id}.</strong> {ev.descripcion}
+                  </td>
+                  <td>{entry?.fechaInicio ? fmtDate(entry.fechaInicio) : <SinFecha />}</td>
+                  <td>{entry?.fechaFin ? fmtDate(entry.fechaFin) : <SinFecha />}</td>
+                  <td>{entry?.instructor ?? ''}</td>
+                </tr>
+              );
+            }));
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 export const CronogramaView: React.FC = () => {
   const { fichaId } = useParams();
   const navigate = useNavigate();
   const [ficha, setFicha] = useState<Ficha | null>(null);
   const [selectedPhaseId, setSelectedPhaseId] = useState(sectionMarkers[0].id);
+  const [programa, setPrograma] = useState<Programa | null>(() => (fichaId ? getProgramaForFicha(fichaId) : null));
+  const [entries, setEntries] = useState<Map<string, CronogramaGeneralEntry>>(new Map());
+  const [selectedFase, setSelectedFase] = useState(0);
 
   useEffect(() => {
     const loadFicha = () => {
       const allFichas = getFichas();
       const found = allFichas.find(item => item.id === fichaId) || null;
       setFicha(found);
+      setPrograma(getProgramaForFicha(fichaId ?? ''));
+      setEntries(new Map((getCronogramaGeneral()[fichaId ?? ''] ?? []).map(e => [e.id, e])));
     };
     loadFicha();
     window.addEventListener('asistenciapro-storage-update', loadFicha);
@@ -150,6 +221,9 @@ export const CronogramaView: React.FC = () => {
   }, [personalizedHtml]);
 
   const activeSection = sections.find(section => section.id === selectedPhaseId) || sections[0];
+  // El programa base conserva su cronograma HTML original; los demás se generan desde el programa
+  const fromPrograma = programa && !programa.builtin ? programa : null;
+  const activeFase = fromPrograma?.fases[selectedFase] ?? fromPrograma?.fases[0] ?? null;
 
   return (
     <div className="space-y-6">
@@ -216,10 +290,70 @@ export const CronogramaView: React.FC = () => {
         <h3 className="text-lg font-semibold text-gray-900">Información general</h3>
         <p className="text-sm text-gray-500">Resumen oficial del cronograma y fechas clave.</p>
         <div className="mt-4 overflow-x-auto">
-          <div className="cronograma-wrapper no-bg" dangerouslySetInnerHTML={{ __html: infoHtml }} />
+          {fromPrograma ? (
+            <div className="cronograma-wrapper no-bg">
+              <table>
+                <tbody>
+                  <tr>
+                    <td colSpan={2} style={{ textAlign: 'center' }}>
+                      <div className="text-base font-bold">CRONOGRAMA GENERAL DE ACTIVIDADES</div>
+                      <div>PROGRAMA DE FORMACIÓN TITULADA: <b>{ficha?.cronogramaProgramName || fromPrograma.nombre}</b></div>
+                      <div>Ficha: <b>{ficha?.code}</b></div>
+                      {ficha?.cronogramaCenter && <div>{ficha.cronogramaCenter}</div>}
+                    </td>
+                  </tr>
+                  {([
+                    ['FECHA DE INICIO', ficha?.cronogramaStartDate],
+                    ['FECHA DE INICIO DE FORMACIÓN', ficha?.cronogramaTrainingStartDate],
+                    ['FECHA FIN', ficha?.cronogramaEndDate],
+                  ] as const).map(([label, value]) => (
+                    <tr key={label}>
+                      <td style={{ width: '30%' }}><strong>{label}:</strong></td>
+                      <td>{value ? (/^\d{4}-\d{2}-\d{2}$/.test(value) ? fmtDate(value) : value) : <SinFecha />}</td>
+                    </tr>
+                  ))}
+                  {ficha?.cronogramaDownloadUrl && (
+                    <tr>
+                      <td><strong>DOCUMENTO DESCARGABLE:</strong></td>
+                      <td><a href={ficha.cronogramaDownloadUrl} target="_blank" rel="noreferrer" className="text-teal-700 underline">Abrir</a></td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="cronograma-wrapper no-bg" dangerouslySetInnerHTML={{ __html: infoHtml }} />
+          )}
         </div>
       </div>
 
+      {fromPrograma ? (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap gap-2">
+            {fromPrograma.fases.map((f, idx) => (
+              <button
+                key={f.nombre}
+                onClick={() => setSelectedFase(idx)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  f === activeFase ? 'text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                style={f === activeFase ? { background: f.color } : undefined}
+              >
+                Fase {f.nombre}
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 overflow-x-auto">
+            {activeFase ? (
+              <div className="cronograma-wrapper">
+                <FaseTable fase={activeFase} entries={entries} />
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">El programa no tiene fases.</p>
+            )}
+          </div>
+        </div>
+      ) : (
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap gap-2">
           {sections.map(section => (
@@ -244,6 +378,7 @@ export const CronogramaView: React.FC = () => {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };

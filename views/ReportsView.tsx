@@ -12,6 +12,7 @@ import {
   getStudents, getAttendance, getFichas, getSessions,
   getLmsLastAccess, getGradeActivities, getGrades,
 } from '../services/db';
+import { fichaUsesGlobalActivities } from '../services/programas';
 import {
   ALL_EVIDENCE_AREAS,
   buildEvidenceAreaOptions,
@@ -550,9 +551,10 @@ export const ReportsView: React.FC = () => {
 
   /** Actividades candidatas (ficha + fase), sin filtrar por área — para opciones de área */
   const evidenceBasePool = useMemo(() => {
+    const usesGlobals = selectedFicha === 'Todas' || fichaUsesGlobalActivities(selectedFicha);
     let pool = gradeActivities.filter((a) => {
       if (selectedFicha === 'Todas') return true;
-      return a.group === selectedFicha || a.group === '';
+      return a.group === selectedFicha || (a.group === '' && usesGlobals);
     });
     if (selectedEvPhase !== ALL_PHASES_LABEL) {
       pool = pool.filter((a) => a.phase === selectedEvPhase);

@@ -163,3 +163,59 @@ export interface CronogramaGeneralEntry {
 
 /** fichaId → array de entradas con datos editados por el instructor */
 export type CronogramaGeneralData = Record<string, CronogramaGeneralEntry[]>;
+
+// ─── Programas de formación ─────────────────────────────────────────────────
+
+export type TipoEvidencia = 'conocimiento' | 'producto' | 'desempeño' | 'inducción';
+
+/** Área de formación de una evidencia (fila de la planeación semanal y color en los cronogramas) */
+export type AreaKey = 'Técnica' | 'TICs' | 'Bilingüismo' | 'Matemáticas' | 'Comunicación' | 'Investigación' | 'Ambiente' | 'Emprendimiento' | 'EducaciónFísica' | 'CienciasNaturales' | 'EEF';
+
+export interface ProgramaEvidencia {
+  /** Código SENA de la evidencia, p. ej. "GA1-220501092-AA1-EV02" o "AA1-EV01" (inducción) */
+  id: string;
+  tipo?: TipoEvidencia;
+  /** Área explícita; si falta se deduce del código de competencia */
+  area?: AreaKey;
+  descripcion: string;
+}
+
+export interface ProgramaActividadAprendizaje {
+  codigo: string;
+  titulo: string;
+  rap: string;
+  rapTitulo: string;
+  evidencias: ProgramaEvidencia[];
+}
+
+export interface ProgramaActividadProyecto {
+  codigo: string;
+  titulo: string;
+  actividades: ProgramaActividadAprendizaje[];
+}
+
+export interface ProgramaFase {
+  /** Nombre corto: 'Inducción' | 'Análisis' | 'Planeación' | 'Ejecución' | 'Evaluación' */
+  nombre: string;
+  color: string;
+  textColor: string;
+  actividadesProyecto: ProgramaActividadProyecto[];
+}
+
+export interface Programa {
+  id: string;
+  nombre: string;
+  fases: ProgramaFase[];
+  /** Programa base incluido en la app (no se puede eliminar) */
+  builtin?: boolean;
+  /** Borrado lógico: se conserva para que la sincronización no lo resucite */
+  deleted?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** programaId → programa (solo los creados por el instructor; el base vive en el código) */
+export type ProgramasData = Record<string, Programa>;
+
+/** fichaId → programa asignado */
+export type FichaProgramasData = Record<string, { programaId: string; updatedAt: string }>;

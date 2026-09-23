@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, Copy, Download, Eye, EyeOff, GripVertical, X } from 'lucide-react';
 import { Ficha, GradeActivity, GuiaColumn, PlaneacionSemanalFichaData } from '../types';
 import { deleteGradeActivity, getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
+import { areaForEvidencia, fichaUsesGlobalActivities, getProgramaForFicha, planeacionRowForArea } from '../services/programas';
 
 // ─── Phase structure (matches PLANEACION SEMANAL GRD.xlsx exactly) ──────────
 // Inducción=3  Análisis=10  Planeación=24  Ejecución=40  Evaluación=30  → 107 total (3 evidencias EEF en inducción)
@@ -249,8 +250,14 @@ const AREA_STYLES: Record<string, { color: string; text: string }> = {
   CienciasNaturales: { color: '#9E9E9E', text: '#333333' },
 };
 
+/** Código de evidencia → fila, tomado del programa de la ficha abierta (se recalcula en loadData).
+ *  Tiene prioridad sobre COMPETENCY_TO_AREA, que solo conoce las competencias del programa base. */
+let programAreaByCode = new Map<string, string>();
+
 /** Derive the area key (e.g. 'TICs', 'Bilingüismo', 'Técnica') from a SENA activity code */
 const getActivityArea = (activityName: string): string => {
+  const fromProgram = programAreaByCode.get(activityName.trim().toUpperCase());
+  if (fromProgram) return fromProgram;
   const match = activityName.match(/[A-Z]+\d*-(\d+)-/);
   return match ? (COMPETENCY_TO_AREA[match[1]] ?? 'Técnica') : 'Técnica';
 };
@@ -379,9 +386,17 @@ export const PlaneacionSemanalView: React.FC = () => {
     const f = fichas.find(x => x.id === fichaId);
     if (f) setFicha({ id: f.id, code: f.code, program: f.program });
 
+    const programa = getProgramaForFicha(fichaId ?? '');
+    const areas = new Map<string, string>();
+    programa.fases.forEach(fase => fase.actividadesProyecto.forEach(ap => ap.actividades.forEach(aa => aa.evidencias.forEach(ev => {
+      areas.set(ev.id.toUpperCase(), planeacionRowForArea(areaForEvidencia(ev)));
+    }))));
+    programAreaByCode = areas;
+
     const all = getGradeActivities();
-    // Incluir seeds globales (group === '') + actividades propias del ficha; deduplicar por nombre+grupo
-    const filtered = f ? all.filter(a => a.group === f.code || a.group === '') : [];
+    // Incluir seeds globales (group === '', solo programa base) + actividades propias del ficha; deduplicar por nombre+grupo
+    const usesGlobals = f ? fichaUsesGlobalActivities(f.code) : false;
+    const filtered = f ? all.filter(a => a.group === f.code || (usesGlobals && a.group === '')) : [];
     // Excluir evidencias obsoletas que ya no deben aparecer en Inducción
     const OBSOLETE_INDUCTION_CODES = /GI1-240201530-AA2-EV03|AA3-EV01/i;
     const OBSOLETE_INDUCTION_TEXT = /alternativas\s+de\s+etapa\s+productiva\s*\(\s*3\s*\)/i;

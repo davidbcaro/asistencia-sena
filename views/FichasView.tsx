@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Layers, BookOpen, Pencil, X, AlertTriangle, ArrowRightLeft, ArrowRight, Users, EyeOff, Eye } from 'lucide-react';
+import { Plus, Trash2, Layers, BookOpen, Pencil, X, AlertTriangle, ArrowRightLeft, ArrowRight, Users, EyeOff, Eye, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Ficha, Student } from '../types';
+import { Ficha, Programa, Student } from '../types';
 import { getFichas, addFicha, deleteFicha, updateFicha, getStudents, previewFichaMigration, migrateFichaStudents, FichaMigrationResult, getHiddenFichaIds, setFichaHidden } from '../services/db';
+import { FichaSetupReport, GRD_PROGRAMA_ID, applyProgramaToFicha, getPrograma, getProgramaIdForFicha, getProgramas, parseProgramaExcel } from '../services/programas';
+
+/** Lee el Excel de la ficha (mismo formato que el del programa: hoja EVIDENCIAS con fechas) */
+const readFichaExcel = async (file: File | null) => (file ? parseProgramaExcel(await file.arrayBuffer()) : null);
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   'Formación':       { label: 'Formación',       color: '#16a34a', bg: '#dcfce7' },
@@ -29,6 +33,18 @@ export const FichasView: React.FC = () => {
   const [newCronogramaTrainingStartDate, setNewCronogramaTrainingStartDate] = useState('');
   const [newCronogramaEndDate, setNewCronogramaEndDate] = useState('');
   const [newCronogramaDownloadUrl, setNewCronogramaDownloadUrl] = useState('');
+  const [newProgramaId, setNewProgramaId] = useState(GRD_PROGRAMA_ID);
+  const [newExcelFile, setNewExcelFile] = useState<File | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
+
+  // Programas
+  const [programas, setProgramas] = useState<Programa[]>([]);
+  const [fichaProgramaIds, setFichaProgramaIds] = useState<Record<string, string>>({});
+  const [setupReport, setSetupReport] = useState<{ fichaCode: string; report: FichaSetupReport } | null>(null);
+  const [setupError, setSetupError] = useState('');
+  const [isApplying, setIsApplying] = useState(false);
+  const [editProgramaId, setEditProgramaId] = useState(GRD_PROGRAMA_ID);
+  const [editExcelFile, setEditExcelFile] = useState<File | null>(null);
 
   // Edit State
   const [editingFicha, setEditingFicha] = useState<Ficha | null>(null);
@@ -62,9 +78,32 @@ export const FichasView: React.FC = () => {
   };
 
   const loadData = () => {
-    setFichas(getFichas());
+    const all = getFichas();
+    setFichas(all);
     setStudents(getStudents());
     setHiddenIds(getHiddenFichaIds());
+    setProgramas(getProgramas());
+    setFichaProgramaIds(Object.fromEntries(all.map(f => [f.id, getProgramaIdForFicha(f.id)])));
+  };
+
+  /** Asigna el programa a la ficha y genera cronogramas, planeación y actividades; muestra el resumen */
+  const runSetup = async (ficha: Ficha, programaId: string, file: File | null) => {
+    const programa = getPrograma(programaId);
+    if (!programa) return;
+    setIsApplying(true);
+    setSetupError('');
+    try {
+      const excel = await readFichaExcel(file);
+      if (excel && excel.evidencias.length === 0) {
+        setSetupError(excel.advertencias[0] ?? 'El Excel no tiene evidencias con código reconocible. La ficha quedó sin fechas.');
+      }
+      const report = applyProgramaToFicha(ficha, programa, excel && excel.evidencias.length ? excel : null);
+      setSetupReport({ fichaCode: ficha.code, report });
+    } catch (err) {
+      setSetupError(`No se pudo leer el Excel: ${(err as Error).message}`);
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const toggleHidden = (ficha: Ficha) => {
@@ -78,15 +117,16 @@ export const FichasView: React.FC = () => {
     return () => window.removeEventListener('asistenciapro-storage-update', loadData);
   }, []);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newCode || !newProgram) return;
-    
+    const programa = getPrograma(newProgramaId);
+
     const newFicha: Ficha = {
       id: generateId(),
       code: newCode,
       program: newProgram,
       description: newDesc,
-      cronogramaProgramName: newCronogramaProgramName || undefined,
+      cronogramaProgramName: newCronogramaProgramName || programa?.nombre || undefined,
       cronogramaCenter: newCronogramaCenter || undefined,
       cronogramaStartDate: newCronogramaStartDate || undefined,
       cronogramaTrainingStartDate: newCronogramaTrainingStartDate || undefined,
@@ -95,6 +135,10 @@ export const FichasView: React.FC = () => {
     };
 
     addFicha(newFicha);
+    await runSetup(newFicha, newProgramaId, newExcelFile);
+    setNewProgramaId(GRD_PROGRAMA_ID);
+    setNewExcelFile(null);
+    setFileInputKey(k => k + 1);
     setNewCode('');
     setNewProgram('');
     setNewDesc('');
@@ -120,9 +164,11 @@ export const FichasView: React.FC = () => {
         cronogramaEndDate: ficha.cronogramaEndDate || '',
         cronogramaDownloadUrl: ficha.cronogramaDownloadUrl || ''
     });
+    setEditProgramaId(getProgramaIdForFicha(ficha.id));
+    setEditExcelFile(null);
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingFicha) return;
     const updated: Ficha = {
         ...editingFicha,
@@ -138,7 +184,13 @@ export const FichasView: React.FC = () => {
     };
     updateFicha(updated);
     setEditingFicha(null);
+    // Cambio de programa o nuevo Excel de fechas: regenerar cronogramas y planeación
+    if (editProgramaId !== getProgramaIdForFicha(updated.id) || editExcelFile) {
+      await runSetup(updated, editProgramaId, editExcelFile);
+    }
   };
+
+  const closeSetup = () => { setSetupReport(null); setSetupError(''); };
 
   const promptDelete = (ficha: Ficha) => {
       setFichaToDelete({ id: ficha.id, code: ficha.code });
@@ -269,6 +321,37 @@ export const FichasView: React.FC = () => {
                     onChange={(e) => setNewDesc(e.target.value)}
                 />
             </div>
+            <div className="mt-5 rounded-lg border border-teal-200 bg-teal-50/40 p-4">
+                <p className="text-sm font-semibold text-gray-800">Programa y fechas de las evidencias</p>
+                <p className="text-xs text-gray-500">
+                    Con el programa se generan el Cronograma por fases, la Planeación semanal y el Cronograma General.
+                    Las evidencias sin fecha en el Excel quedan sin fecha y aparecen en "sin asignar" en la planeación.
+                </p>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Programa</label>
+                        <select
+                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                            value={newProgramaId}
+                            onChange={(e) => setNewProgramaId(e.target.value)}
+                        >
+                            {programas.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
+                            <FileSpreadsheet className="h-4 w-4 text-green-600" /> Excel con las fechas de la ficha (opcional)
+                        </label>
+                        <input
+                            key={fileInputKey}
+                            type="file"
+                            accept=".xlsx,.xls"
+                            className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-teal-800 hover:file:bg-teal-200"
+                            onChange={(e) => setNewExcelFile(e.target.files?.[0] ?? null)}
+                        />
+                    </div>
+                </div>
+            </div>
             <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50/60 p-4">
                 <p className="text-sm font-semibold text-gray-800">Datos del cronograma (opcional)</p>
                 <p className="text-xs text-gray-500">Estos datos personalizan el cronograma por ficha.</p>
@@ -320,9 +403,11 @@ export const FichasView: React.FC = () => {
             <div className="mt-4 flex justify-end">
                 <button
                     onClick={handleAdd}
-                    className="bg-gray-900 text-white px-6 py-2 rounded-lg hover:bg-black transition-colors"
+                    disabled={!newCode || !newProgram || isApplying}
+                    className="bg-gray-900 text-white px-6 py-2 rounded-lg hover:bg-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    title={!newCode || !newProgram ? 'Escribe el código de la ficha y el programa' : undefined}
                 >
-                    Guardar Ficha
+                    {isApplying ? 'Generando…' : 'Guardar Ficha'}
                 </button>
             </div>
         </div>
@@ -385,6 +470,9 @@ export const FichasView: React.FC = () => {
                         )}
                     </div>
                     <p className="text-teal-600 font-medium text-sm">{ficha.program}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                        Programa: {programas.find(p => p.id === fichaProgramaIds[ficha.id])?.nombre ?? 'Sin programa'}
+                    </p>
                     {ficha.description && <p className="text-gray-500 text-sm mt-2">{ficha.description}</p>}
                 </div>
                 {/* Status distribution */}
@@ -497,6 +585,30 @@ export const FichasView: React.FC = () => {
                             value={editForm.description}
                             onChange={e => setEditForm({...editForm, description: e.target.value})}
                         />
+                    </div>
+                    <div className="rounded-lg border border-teal-200 bg-teal-50/40 p-3 space-y-3">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Programa</label>
+                            <select
+                                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                                value={editProgramaId}
+                                onChange={e => setEditProgramaId(e.target.value)}
+                            >
+                                {programas.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
+                                <FileSpreadsheet className="h-4 w-4 text-green-600" /> Recargar fechas desde Excel
+                            </label>
+                            <input
+                                type="file"
+                                accept=".xlsx,.xls"
+                                className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-teal-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-teal-800 hover:file:bg-teal-200"
+                                onChange={e => setEditExcelFile(e.target.files?.[0] ?? null)}
+                            />
+                            <p className="mt-1 text-xs text-gray-500">Reemplaza las fechas y la ubicación en la planeación de las evidencias que traiga el Excel.</p>
+                        </div>
                     </div>
                     <div className="grid grid-cols-1 gap-3">
                         <div>
@@ -693,6 +805,67 @@ export const FichasView: React.FC = () => {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Resumen de la generación desde el programa */}
+      {(setupReport || setupError) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-teal-600" />
+                {setupReport ? `Ficha ${setupReport.fichaCode} lista` : 'Aviso'}
+              </h3>
+              <button onClick={closeSetup} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {setupError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 mb-4 text-sm text-red-700 flex gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {setupError}
+              </div>
+            )}
+            {setupReport && (
+              <>
+                <p className="text-sm text-gray-600 mb-3">Programa <b>{setupReport.report.programa}</b></p>
+                <ul className="text-sm text-gray-700 space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-4 mb-4">
+                  <li className="flex justify-between"><span>Evidencias del programa</span><b>{setupReport.report.totalEvidencias}</b></li>
+                  <li className="flex justify-between"><span>Con fecha (en cronogramas y planeación)</span><b>{setupReport.report.conFecha}</b></li>
+                  <li className="flex justify-between"><span>Sin fecha (quedan en "sin asignar")</span><b>{setupReport.report.sinFecha}</b></li>
+                  {setupReport.report.semanas > 0 && (
+                    <li className="flex justify-between"><span>Semanas lectivas en la planeación</span><b>{setupReport.report.semanas}</b></li>
+                  )}
+                  {setupReport.report.actividadesCreadas > 0 && (
+                    <li className="flex justify-between"><span>Actividades creadas en Calificaciones</span><b>{setupReport.report.actividadesCreadas}</b></li>
+                  )}
+                </ul>
+                {setupReport.report.noEnPrograma.length > 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-3 text-xs text-amber-800">
+                    <p className="font-semibold mb-1">En el Excel pero no en el programa (se omitieron): {setupReport.report.noEnPrograma.length}</p>
+                    <p className="font-mono break-words">{setupReport.report.noEnPrograma.join(', ')}</p>
+                  </div>
+                )}
+                {setupReport.report.fueraDeSemanas.length > 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-3 text-xs text-amber-800">
+                    <p className="font-semibold mb-1">Su fecha no cae en ninguna semana lectiva (quedan sin asignar en la planeación): {setupReport.report.fueraDeSemanas.length}</p>
+                    <p className="font-mono break-words">{setupReport.report.fueraDeSemanas.join(', ')}</p>
+                  </div>
+                )}
+                {setupReport.report.advertencias.length > 0 && (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 mb-3 text-xs text-gray-700">
+                    {setupReport.report.advertencias.map((a, i) => <p key={i}>{a}</p>)}
+                  </div>
+                )}
+              </>
+            )}
+            <button
+              onClick={closeSetup}
+              className="w-full bg-teal-600 text-white py-2.5 rounded-lg font-medium hover:bg-teal-700 transition-colors"
+            >
+              Listo
+            </button>
           </div>
         </div>
       )}
