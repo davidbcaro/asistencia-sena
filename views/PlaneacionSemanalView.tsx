@@ -413,12 +413,14 @@ export const PlaneacionSemanalView: React.FC = () => {
   const jumpTarget = useMemo(() => weekIndexForDate(jumpDate, weekDates.isos), [jumpDate, weekDates.isos]);
   const todayWeek  = useMemo(() => weekIndexForDate(todayIso(), weekDates.isos), [weekDates.isos]);
 
-  /** Desplaza la cuadrícula para que la semana quede justo después de la columna de etiquetas. */
+  /** Desplaza la cuadrícula para que la semana quede centrada en el área visible (sin contar la columna de etiquetas). */
   const scrollToWeek = useCallback((w: number, smooth = true) => {
     const grid = gridRef.current;
     const th = grid?.querySelector<HTMLElement>(`th[data-week="${w}"]`);
     if (!grid || !th) return;
-    grid.scrollTo({ left: Math.max(0, th.offsetLeft - LABEL_W), behavior: smooth ? 'smooth' : 'auto' });
+    const visibleCenter = LABEL_W + (grid.clientWidth - LABEL_W) / 2;
+    const left = th.offsetLeft + th.offsetWidth / 2 - visibleCenter;
+    grid.scrollTo({ left: Math.max(0, left), behavior: smooth ? 'smooth' : 'auto' });
   }, []);
 
   // ── Load ────────────────────────────────────────────────────────────────
