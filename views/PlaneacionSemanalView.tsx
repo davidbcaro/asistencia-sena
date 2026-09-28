@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, Copy, Download, Eye, EyeOff, GripVertical, X } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, CalendarDays, Check, Copy, Download, Eye, EyeOff, GripVertical, X } from 'lucide-react';
 import { Ficha, GradeActivity, GuiaColumn, PlaneacionSemanalFichaData } from '../types';
 import { deleteGradeActivity, getFichas, getGradeActivities, getPlaneacionSemanal, savePlaneacionSemanal } from '../services/db';
 import { areaForEvidencia, fichaUsesGlobalActivities, getProgramaForFicha, planeacionRowForArea } from '../services/programas';
@@ -62,6 +62,30 @@ const buildWeekDates = (overrides: Record<number, string> = {}, totalWeeks = TOT
     curMs += 7 * MS_PER_DAY;
   }
   return { starts, ends, isos };
+};
+
+/** Fecha local de hoy como YYYY-MM-DD. */
+const todayIso = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/**
+ * Semana que contiene la fecha (YYYY-MM-DD).
+ * - inside: la fecha cae entre el inicio y el fin (inicio + 6 días) de esa semana.
+ * - Si cae en un hueco entre semanas (por fechas cambiadas a mano) se toma la última semana ya iniciada.
+ * - Antes de la primera semana → 0; después de la última → la última (inside = false).
+ */
+const weekIndexForDate = (iso: string, isos: string[]): { idx: number; inside: boolean } => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || isos.length === 0) return { idx: 0, inside: false };
+  const t = parseIso(iso);
+  let lastStarted = -1;
+  for (let w = 0; w < isos.length; w++) {
+    const start = parseIso(isos[w]);
+    if (t >= start && t < start + 7 * MS_PER_DAY) return { idx: w, inside: true };
+    if (start <= t && (lastStarted === -1 || start >= parseIso(isos[lastStarted]))) lastStarted = w;
+  }
+  return { idx: lastStarted === -1 ? 0 : lastStarted, inside: false };
 };
 
 // ─── Transversal rows (colors match PLANEACION SEMANAL GRD legend) ──────────
@@ -304,6 +328,12 @@ const stripEvidenciaPrefix = (text: string): string =>
 export const PlaneacionSemanalView: React.FC = () => {
   const { fichaId } = useParams<{ fichaId: string }>();
   const navigate    = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // ── Ir a fecha: al abrir se ubica en la semana de hoy (o la de ?fecha=YYYY-MM-DD) ──
+  const [jumpDate, setJumpDate] = useState<string>(() => searchParams.get('fecha') || todayIso());
+  const gridRef            = useRef<HTMLDivElement>(null);
+  const initialJumpDoneRef = useRef<string | null>(null);
 
   const [ficha,      setFicha]      = useState<{ id: string; code: string; program: string } | null>(null);
   const [activities, setActivities] = useState<GradeActivity[]>([]);
@@ -379,6 +409,17 @@ export const PlaneacionSemanalView: React.FC = () => {
     () => buildWeekDates(planeacion.weekDateOverrides ?? {}, effectiveTotalWeeks),
     [planeacion.weekDateOverrides, effectiveTotalWeeks],
   );
+
+  const jumpTarget = useMemo(() => weekIndexForDate(jumpDate, weekDates.isos), [jumpDate, weekDates.isos]);
+  const todayWeek  = useMemo(() => weekIndexForDate(todayIso(), weekDates.isos), [weekDates.isos]);
+
+  /** Desplaza la cuadrícula para que la semana quede justo después de la columna de etiquetas. */
+  const scrollToWeek = useCallback((w: number, smooth = true) => {
+    const grid = gridRef.current;
+    const th = grid?.querySelector<HTMLElement>(`th[data-week="${w}"]`);
+    if (!grid || !th) return;
+    grid.scrollTo({ left: Math.max(0, th.offsetLeft - LABEL_W), behavior: smooth ? 'smooth' : 'auto' });
+  }, []);
 
   // ── Load ────────────────────────────────────────────────────────────────
   const loadData = useCallback(() => {
@@ -458,6 +499,18 @@ export const PlaneacionSemanalView: React.FC = () => {
     window.addEventListener('asistenciapro-storage-update', loadData);
     return () => window.removeEventListener('asistenciapro-storage-update', loadData);
   }, [loadData]);
+
+  // Al abrir la ficha (una vez por ficha) se ubica en la semana de la fecha objetivo.
+  useEffect(() => {
+    if (!ficha || initialJumpDoneRef.current === fichaId) return;
+    initialJumpDoneRef.current = fichaId ?? null;
+    requestAnimationFrame(() => scrollToWeek(jumpTarget.idx, false));
+  }, [ficha, fichaId, jumpTarget.idx, scrollToWeek]);
+
+  const goToDate = (iso: string) => {
+    setJumpDate(iso);
+    scrollToWeek(weekIndexForDate(iso, weekDates.isos).idx);
+  };
 
   useEffect(() => {
     if (editingCell && editInputRef.current) editInputRef.current.focus();
@@ -1117,6 +1170,27 @@ export const PlaneacionSemanalView: React.FC = () => {
             {ficha.program} · {effectiveTotalWeeks} semanas · {activities.length} evidencia(s) técnica(s)
           </p>
         </div>
+        <div className="flex items-center gap-1.5" title="Ubicarse en la semana de una fecha">
+          <CalendarDays className="w-4 h-4 text-gray-400" />
+          <input
+            type="date"
+            value={jumpDate}
+            onChange={e => e.target.value && goToDate(e.target.value)}
+            className="text-xs border border-gray-300 rounded-lg px-2 py-1 outline-none focus:border-teal-500"
+          />
+          <button
+            onClick={() => goToDate(todayIso())}
+            className="px-2.5 py-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium transition-colors"
+            title="Ir a la semana actual"
+          >
+            Hoy
+          </button>
+          <span className="text-[11px] text-gray-500 whitespace-nowrap">
+            {jumpTarget.inside
+              ? `Semana ${weekLabel(jumpTarget.idx)}`
+              : 'Fuera de la planeación'}
+          </span>
+        </div>
         <button
           onClick={() => { setAddGuiaName(`Guía ${(planeacion.guiaColumns ?? []).length + 1}`); setShowAddGuia(true); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium transition-colors shadow-sm"
@@ -1198,7 +1272,7 @@ export const PlaneacionSemanalView: React.FC = () => {
         </aside>
 
         {/* ── Grid ── */}
-        <div className="flex-1 overflow-auto" onClick={() => { setOpenDurationCard(null); if (dateInputRef.current !== document.activeElement) setDatePickerWeek(null); }}>
+        <div ref={gridRef} className="flex-1 overflow-auto" onClick={() => { setOpenDurationCard(null); if (dateInputRef.current !== document.activeElement) setDatePickerWeek(null); }}>
           <table className="border-collapse text-xs select-none"
             style={{ minWidth: CELL_W * orderedCols.length + LABEL_W }}>
             <colgroup>
@@ -1305,11 +1379,23 @@ export const PlaneacionSemanalView: React.FC = () => {
                   const seg      = effectiveWeekPhaseMap[w];
                   const hasOverride = !!(planeacion.weekDateOverrides ?? {})[w];
                   const isOpen   = datePickerWeek === w;
+                  const isToday  = todayWeek.inside && todayWeek.idx === w;
+                  const isTarget = jumpTarget.inside && jumpTarget.idx === w;
                   return (
-                    <th key={w} className="border-b border-r border-gray-200 text-center px-1 relative"
-                      style={{ backgroundColor: seg.color + '14' }}>
+                    <th key={w} data-week={w} className="border-b border-r border-gray-200 text-center px-1 relative"
+                      style={{
+                        backgroundColor: isTarget ? seg.color + '33' : seg.color + '14',
+                        boxShadow: isTarget ? `inset 0 -3px 0 ${seg.color}` : undefined,
+                      }}>
                       <div className="flex flex-col items-center leading-none gap-1 py-1">
-                        <span className="font-bold text-[11px]" style={{ color: seg.color }}>{weekLabel(w)}</span>
+                        <span className="font-bold text-[11px] inline-flex items-center gap-1" style={{ color: seg.color }}>
+                          {weekLabel(w)}
+                          {isToday && (
+                            <span className="text-[9px] font-bold px-1 py-0.5 rounded text-white" style={{ backgroundColor: seg.color }}>
+                              HOY
+                            </span>
+                          )}
+                        </span>
                         {/* Clickable date — opens datepicker */}
                         <button
                           className="text-[10px] font-normal whitespace-nowrap rounded px-0.5 transition-colors hover:bg-black/10"
