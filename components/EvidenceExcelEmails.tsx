@@ -26,8 +26,8 @@ import {
   Type,
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
-import { getEmailSettings, getStudents } from '../services/db';
-import type { Student } from '../types';
+import { getEmailSettings, getFichas, getLmsLastAccess, getStudents } from '../services/db';
+import type { Ficha, Student } from '../types';
 import {
   buildEmailHtml,
   DEFAULT_EMAIL_FONT,
@@ -93,10 +93,44 @@ Le invitamos a hacer uso de este plazo excepcional para normalizar su estado aca
 
 Atentamente,`;
 
+const DESERCION_TEMPLATE_KEY = 'asistenciapro_evidence_excel_template_desercion';
+
+const DESERCION_SUBJECT = 'Notificación de Inicio de Proceso de Deserción – Ficha {ficha} – {nombre}';
+
+const DESERCION_BODY = `Estimado(a) Aprendiz:
+
+**{nombre}**
+**C.C.** {identificacion}
+**Correo:** {correo}
+**Programa:** {programa}
+**Ficha:** {ficha}
+
+Reciba un cordial saludo.
+Como instructor responsable de su proceso formativo en el programa, me permito comunicarle que, tras la revisión del sistema de gestión académica Zajuna, se ha evidenciado que usted no registra ingresos a la plataforma desde hace **{dias_sin_ingresar}** días y no reporta entrega de las evidencias.
+
+De acuerdo con el **Acuerdo 009 de 2024 (Reglamento del Aprendiz SENA)**, su situación se enmarca en la causal de deserción establecida para la modalidad virtual, la cual cito a continuación:
+
+_"Artículo 30º. Deserción: Se considera deserción en el proceso de formación, cuando el aprendiz:_
+_b) En la formación bajo la modalidad virtual en etapa lectiva, se presenta cuando el aprendiz no asiste a tres (3) citaciones seguidas elevadas por el instructor o por el responsable del grupo o no ingresa a su ambiente virtual de formación (plataforma LMS) durante veinte (20) días consecutivos, sin previa justificación soportada ante el sistema de gestión académico-administrativo."_
+
+De no recibir respuesta con una justificación válida o evidencia de actividad en el proceso formativo, se procederá conforme a lo establecido en el reglamento del aprendiz.
+
+Atentamente,`;
+
+/** Plantilla con la que se genera el correo de un aprendiz buscado a mano (el Excel usa siempre «evidencias»). */
+type TemplateKind = 'evidencias' | 'desercion';
+
+const TEMPLATE_KIND_LABELS: Record<TemplateKind, string> = {
+  evidencias: 'Falta de evidencias',
+  desercion: 'Notificación proceso de deserción',
+};
+
+const TEMPLATE_KINDS: TemplateKind[] = ['evidencias', 'desercion'];
+
 const VARIABLES: { token: string; help: string }[] = [
   { token: '{nombre}', help: 'Nombres y apellidos del Excel' },
   { token: '{identificacion}', help: 'Número de identificación del Excel' },
-  { token: '{programa}', help: 'Programa configurado abajo' },
+  { token: '{programa}', help: 'Programa de la ficha del aprendiz (o el configurado abajo)' },
   { token: '{ficha}', help: 'Ficha del Excel o la configurada abajo' },
   { token: '{evidencias}', help: 'Lista con viñetas de las evidencias pendientes' },
   { token: '{evidencias_texto}', help: 'Evidencias pendientes separadas por punto y coma' },
@@ -104,6 +138,8 @@ const VARIABLES: { token: string; help: string }[] = [
   { token: '{correo}', help: 'Correo del aprendiz (si viene en el Excel)' },
   { token: '{fecha}', help: 'Fecha de hoy' },
   { token: '{fecha_limite}', help: 'Fecha limite de entrega configurada abajo' },
+  { token: '{dias_sin_ingresar}', help: 'Días sin ingresar a Zajuna (aprendices buscados)' },
+  { token: '{fecha_ultimo_ingreso}', help: 'Último ingreso a Zajuna (aprendices buscados)' },
 ];
 
 const FORMAT_BUTTONS: {
@@ -193,6 +229,45 @@ function loadTemplate(): StoredTemplate {
   return DEFAULT_TEMPLATE;
 }
 
+interface TemplateText {
+  subject: string;
+  body: string;
+}
+
+const DEFAULT_DESERCION_TEMPLATE: TemplateText = {
+  subject: DESERCION_SUBJECT,
+  body: DESERCION_BODY,
+};
+
+function loadDesercionTemplate(): TemplateText {
+  try {
+    const raw = localStorage.getItem(DESERCION_TEMPLATE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<TemplateText>;
+      if (parsed && typeof parsed.body === 'string') return { ...DEFAULT_DESERCION_TEMPLATE, ...parsed };
+    }
+  } catch {}
+  return DEFAULT_DESERCION_TEMPLATE;
+}
+
+/** Días completos desde la fecha/hora indicada hasta hoy (-1 si no es válida). */
+function daysSince(dateStr: string): number {
+  const d = new Date(dateStr.replace(' ', 'T'));
+  if (isNaN(d.getTime())) return -1;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.floor((today.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+/** Último ingreso en dd/mm/aaaa (vacío si no hay dato). */
+function formatLastAccess(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr.replace(' ', 'T'));
+  if (isNaN(d.getTime())) return dateStr;
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
 function loadSettings(): StoredSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -231,8 +306,15 @@ interface ManualEntry {
   documento: string;
   ficha: string;
   correo: string;
+  /** Programa de la ficha del aprendiz (vacío si la ficha no lo tiene). */
+  programa: string;
+  kind: TemplateKind;
   /** Evidencias pendientes, una por línea. */
   evidencias: string;
+  /** Días sin ingresar a Zajuna; se precarga del LMS y es editable. */
+  dias: string;
+  /** Último ingreso a Zajuna (dd/mm/aaaa) si hay dato del LMS. */
+  ultimoIngreso: string;
 }
 
 /** Fuente común de un correo: filas del Excel y aprendices agregados desde el buscador. */
@@ -242,7 +324,11 @@ interface EmailSource {
   documento: string;
   ficha: string;
   correo: string;
+  programa: string;
   pending: string[];
+  kind: TemplateKind;
+  dias?: string;
+  ultimoIngreso?: string;
 }
 
 interface BuiltEmail {
@@ -252,6 +338,7 @@ interface BuiltEmail {
   ficha: string;
   correo: string;
   pending: string[];
+  kind: TemplateKind;
   subject: string;
   body: string;
 }
@@ -272,13 +359,25 @@ export const EvidenceExcelEmails: React.FC = () => {
 
   const [settings, setSettings] = useState<StoredSettings>(() => loadSettings());
   const [template, setTemplate] = useState<StoredTemplate>(() => loadTemplate());
+  const [desercionTemplate, setDesercionTemplate] = useState<TemplateText>(() => loadDesercionTemplate());
+  /** Plantilla que se está editando en el editor (la tipografía es común a ambas). */
+  const [editingKind, setEditingKind] = useState<TemplateKind>('evidencias');
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   // Buscador de aprendices registrados (flujo sin Excel)
   const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [fichas, setFichas] = useState<Ficha[]>([]);
+  const [lmsLastAccess, setLmsLastAccess] = useState<Record<string, string>>({});
   const [studentQuery, setStudentQuery] = useState('');
   const [manualEntries, setManualEntries] = useState<ManualEntry[]>([]);
   const [manualEvidenceDraft, setManualEvidenceDraft] = useState('');
+  const [newEntryKind, setNewEntryKind] = useState<TemplateKind>('evidencias');
+
+  const editingText: TemplateText = editingKind === 'desercion' ? desercionTemplate : template;
+  const setEditingText = (patch: Partial<TemplateText>) => {
+    if (editingKind === 'desercion') setDesercionTemplate((t) => ({ ...t, ...patch }));
+    else setTemplate((t) => ({ ...t, ...patch }));
+  };
 
   const [previewIndex, setPreviewIndex] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -291,7 +390,9 @@ export const EvidenceExcelEmails: React.FC = () => {
 
   // Los aprendices del buscador salen del mismo listado que el resto de la app.
   useEffect(() => {
-    const load = () =>
+    const load = () => {
+      setFichas(getFichas());
+      setLmsLastAccess(getLmsLastAccess());
       setAllStudents(
         getStudents()
           .slice()
@@ -302,6 +403,7 @@ export const EvidenceExcelEmails: React.FC = () => {
             )
           )
       );
+    };
     load();
     window.addEventListener('asistenciapro-storage-update', load);
     return () => window.removeEventListener('asistenciapro-storage-update', load);
@@ -421,9 +523,16 @@ export const EvidenceExcelEmails: React.FC = () => {
     [rows, excludedRows, settings.onlyWithPending, pendingByRow]
   );
 
+  /** Nombre del programa de la ficha registrada en la app (vacío si no existe). */
+  const programOfFicha = (code: string): string => {
+    const f = fichas.find((x) => x.code === code.trim());
+    return f?.cronogramaProgramName || f?.program || '';
+  };
+
   const composeEmail = (source: EmailSource): BuiltEmail => {
     const { pending } = source;
     const ficha = source.ficha || settings.fichaFallback;
+    const tpl = source.kind === 'desercion' ? desercionTemplate : template;
     const listaHtml =
       pending.length === 0
         ? '<p>Sin evidencias pendientes.</p>'
@@ -435,7 +544,7 @@ export const EvidenceExcelEmails: React.FC = () => {
     const plainValues: Record<string, string> = {
       '{nombre}': source.fullName,
       '{identificacion}': source.documento,
-      '{programa}': settings.programa,
+      '{programa}': source.programa || programOfFicha(ficha) || settings.programa,
       '{ficha}': ficha,
       '{correo}': source.correo,
       '{fecha}': todayLocal(),
@@ -443,16 +552,18 @@ export const EvidenceExcelEmails: React.FC = () => {
       '{total_evidencias}': String(pending.length),
       '{evidencias_texto}': listaTexto,
       '{evidencias}': listaTexto,
+      '{dias_sin_ingresar}': source.dias?.trim() || '[días]',
+      '{fecha_ultimo_ingreso}': source.ultimoIngreso || 'sin registro',
     };
 
-    let subject = template.subject;
+    let subject = tpl.subject;
     Object.entries(plainValues).forEach(([token, value]) => {
       subject = subject.split(token).join(value);
     });
 
     // El cuerpo es texto plano: se escapa completo, se convierten las marcas de
     // formato y las viñetas, y luego se inyectan los valores ya escapados.
-    let body = renderTemplateBody(escapeHtml(template.body));
+    let body = renderTemplateBody(escapeHtml(tpl.body));
     Object.entries(plainValues).forEach(([token, value]) => {
       if (token === '{evidencias}') return;
       body = body.split(token).join(escapeHtml(value));
@@ -467,6 +578,7 @@ export const EvidenceExcelEmails: React.FC = () => {
       ficha,
       correo: source.correo,
       pending,
+      kind: source.kind,
       subject,
       body,
     };
@@ -479,13 +591,15 @@ export const EvidenceExcelEmails: React.FC = () => {
       documento: row.documento,
       ficha: row.ficha,
       correo: row.correo,
+      programa: '',
       pending: pendingByRow.get(row.id) ?? [],
+      kind: 'evidencias',
     });
 
   const excelEmails = useMemo(
     () => includedRows.map(buildEmail),
-    // buildEmail depende de plantilla, ajustes y pendientes
-    [includedRows, template, settings, pendingByRow]
+    // buildEmail depende de plantilla, ajustes, fichas y pendientes
+    [includedRows, template, settings, pendingByRow, fichas]
   );
 
   // Los aprendices buscados a mano siempre generan correo, tengan o no evidencias escritas.
@@ -498,10 +612,14 @@ export const EvidenceExcelEmails: React.FC = () => {
           documento: m.documento,
           ficha: m.ficha,
           correo: m.correo,
-          pending: parseEvidenceLines(m.evidencias),
+          programa: m.programa,
+          pending: m.kind === 'evidencias' ? parseEvidenceLines(m.evidencias) : [],
+          kind: m.kind,
+          dias: m.dias,
+          ultimoIngreso: m.ultimoIngreso,
         })
       ),
-    [manualEntries, template, settings]
+    [manualEntries, template, desercionTemplate, settings, fichas]
   );
 
   const emails = useMemo(() => [...manualEmails, ...excelEmails], [manualEmails, excelEmails]);
@@ -531,7 +649,7 @@ export const EvidenceExcelEmails: React.FC = () => {
     const end = el.selectionEnd ?? start;
     const selected = el.value.slice(start, end) || placeholder;
     const next = `${el.value.slice(0, start)}${marker}${selected}${marker}${el.value.slice(end)}`;
-    setTemplate((t) => ({ ...t, body: next }));
+    setEditingText({ body: next });
     requestAnimationFrame(() => {
       el.focus();
       el.setSelectionRange(start + marker.length, start + marker.length + selected.length);
@@ -554,7 +672,7 @@ export const EvidenceExcelEmails: React.FC = () => {
       .map((l) => (allBullets ? l.replace(/^\s*-\s+/, '') : l.trim() === '' ? l : `- ${l}`))
       .join('\n');
     const next = `${value.slice(0, lineStart)}${converted}${value.slice(lineEnd)}`;
-    setTemplate((t) => ({ ...t, body: next }));
+    setEditingText({ body: next });
     requestAnimationFrame(() => {
       el.focus();
       el.setSelectionRange(lineStart, lineStart + converted.length);
@@ -564,13 +682,13 @@ export const EvidenceExcelEmails: React.FC = () => {
   const insertVariable = (token: string) => {
     const el = bodyRef.current;
     if (!el) {
-      setTemplate((t) => ({ ...t, body: `${t.body} ${token}` }));
+      setEditingText({ body: `${editingText.body} ${token}` });
       return;
     }
     const start = el.selectionStart ?? el.value.length;
     const end = el.selectionEnd ?? start;
     const next = `${el.value.slice(0, start)}${token}${el.value.slice(end)}`;
-    setTemplate((t) => ({ ...t, body: next }));
+    setEditingText({ body: next });
     requestAnimationFrame(() => {
       el.focus();
       el.setSelectionRange(start + token.length, start + token.length);
@@ -579,12 +697,15 @@ export const EvidenceExcelEmails: React.FC = () => {
 
   const saveTemplate = () => {
     localStorage.setItem(TEMPLATE_KEY, JSON.stringify(template));
-    showFeedback('Plantilla guardada');
+    localStorage.setItem(DESERCION_TEMPLATE_KEY, JSON.stringify(desercionTemplate));
+    showFeedback('Plantillas guardadas');
   };
 
+  /** Restaura sólo el texto de la plantilla en edición; la tipografía se conserva. */
   const restoreTemplate = () => {
-    setTemplate(DEFAULT_TEMPLATE);
-    showFeedback('Plantilla por defecto restaurada');
+    if (editingKind === 'desercion') setDesercionTemplate(DEFAULT_DESERCION_TEMPLATE);
+    else setTemplate((t) => ({ ...t, subject: DEFAULT_SUBJECT, body: DEFAULT_BODY }));
+    showFeedback(`Plantilla «${TEMPLATE_KIND_LABELS[editingKind]}» restaurada`);
   };
 
   const copySubject = async () => {
@@ -709,6 +830,8 @@ export const EvidenceExcelEmails: React.FC = () => {
       showFeedback('Ese aprendiz ya está en la lista');
       return;
     }
+    const lastAccess = lmsLastAccess[s.id];
+    const days = lastAccess ? daysSince(lastAccess) : -1;
     setManualEntries((prev) => [
       ...prev,
       {
@@ -717,7 +840,12 @@ export const EvidenceExcelEmails: React.FC = () => {
         documento: s.documentNumber ?? '',
         ficha: s.group ?? '',
         correo: s.email ?? '',
+        programa: programOfFicha(s.group ?? ''),
+        kind: newEntryKind,
         evidencias: manualEvidenceDraft,
+        // Sin dato del LMS queda vacío: el instructor lo escribe, no se inventa.
+        dias: days >= 0 ? String(days) : '',
+        ultimoIngreso: formatLastAccess(lastAccess),
       },
     ]);
     // El nuevo aprendiz queda al final del bloque manual, que va primero en la vista previa.
@@ -727,11 +855,13 @@ export const EvidenceExcelEmails: React.FC = () => {
   const removeManualEntry = (id: string) =>
     setManualEntries((prev) => prev.filter((m) => m.id !== id));
 
-  const updateManualEvidences = (id: string, evidencias: string) =>
-    setManualEntries((prev) => prev.map((m) => (m.id === id ? { ...m, evidencias } : m)));
+  const updateManualEntry = (id: string, patch: Partial<ManualEntry>) =>
+    setManualEntries((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
 
   const applyDraftToAll = () => {
-    setManualEntries((prev) => prev.map((m) => ({ ...m, evidencias: manualEvidenceDraft })));
+    setManualEntries((prev) =>
+      prev.map((m) => (m.kind === 'evidencias' ? { ...m, evidencias: manualEvidenceDraft } : m))
+    );
     showFeedback('Evidencias aplicadas a los aprendices agregados');
   };
 
@@ -826,7 +956,7 @@ export const EvidenceExcelEmails: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Programa <span className="text-gray-400">({'{programa}'})</span>
+                Programa <span className="text-gray-400">({'{programa}'} si la ficha no lo tiene)</span>
               </label>
               <input
                 type="text"
@@ -877,9 +1007,31 @@ export const EvidenceExcelEmails: React.FC = () => {
             Buscar aprendiz y enviarle el correo
           </h4>
           <p className="text-xs text-gray-500">
-            Busca cualquier aprendiz registrado por nombre, identificación, correo o ficha y agrégalo a
-            la lista de correos. Funciona con o sin Excel cargado.
+            Busca cualquier aprendiz registrado por nombre, identificación, correo o ficha, elige la
+            plantilla y agrégalo a la lista de correos. No necesita notas, novedades ni Excel cargados.
           </p>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Plantilla para los aprendices que agregues
+            </label>
+            <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+              {TEMPLATE_KINDS.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setNewEntryKind(k)}
+                  className={`px-3 py-1.5 text-xs font-medium ${
+                    newEntryKind === k
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {TEMPLATE_KIND_LABELS[k]}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -919,12 +1071,13 @@ export const EvidenceExcelEmails: React.FC = () => {
             )}
           </div>
 
+          {newEntryKind === 'evidencias' && (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
               <label className="block text-xs font-medium text-gray-600">
                 Evidencias pendientes (una por línea) para los aprendices que agregues
               </label>
-              {manualEntries.length > 0 && (
+              {manualEntries.some((m) => m.kind === 'evidencias') && (
                 <button
                   type="button"
                   onClick={applyDraftToAll}
@@ -942,6 +1095,7 @@ export const EvidenceExcelEmails: React.FC = () => {
               className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
             />
           </div>
+          )}
 
           {manualEntries.length > 0 && (
             <div className="space-y-2">
@@ -960,6 +1114,9 @@ export const EvidenceExcelEmails: React.FC = () => {
                           {m.documento || 'sin identificación'}
                           {` · Ficha ${m.ficha || settings.fichaFallback || '—'}`}
                           {m.correo ? ` · ${m.correo}` : ' · sin correo'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {m.programa || settings.programa || 'Programa sin definir'}
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -1008,13 +1165,52 @@ export const EvidenceExcelEmails: React.FC = () => {
                         </button>
                       </div>
                     </div>
-                    <textarea
-                      value={m.evidencias}
-                      onChange={(e) => updateManualEvidences(m.id, e.target.value)}
-                      rows={2}
-                      placeholder="Evidencias pendientes de este aprendiz (una por línea)"
-                      className="mt-2 w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-teal-500 outline-none"
-                    />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-gray-500">Plantilla:</span>
+                      <select
+                        value={m.kind}
+                        onChange={(e) =>
+                          updateManualEntry(m.id, { kind: e.target.value as TemplateKind })
+                        }
+                        className="text-xs border border-gray-300 rounded-lg px-2 py-1 bg-white focus:ring-2 focus:ring-teal-500 outline-none"
+                      >
+                        {TEMPLATE_KINDS.map((k) => (
+                          <option key={k} value={k}>
+                            {TEMPLATE_KIND_LABELS[k]}
+                          </option>
+                        ))}
+                      </select>
+                      {m.kind === 'desercion' && (
+                        <>
+                          <label className="text-xs text-gray-500 ml-2" htmlFor={`dias-${m.id}`}>
+                            Días sin ingresar:
+                          </label>
+                          <input
+                            id={`dias-${m.id}`}
+                            type="number"
+                            min={0}
+                            value={m.dias}
+                            onChange={(e) => updateManualEntry(m.id, { dias: e.target.value })}
+                            placeholder="Ej: 25"
+                            className="w-20 text-xs border border-gray-300 rounded-lg px-2 py-1 bg-white focus:ring-2 focus:ring-teal-500 outline-none"
+                          />
+                          <span className="text-xs text-gray-400">
+                            {m.ultimoIngreso
+                              ? `Último ingreso: ${m.ultimoIngreso}`
+                              : 'Sin dato de último ingreso: escríbelo'}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {m.kind === 'evidencias' && (
+                      <textarea
+                        value={m.evidencias}
+                        onChange={(e) => updateManualEntry(m.id, { evidencias: e.target.value })}
+                        rows={2}
+                        placeholder="Evidencias pendientes de este aprendiz (una por línea)"
+                        className="mt-2 w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-teal-500 outline-none"
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -1249,12 +1445,34 @@ export const EvidenceExcelEmails: React.FC = () => {
                 </button>
               </div>
             </div>
+            <div className="flex border-b border-gray-200">
+              {TEMPLATE_KINDS.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setEditingKind(k)}
+                  className={`px-3 py-1.5 text-xs font-medium border-b-2 -mb-px ${
+                    editingKind === k
+                      ? 'border-teal-600 text-teal-700'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {TEMPLATE_KIND_LABELS[k]}
+                </button>
+              ))}
+            </div>
+            {editingKind === 'desercion' && (
+              <p className="text-xs text-gray-500">
+                Se usa solo con los aprendices agregados desde el buscador. El Excel usa siempre la
+                plantilla de falta de evidencias.
+              </p>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Asunto</label>
               <input
                 type="text"
-                value={template.subject}
-                onChange={(e) => setTemplate((t) => ({ ...t, subject: e.target.value }))}
+                value={editingText.subject}
+                onChange={(e) => setEditingText({ subject: e.target.value })}
                 className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none"
               />
             </div>
@@ -1327,8 +1545,8 @@ export const EvidenceExcelEmails: React.FC = () => {
 
               <textarea
                 ref={bodyRef}
-                value={template.body}
-                onChange={(e) => setTemplate((t) => ({ ...t, body: e.target.value }))}
+                value={editingText.body}
+                onChange={(e) => setEditingText({ body: e.target.value })}
                 rows={16}
                 className="w-full text-sm border border-gray-300 rounded-b-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 outline-none leading-relaxed"
               />
@@ -1348,7 +1566,7 @@ export const EvidenceExcelEmails: React.FC = () => {
                 <p className="text-xs text-gray-500">
                   {emails.length > 0
                     ? `${emails.length} correos generados · ${withEmail.length} con correo`
-                    : 'Sube el Excel para generar los correos'}
+                    : 'Sube el Excel o busca un aprendiz para generar los correos'}
                 </p>
               </div>
               {emails.length > 0 && (
@@ -1390,7 +1608,7 @@ export const EvidenceExcelEmails: React.FC = () => {
                   <p className="text-sm text-center px-4">
                     {sheet
                       ? 'Ningún aprendiz cumple los criterios seleccionados.'
-                      : 'Sube el Excel de evidencias para ver los correos.'}
+                      : 'Sube el Excel de evidencias o busca un aprendiz para ver los correos.'}
                   </p>
                 </div>
               ) : (
@@ -1403,7 +1621,9 @@ export const EvidenceExcelEmails: React.FC = () => {
                         {current.correo ? ` · ${current.correo}` : ' · sin correo'}
                       </p>
                       <span className="text-xs text-amber-600 font-medium">
-                        {current.pending.length} evidencia(s) pendiente(s)
+                        {current.kind === 'desercion'
+                          ? TEMPLATE_KIND_LABELS.desercion
+                          : `${current.pending.length} evidencia(s) pendiente(s)`}
                       </span>
                     </div>
                     {sendStatus[current.rowId] === 'sent' && (
