@@ -391,3 +391,92 @@ table {
   top: 0;
   z-index: 10;
 }
+
+/* ── 21. Dark mode ─────────────────────────────────────────────
+   Activated by `html.dark` (toggle in components/ThemeToggle.tsx).
+   Tailwind bg/text/border colors switch via CSS variables defined in
+   index.html; here we cover the custom classes above and the most
+   common inline-style colors used by some views.
+   ───────────────────────────────────────────────────────────── */
+html.dark {
+  color-scheme: dark;
+
+  --color-gray-50:  #0d111a;
+  --color-gray-100: #222936;
+  --color-gray-200: #303848;
+  --color-gray-300: #40495a;
+  --color-gray-400: #5a6373;
+  --color-gray-500: #8c94a2;
+  --color-gray-600: #aab1bd;
+  --color-gray-700: #d1d5db;
+  --color-gray-800: #e5e7eb;
+  --color-gray-900: #f1f3f6;
+
+  --dark-surface: #181e2a;
+}
+
+html.dark body {
+  background-color: var(--color-gray-50);
+}
+
+html.dark .card,
+html.dark .modal-panel,
+html.dark .stat-card {
+  background: var(--dark-surface);
+}
+
+html.dark .card-subtle,
+html.dark .table-header-cell,
+html.dark .table-row-alt:nth-child(even) {
+  background: #141925;
+}
+
+html.dark ::selection {
+  background: var(--color-primary-800);
+  color: var(--color-primary-50);
+}
+
+html.dark .modal-backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+/* Inline styles (style={{ ... }}) with hard-coded light colors */
+html.dark [style*="background: white"],
+html.dark [style*="background-color: white"],
+html.dark [style*="background: rgb(255, 255, 255)"],
+html.dark [style*="background-color: rgb(255, 255, 255)"] {
+  background-color: var(--dark-surface) !important;
+}
+html.dark [style*="background: rgb(249, 250, 251)"],
+html.dark [style*="background-color: rgb(249, 250, 251)"] {
+  background-color: #141925 !important;
+}
+html.dark [style*="background: rgb(243, 244, 246)"],
+html.dark [style*="background-color: rgb(243, 244, 246)"] {
+  background-color: #222936 !important;
+}
+html.dark [style*="color: rgb(17, 24, 39)"]:not([style*="-color: rgb(17, 24, 39)"]),
+html.dark [style*="color: rgb(31, 41, 55)"]:not([style*="-color: rgb(31, 41, 55)"]) {
+  color: #e5e7eb !important;
+}
+html.dark [style*="color: rgb(55, 65, 81)"]:not([style*="-color: rgb(55, 65, 81)"]),
+html.dark [style*="color: rgb(75, 85, 99)"]:not([style*="-color: rgb(75, 85, 99)"]) {
+  color: #d1d5db !important;
+}
+html.dark [style*="color: rgb(107, 114, 128)"]:not([style*="-color: rgb(107, 114, 128)"]) {
+  color: #9ca3af !important;
+}
+html.dark [style*="border: 1px solid rgb(229, 231, 235)"],
+html.dark [style*="border: 1px solid rgb(209, 213, 219)"],
+html.dark [style*="border-color: rgb(229, 231, 235)"],
+html.dark [style*="border-color: rgb(209, 213, 219)"] {
+  border-color: #303848 !important;
+}
+
+/* Smooth theme switch */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
+}

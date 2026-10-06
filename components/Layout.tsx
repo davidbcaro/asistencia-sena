@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { isSupabaseConfigured, CLOUD_SYNC_EVENT, CloudSyncEventDetail } from '../services/db';
 import { UserRole } from '../types';
+import { ThemeToggle } from './ThemeToggle';
 
 const SIDEBAR_PINNED_KEY = 'asistenciapro-sidebar-pinned';
 
@@ -295,8 +296,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                 <span className="font-bold text-gray-800 text-sm">AsistenciaPro</span>
               </Link>
             </div>
+            {/* Student view has its own fixed logout button at the top-right corner */}
+            {role === 'student' && <ThemeToggle />}
           </div>
 
+          <div className="flex items-center gap-2 shrink-0">
+          {role !== 'student' && <ThemeToggle />}
           {role !== 'student' && (
             <button
               onClick={onLogout}
@@ -306,6 +311,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
               <span className="hidden sm:inline">Cerrar sesión</span>
             </button>
           )}
+          </div>
         </header>
 
         {/* Page content — min-w-0 y overflow-x-hidden evitan scroll horizontal */}

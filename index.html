@@ -5,6 +5,111 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AsistenciaPro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <!-- Theme (light/dark): applied before paint to avoid a flash -->
+    <script>
+      try {
+        if (localStorage.getItem('asistenciapro-theme') === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    </script>
+    <!-- Dark mode palette: bg/text/border colors read CSS variables whose
+         fallback is Tailwind's default value, so light mode is unchanged.
+         Only `html.dark` defines the variables (injected below). -->
+    <script>
+      (function () {
+        var SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+        var PALETTES = {
+          gray:    'f9fafb f3f4f6 e5e7eb d1d5db 9ca3af 6b7280 4b5563 374151 1f2937 111827 030712',
+          teal:    'f0fdfa ccfbf1 99f6e4 5eead4 2dd4bf 14b8a6 0d9488 0f766e 115e59 134e4a 042f2e',
+          green:   'f0fdf4 dcfce7 bbf7d0 86efac 4ade80 22c55e 16a34a 15803d 166534 14532d 052e16',
+          red:     'fef2f2 fee2e2 fecaca fca5a5 f87171 ef4444 dc2626 b91c1c 991b1b 7f1d1d 450a0a',
+          amber:   'fffbeb fef3c7 fde68a fcd34d fbbf24 f59e0b d97706 b45309 92400e 78350f 451a03',
+          yellow:  'fefce8 fef9c3 fef08a fde047 facc15 eab308 ca8a04 a16207 854d0e 713f12 422006',
+          orange:  'fff7ed ffedd5 fed7aa fdba74 fb923c f97316 ea580c c2410c 9a3412 7c2d12 431407',
+          blue:    'eff6ff dbeafe bfdbfe 93c5fd 60a5fa 3b82f6 2563eb 1d4ed8 1e40af 1e3a8a 172554',
+          indigo:  'eef2ff e0e7ff c7d2fe a5b4fc 818cf8 6366f1 4f46e5 4338ca 3730a3 312e81 1e1b4b',
+          emerald: 'ecfdf5 d1fae5 a7f3d0 6ee7b7 34d399 10b981 059669 047857 065f46 064e3b 022c22',
+          purple:  'faf5ff f3e8ff e9d5ff d8b4fe c084fc a855f7 9333ea 7e22ce 6b21a8 581c87 3b0764'
+        };
+        // `primary` (custom) is the same teal scale
+        PALETTES.primary = PALETTES.teal;
+
+        var hexToRgb = function (h) {
+          return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+        };
+        var P = {};
+        Object.keys(PALETTES).forEach(function (name) {
+          P[name] = {};
+          PALETTES[name].split(' ').forEach(function (hex, i) { P[name][SHADES[i]] = hexToRgb(hex); });
+        });
+
+        var tok = function (kind, name, shade, rgb) {
+          return 'rgb(var(--' + kind + '-' + name + '-' + shade + ', ' + rgb.join(' ') + ') / <alpha-value>)';
+        };
+        var scale = function (kind, name) {
+          var out = {};
+          SHADES.forEach(function (s) { out[s] = tok(kind, name, s, P[name][s]); });
+          return out;
+        };
+        var bg = {}, tx = {}, bd = {};
+        Object.keys(P).forEach(function (name) {
+          bg[name] = scale('bg', name);
+          tx[name] = scale('tx', name);
+          bd[name] = scale('bd', name);
+        });
+        // Only the *background* white turns dark; text-white stays white.
+        bg.white = 'rgb(var(--bg-white, 255 255 255) / <alpha-value>)';
+        bd.white = 'rgb(var(--bd-white, 255 255 255) / <alpha-value>)';
+
+        // ── Dark values ───────────────────────────────────────────
+        var SURFACE = [24, 30, 42];
+        var mix = function (c, t) {
+          return c.map(function (v, i) { return Math.round(SURFACE[i] + (v - SURFACE[i]) * t); });
+        };
+        var vars = [];
+        var set = function (kind, name, shade, rgb) {
+          vars.push('--' + kind + '-' + name + '-' + shade + ':' + rgb.join(' ') + ';');
+        };
+        vars.push('--bg-white:' + SURFACE.join(' ') + ';');
+        vars.push('--bd-white:' + [48, 56, 72].join(' ') + ';');
+
+        // Neutrals
+        var grayBg = { 50: [13, 17, 26], 100: [34, 41, 54], 200: [46, 54, 69], 300: [62, 71, 87], 400: [90, 99, 115],
+                       700: [75, 85, 99], 800: [60, 70, 86], 900: [45, 54, 70] };
+        var grayTx = { 200: [60, 68, 84], 300: [80, 89, 105], 400: [110, 118, 133], 500: [140, 148, 162],
+                       600: [170, 177, 189], 700: [209, 213, 219], 800: [229, 231, 235], 900: [241, 243, 246] };
+        var grayBd = { 50: [34, 41, 54], 100: [38, 45, 59], 200: [48, 56, 72], 300: [64, 73, 90], 400: [88, 97, 113] };
+        Object.keys(grayBg).forEach(function (s) { set('bg', 'gray', s, grayBg[s]); });
+        Object.keys(grayTx).forEach(function (s) { set('tx', 'gray', s, grayTx[s]); });
+        Object.keys(grayBd).forEach(function (s) { set('bd', 'gray', s, grayBd[s]); });
+
+        // Colored families: light tints → dark tints, dark text → light text
+        Object.keys(P).forEach(function (name) {
+          if (name === 'gray') return;
+          var c = P[name], base = c[500];
+          set('bg', name, 50, mix(base, 0.12));
+          set('bg', name, 100, mix(base, 0.18));
+          set('bg', name, 200, mix(base, 0.26));
+          set('bg', name, 300, mix(base, 0.38));
+          set('tx', name, 600, c[400]);
+          set('tx', name, 700, c[300]);
+          set('tx', name, 800, c[200]);
+          set('tx', name, 900, c[100]);
+          set('bd', name, 50, mix(base, 0.15));
+          set('bd', name, 100, mix(base, 0.2));
+          set('bd', name, 200, mix(base, 0.3));
+          set('bd', name, 300, mix(base, 0.4));
+        });
+
+        var style = document.createElement('style');
+        style.id = 'asistenciapro-dark-vars';
+        style.textContent = 'html.dark{' + vars.join('') + '}';
+        document.head.appendChild(style);
+
+        window.__APP_THEME_COLORS__ = { backgroundColor: bg, textColor: tx, borderColor: bd };
+      })();
+    </script>
     <!-- Tailwind config must be defined before the CDN script -->
     <script>
       tailwind = { config: {
@@ -43,6 +148,19 @@
       }}
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Dark mode colors (must be set after the CDN script loads) -->
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            backgroundColor: window.__APP_THEME_COLORS__.backgroundColor,
+            textColor: window.__APP_THEME_COLORS__.textColor,
+            borderColor: window.__APP_THEME_COLORS__.borderColor
+          }
+        }
+      };
+    </script>
   <script type="importmap">
 {
   "imports": {
